@@ -69,8 +69,28 @@ _Appears in:_
 | `pceConnectionRef` _[LocalObjectReference](#localobjectreference)_ | PCEConnectionRef references the PCEConnection to use. |  |  |
 | `onboarding` _[OnboardingSpec](#onboardingspec)_ | Onboarding configures PCE cluster onboarding. |  |  |
 | `provisioningMode` _string_ | ProvisioningMode is the default policy provisioning mode for resources in<br />this cluster. One of: auto, manual, draft-only. Consumed by later<br />policy reconciliation; defaults to manual. | manual | Enum: [auto manual draft-only] <br />Optional: \{\} <br /> |
+| `systemNamespaces` _[SystemNamespacesSpec](#systemnamespacesspec)_ | SystemNamespaces manages OpenShift/Kubernetes system namespaces out of the box. |  | Optional: \{\} <br /> |
+| `namespaceRules` _[NamespaceRule](#namespacerule) array_ | NamespaceRules are evaluated in order; the first match wins. For namespaces<br />that match the SystemNamespaces patterns, SystemNamespaces takes precedence<br />and overrides any matching NamespaceRule. For all other namespaces,<br />the first matching NamespaceRule governs. |  | Optional: \{\} <br /> |
 
 
+
+
+#### LabelAssignment
+
+
+
+LabelAssignment assigns an Illumio label value: a fixed Value, or a value
+read from one of the namespace's own k8s labels.
+
+
+
+_Appears in:_
+- [NamespaceRule](#namespacerule)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `value` _string_ |  |  | Optional: \{\} <br /> |
+| `fromNamespaceLabel` _string_ |  |  | Optional: \{\} <br /> |
 
 
 #### LocalObjectReference
@@ -87,6 +107,42 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `name` _string_ |  |  |  |
+
+
+#### NamespaceMatch
+
+
+
+NamespaceMatch selects namespaces by name glob and/or required k8s labels.
+
+
+
+_Appears in:_
+- [NamespaceRule](#namespacerule)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `namePattern` _string_ | NamePattern is a glob (path.Match syntax, e.g. "openshift-*"). Empty matches any name. |  | Optional: \{\} <br /> |
+| `labels` _object (keys:string, values:string)_ | Labels that must all be present on the namespace (subset match). |  | Optional: \{\} <br /> |
+
+
+#### NamespaceRule
+
+
+
+NamespaceRule maps matching namespaces to a desired CWP configuration.
+
+
+
+_Appears in:_
+- [ClusterProfileSpec](#clusterprofilespec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `match` _[NamespaceMatch](#namespacematch)_ |  |  |  |
+| `managed` _boolean_ | Managed marks the namespace's CWP as PCE-managed. |  |  |
+| `assignLabels` _object (keys:string, values:[LabelAssignment](#labelassignment))_ | AssignLabels maps Illumio label keys (role/app/env/loc/custom) to values. |  | Optional: \{\} <br /> |
+| `enforcementMode` _string_ | EnforcementMode for the namespace. One of idle, visibility_only, full. |  | Enum: [idle visibility_only full] <br />Optional: \{\} <br /> |
 
 
 #### NodePairingProfileSpec
@@ -200,5 +256,26 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `name` _string_ | Name of the Secret (keys: api_key, api_secret). |  |  |
 | `namespace` _string_ | Namespace of the Secret. Defaults to the operator's namespace if empty. |  | Optional: \{\} <br /> |
+
+
+#### SystemNamespacesSpec
+
+
+
+SystemNamespacesSpec is a convenience to manage the cluster's system
+namespaces (OpenShift/Kubernetes) out of the box. SystemNamespaces takes
+precedence over NamespaceRules for namespaces that match the system patterns.
+
+
+
+_Appears in:_
+- [ClusterProfileSpec](#clusterprofilespec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `manage` _boolean_ | Manage turns on management of system namespaces. |  | Optional: \{\} <br /> |
+| `patterns` _string array_ | Patterns of system namespace name globs. Defaults (when empty) to:<br />openshift-*, kube-*, default, kube-system, kube-public, kube-node-lease. |  | Optional: \{\} <br /> |
+| `labels` _object (keys:string, values:string)_ | Labels assigned to system-namespace CWPs. |  | Optional: \{\} <br /> |
+| `enforcementMode` _string_ | EnforcementMode for system namespaces. Defaults to idle. |  | Enum: [idle visibility_only full] <br />Optional: \{\} <br /> |
 
 

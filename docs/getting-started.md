@@ -68,3 +68,34 @@ kubectl get cprof   # watch ONBOARDED become True
 Once `ONBOARDED` is `True`, the operator has written a Secret named `illumio-cluster-creds` in the `illumio-operator` namespace containing `pce_url`, `cluster_id`, `cluster_token`, and `cluster_code`. Use these to configure the Illumio C-VEN agent.
 
 See the [Onboarding guide](guides/onboarding.md) for node Pairing Profile options, how to consume the credentials with Helm or Flux, and important caveats about pre-existing clusters.
+
+## 4. Manage namespaces
+
+Add `systemNamespaces` and `namespaceRules` to your `ClusterProfile` to control how each namespace's Container Workload Profile is configured on the PCE:
+
+```yaml
+spec:
+  systemNamespaces:
+    manage: true
+    labels: { role: control, env: prod }
+    enforcementMode: visibility_only
+  namespaceRules:
+    - match: { labels: { "microsegment.io/managed": "true" } }
+      managed: true
+      assignLabels:
+        app: { fromNamespaceLabel: app.kubernetes.io/part-of }
+        env: { fromNamespaceLabel: app.kubernetes.io/environment }
+      enforcementMode: visibility_only
+    - match: { namePattern: "*" }
+      managed: false
+```
+
+After applying, check the `MANAGED-NS` count:
+
+```bash
+kubectl get cprof
+# NAME           CLUSTER        CLUSTERID   ONBOARDED   MANAGED-NS
+# this-cluster   ocp-prod-01    a1b2c3d4…   True        47
+```
+
+See the [Namespace management guide](guides/namespace-management.md) for the full precedence model, per-namespace annotation overrides, and troubleshooting tips.

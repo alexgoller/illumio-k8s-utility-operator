@@ -42,6 +42,7 @@ nav:
   - Concepts: concepts.md
   - Guides:
       - Onboarding: guides/onboarding.md
+      - Namespace management: guides/namespace-management.md
   - API Reference:
       - PCEConnection: reference/pceconnection.md
       - ClusterProfile: reference/clusterprofile.md
