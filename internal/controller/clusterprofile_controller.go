@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,7 +36,7 @@ type ClusterProfileReconciler struct {
 	Scheme              *runtime.Scheme
 	OperatorNamespace   string
 	NewOnboardingClient OnboardingClientFactory
-	Recorder            record.EventRecorder
+	Recorder            events.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=microsegment.io,resources=clusterprofiles,verbs=get;list;watch;create;update;patch;delete
@@ -316,7 +316,7 @@ func (r *ClusterProfileReconciler) reconcileNamespaceCWPs(ctx context.Context, c
 			return managed, err
 		}
 		if r.Recorder != nil {
-			r.Recorder.Eventf(nsObj, corev1.EventTypeNormal, "CWPConfigured",
+			r.Recorder.Eventf(nsObj, nil, corev1.EventTypeNormal, "CWPConfigured", "Configure",
 				"managed=%v enforcement=%s", desired.Managed, desired.EnforcementMode)
 		}
 	}

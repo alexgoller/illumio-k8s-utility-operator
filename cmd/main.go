@@ -196,7 +196,7 @@ func main() {
 		Scheme:              mgr.GetScheme(),
 		OperatorNamespace:   operatorNamespace,
 		NewOnboardingClient: controller.DefaultOnboardingClientFactory,
-		Recorder:            mgr.GetEventRecorderFor("clusterprofile-controller"),
+		Recorder:            mgr.GetEventRecorder("clusterprofile-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterProfile")
 		os.Exit(1)

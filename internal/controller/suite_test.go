@@ -114,7 +114,7 @@ var _ = BeforeSuite(func() {
 		Scheme:              k8sManager.GetScheme(),
 		OperatorNamespace:   operatorNamespaceForTest,
 		NewOnboardingClient: func(pce.Config) OnboardingClient { return fakeOnboardingClient{} },
-		Recorder:            k8sManager.GetEventRecorderFor("clusterprofile-controller"),
+		Recorder:            k8sManager.GetEventRecorder("clusterprofile-controller"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
