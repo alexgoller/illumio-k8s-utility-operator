@@ -369,7 +369,7 @@ git commit -m "feat(api): add namespaceRules, systemNamespaces, managedNamespace
   - `type DesiredCWP struct { Managed bool; Labels map[string]string; EnforcementMode string }`
   - `func ComputeDesiredCWP(name string, nsLabels, nsAnnotations map[string]string, rules []microv1.NamespaceRule, sys microv1.SystemNamespacesSpec) DesiredCWP`
 
-**Behavior:** precedence is **user rules (first match) > systemNamespaces > unmanaged default**, then **annotations override** the result. Default enforcement for a managed namespace with no enforcement set is `idle`.
+**Behavior:** when `systemNamespaces.manage` is on, namespaces matching system patterns always get the `systemNamespaces` config (it overrides user rules for them); **user `namespaceRules` (first match) govern all other namespaces**; then **per-namespace annotations override** the result. Default enforcement for a managed namespace with no enforcement set is `idle`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1032,7 +1032,7 @@ git commit -m "fix: longer requeue on terminal onboarding failure; add clusterpr
 
 - [ ] **Step 1: Write the namespace-management guide**
 
-Create `docs/guides/namespace-management.md` covering: what CWP management does (marks namespaces managed, assigns Illumio labels, sets enforcement); the precedence model (**user `namespaceRules` first-match > `systemNamespaces` defaults > unmanaged**, then per-namespace annotation overrides); a complete `ClusterProfile` example with `systemNamespaces` (taming `openshift-*`/`kube-*` out of the box) and a couple of `namespaceRules` (incl. `fromNamespaceLabel`); the per-namespace annotations (`microsegment.io/managed`, `microsegment.io/enforcement`, `microsegment.io/label.<key>`); a note that **Kubelink must have created the CWP** (the operator configures existing CWPs and skips namespaces whose CWP doesn't exist yet, reconciling them once it appears); and how to observe results (`kubectl get clusterprofiles` → `Managed-NS` column / `status.managedNamespaces`; `kubectl describe namespace <ns>` → `CWPConfigured` events). Include a **recommended OpenShift starter block**:
+Create `docs/guides/namespace-management.md` covering: what CWP management does (marks namespaces managed, assigns Illumio labels, sets enforcement); the precedence model (**`systemNamespaces` config governs system-pattern namespaces when enabled and overrides user rules for them; user `namespaceRules` first-match govern all other namespaces; then per-namespace annotation overrides**); a complete `ClusterProfile` example with `systemNamespaces` (taming `openshift-*`/`kube-*` out of the box) and a couple of `namespaceRules` (incl. `fromNamespaceLabel`); the per-namespace annotations (`microsegment.io/managed`, `microsegment.io/enforcement`, `microsegment.io/label.<key>`); a note that **Kubelink must have created the CWP** (the operator configures existing CWPs and skips namespaces whose CWP doesn't exist yet, reconciling them once it appears); and how to observe results (`kubectl get clusterprofiles` → `Managed-NS` column / `status.managedNamespaces`; `kubectl describe namespace <ns>` → `CWPConfigured` events). Include a **recommended OpenShift starter block**:
 
 ```yaml
 apiVersion: microsegment.io/v1alpha1
@@ -1091,7 +1091,7 @@ git commit -m "docs: add namespace (CWP) management guide and reference"
 **Spec coverage (design spec §2, §4.2, §4.4, §5.1, §8):**
 - §2 CWP/namespace labeling (managed flag, CWP labels, enforcement) → Tasks 1–4. ✓
 - §4.2 `namespaceRules` (ordered, name/label match, fixed or `fromNamespaceLabel` labels, managed, enforcement) + system-namespace defaults for `openshift-*`/`kube-*` → Tasks 2, 3. ✓
-- §4.4 per-namespace annotation override with documented precedence (rule → annotation; here: user-rule > system > default, then annotations override) → Task 3. ✓
+- §4.4 per-namespace annotation override with documented precedence (systemNamespaces governs system namespaces; user rules first-match govern others; annotations override) → Task 3. ✓
 - §8 ownership tagging on labels the operator creates for CWPs (via `EnsureLabel`) → Task 4 `buildCWPUpdate`. ✓ (CWP objects are Kubelink-created; we only update them — no provisioning needed.)
 - §10 status/visibility — `status.managedNamespaces` + per-namespace `CWPConfigured` events → Task 4. ✓
 - Deferred Plan 2 review items M5 (terminal-failure requeue) and M7 (clusterprofiles helper RBAC) → Task 5. ✓
