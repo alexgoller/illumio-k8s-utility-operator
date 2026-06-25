@@ -45,4 +45,26 @@ kubectl get pceconnection prod-pce -o jsonpath='{.status.conditions[?(@.type=="C
 
 ## 3. Onboard the cluster
 
-(See the Onboarding guide once Plan 2 lands.)
+Create a `ClusterProfile` to register this cluster with the PCE:
+
+```yaml
+apiVersion: microsegment.io/v1alpha1
+kind: ClusterProfile
+metadata:
+  name: this-cluster
+spec:
+  pceConnectionRef:
+    name: prod-pce
+  onboarding:
+    containerClusterName: ocp-prod-01
+    credentialsOutputSecret: illumio-cluster-creds
+```
+
+```bash
+kubectl apply -f clusterprofile.yaml
+kubectl get cprof   # watch ONBOARDED become True
+```
+
+Once `ONBOARDED` is `True`, the operator has written a Secret named `illumio-cluster-creds` in the `illumio-operator` namespace containing `pce_url`, `cluster_id`, `cluster_token`, and `cluster_code`. Use these to configure the Illumio C-VEN agent.
+
+See the [Onboarding guide](guides/onboarding.md) for node Pairing Profile options, how to consume the credentials with Helm or Flux, and important caveats about pre-existing clusters.

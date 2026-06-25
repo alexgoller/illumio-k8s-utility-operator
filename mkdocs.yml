@@ -40,6 +40,9 @@ nav:
   - Getting Started: getting-started.md
   - Installation: installation.md
   - Concepts: concepts.md
+  - Guides:
+      - Onboarding: guides/onboarding.md
   - API Reference:
       - PCEConnection: reference/pceconnection.md
+      - ClusterProfile: reference/clusterprofile.md
       - Generated API: reference/api.md
