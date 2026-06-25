@@ -62,14 +62,14 @@ The operator is the **PCE-side automation brain**: a client of the **Illumio PCE
 `SegmentationPolicy` and `SegmentationIntent` are **two front-ends over one backend** (§7). Both ship in v1.
 
 ### 4.0 API conventions & naming
-- **API group:** `illumio.ryte.de` (vendor-domain group). The group — not the Kind — signals that these are Illumio CRDs, e.g. `kubectl api-resources | grep illumio.ryte.de`.
+- **API group:** `microsegment.io` (product-brand group). The group — not the Kind — namespaces these CRDs and keeps them visibly distinct from Illumio's own `ic4k.illumio.com` CRDs, e.g. `kubectl api-resources | grep microsegment.io`.
 - **Kinds stay clean** (`LabelMap`, `SegmentationPolicy`, …); no `Illumio` prefix (redundant with the group).
 - **Category `illumio`** registered on every CRD so `kubectl get illumio` lists all operator objects; plus shortNames (e.g. `segpol`, `cprof`).
 - **Version:** start at `v1alpha1`.
 
 ### 4.1 `PCEConnection` (sketch)
 ```yaml
-apiVersion: illumio.ryte.de/v1alpha1
+apiVersion: microsegment.io/v1alpha1
 kind: PCEConnection
 metadata:
   name: prod-pce
@@ -85,7 +85,7 @@ status:
 
 ### 4.2 `ClusterProfile` (sketch)
 ```yaml
-apiVersion: illumio.ryte.de/v1alpha1
+apiVersion: microsegment.io/v1alpha1
 kind: ClusterProfile
 metadata:
   name: this-cluster
@@ -110,7 +110,7 @@ spec:
     - match: { namePattern: "kube-*" }
       managed: true
       assignLabels: { role: control, env: prod, loc: eu-west }
-    - match: { labels: { "illumio.ryte.de/managed": "true" } }
+    - match: { labels: { "microsegment.io/managed": "true" } }
       managed: true
       assignLabels:
         app:  { fromNamespaceLabel: app.kubernetes.io/part-of }
@@ -138,11 +138,11 @@ There are two distinct labeling concerns in Illumio, and the operator owns only 
 This split keeps app teams using their normal k8s labels (no `com.illumio.*` annotations, no operator involvement in pod labeling) while the operator focuses on the CWP-level work the LabelMap leaves undone.
 
 ### 4.4 Per-namespace override
-A `Namespace` object may carry annotations that override the central rule for that namespace (e.g. `illumio.ryte.de/managed`, `illumio.ryte.de/env`). **Precedence: central rule match → per-namespace annotation → operator default.** Resolution is deterministic and surfaced in `ClusterProfile.status.effectiveProfiles`.
+A `Namespace` object may carry annotations that override the central rule for that namespace (e.g. `microsegment.io/managed`, `microsegment.io/env`). **Precedence: central rule match → per-namespace annotation → operator default.** Resolution is deterministic and surfaced in `ClusterProfile.status.effectiveProfiles`.
 
 ### 4.5 `SegmentationIntent` (sketch — intent front-end)
 ```yaml
-apiVersion: illumio.ryte.de/v1alpha1
+apiVersion: microsegment.io/v1alpha1
 kind: SegmentationIntent
 metadata:
   name: payments-ingress
