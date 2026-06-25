@@ -1,0 +1,10 @@
+apiVersion: microsegment.io/v1alpha1
+kind: PCEConnection
+metadata:
+  name: {{ .Values.pce.connectionName | default "default" }}
+spec:
+  pceUrl: {{ required "pce.url is required" .Values.pce.url | quote }}
+  orgId: {{ required "pce.orgId is required" (.Values.pce.orgId | int) }}
+  credentialsSecretRef:
+    name: {{ .Values.pce.existingSecret | default "illumio-pce-api" }}
+    namespace: {{ .Release.Namespace }}

@@ -6,6 +6,10 @@ cliVersion: 4.15.0
 domain: io
 layout:
 - go.kubebuilder.io/v4
+plugins:
+  helm.kubebuilder.io/v2-alpha:
+    manifests: dist/install.yaml
+    output: dist
 projectName: illumio-k8s-utility-operator
 repo: github.com/alexgoller/illumio-k8s-utility-operator
 resources:

@@ -1,0 +1,21 @@
+{{- if .Values.onboarding.enabled }}
+apiVersion: microsegment.io/v1alpha1
+kind: ClusterProfile
+metadata:
+  name: {{ .Values.onboarding.name | default "this-cluster" }}
+spec:
+  pceConnectionRef:
+    name: {{ .Values.pce.connectionName | default "default" }}
+  onboarding:
+    containerClusterName: {{ required "onboarding.containerClusterName is required when onboarding.enabled" .Values.onboarding.containerClusterName | quote }}
+    credentialsOutputSecret: {{ .Values.onboarding.credentialsOutputSecret | default "illumio-cluster-creds" | quote }}
+    nodePairingProfile:
+      {{- with .Values.onboarding.nodePairingProfile.existingName }}
+      existingName: {{ . | quote }}
+      {{- end }}
+      {{- with .Values.onboarding.nodePairingProfile.labels }}
+      labels:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      enforcementMode: {{ .Values.onboarding.nodePairingProfile.enforcementMode | default "idle" | quote }}
+{{- end }}
