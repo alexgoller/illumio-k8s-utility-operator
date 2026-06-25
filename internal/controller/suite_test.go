@@ -195,14 +195,34 @@ func (fakePolicyClient) FindLabel(_ context.Context, key, value string) (*pce.La
 	}
 	return &pce.Label{Href: "/orgs/1/labels/" + key + "-" + value, Key: key, Value: value}, nil
 }
-func (fakePolicyClient) FindRuleSetByOwner(context.Context, pce.Owner) (*pce.RuleSet, error) {
-	return nil, nil
+func (fakePolicyClient) FindRuleSetByOwner(_ context.Context, owner pce.Owner) (*pce.RuleSet, error) {
+	deleteRuleSetMu.Lock()
+	href := ruleSetsByOwner[owner.Reference]
+	deleteRuleSetMu.Unlock()
+	if href == "" {
+		return nil, nil
+	}
+	return &pce.RuleSet{Href: href}, nil
 }
 func (fakePolicyClient) CreateRuleSet(_ context.Context, rs pce.RuleSet) (*pce.RuleSet, error) {
-	rs.Href = "/orgs/1/sec_policy/draft/rule_sets/843"
+	rs.Href = "/orgs/1/sec_policy/draft/rule_sets/" + rs.ExternalDataReference
+	if rs.Href == "/orgs/1/sec_policy/draft/rule_sets/" {
+		rs.Href = "/orgs/1/sec_policy/draft/rule_sets/843"
+	}
+	deleteRuleSetMu.Lock()
+	if ruleSetsByOwner == nil {
+		ruleSetsByOwner = map[string]string{}
+	}
+	ruleSetsByOwner[rs.ExternalDataReference] = rs.Href
+	deleteRuleSetMu.Unlock()
 	return &rs, nil
 }
-func (fakePolicyClient) DeleteRuleSet(context.Context, string) error { return nil }
+func (fakePolicyClient) DeleteRuleSet(_ context.Context, href string) error {
+	deleteRuleSetMu.Lock()
+	lastDeletedRuleSetHref = href
+	deleteRuleSetMu.Unlock()
+	return nil
+}
 func (fakePolicyClient) ListRules(context.Context, string) ([]pce.SecRule, error) {
 	return nil, nil
 }
@@ -214,6 +234,14 @@ func (fakePolicyClient) DeleteRule(context.Context, string) error { return nil }
 func (fakePolicyClient) ProvisionRuleSets(context.Context, []string, string) (*pce.ProvisionResult, error) {
 	return &pce.ProvisionResult{Version: 80, WorkloadsAffected: 2}, nil
 }
+
+// deleteRuleSetMu guards recorded delete/create calls for race-safe assertions.
+var (
+	deleteRuleSetMu        sync.Mutex
+	lastDeletedRuleSetHref string
+	// ruleSetsByOwner maps owner.Reference (UID string) → ruleset href.
+	ruleSetsByOwner map[string]string
+)
 
 // getFirstFoundEnvTestBinaryDir locates the first binary in the specified path.
 // ENVTEST-based tests depend on specific binaries, usually located in paths set by

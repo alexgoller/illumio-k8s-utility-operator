@@ -14,14 +14,19 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	microv1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
 	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
 )
 
 const (
-	siRequeueNotReady = 30 * time.Second
-	siRequeueHealthy  = 10 * time.Minute
+	siRequeueNotReady  = 30 * time.Second
+	siRequeueHealthy   = 10 * time.Minute
+	segIntentFinalizer = "microsegment.io/segmentationintent"
+
+	provisionModeAuto   = "auto"
+	provisionModeManual = "manual"
 )
 
 // SegmentationIntentReconciler reconciles a SegmentationIntent.
@@ -44,6 +49,27 @@ func (r *SegmentationIntentReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 	if r.NewPolicyClient == nil {
 		r.NewPolicyClient = DefaultPolicyClientFactory
+	}
+
+	// Handle deletion: run finalizer logic, then remove the finalizer.
+	if !si.DeletionTimestamp.IsZero() {
+		if controllerutil.ContainsFinalizer(&si, segIntentFinalizer) {
+			if err := r.finalize(ctx, &si); err != nil {
+				return ctrl.Result{}, err
+			}
+			controllerutil.RemoveFinalizer(&si, segIntentFinalizer)
+			if err := r.Update(ctx, &si); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Ensure the finalizer is present on normal reconcile.
+	if controllerutil.AddFinalizer(&si, segIntentFinalizer) {
+		if err := r.Update(ctx, &si); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	cp, cfg, eds, ready, transientErr := r.resolveClusterProfile(ctx, si.Namespace)
@@ -87,8 +113,15 @@ func (r *SegmentationIntentReconciler) Reconcile(ctx context.Context, req ctrl.R
 		Message: "compiled to Illumio ruleset",
 	})
 
-	// Provision per the cluster's mode (this task: auto + draft-only; manual == draft for now).
-	if cp.Spec.ProvisioningMode == "auto" {
+	// Provision per the cluster's mode.
+	// auto: always provision.
+	// manual: provision only when annotated with microsegment.io/provision=approved.
+	// draft-only: never provision.
+	approved := si.Annotations[microv1.AnnotationProvisionApprove] == "approved"
+	doProvision := cp.Spec.ProvisioningMode == provisionModeAuto ||
+		(cp.Spec.ProvisioningMode == provisionModeManual && approved)
+
+	if doProvision {
 		res, perr := pclient.ProvisionRuleSets(ctx, []string{rsHref}, fmt.Sprintf("%s/%s", si.Namespace, si.Name))
 		if perr != nil {
 			return ctrl.Result{}, perr
@@ -99,9 +132,15 @@ func (r *SegmentationIntentReconciler) Reconcile(ctx context.Context, req ctrl.R
 			Message: fmt.Sprintf("provisioned; %d workloads affected", res.WorkloadsAffected),
 		})
 	} else {
+		var pendingMsg string
+		if cp.Spec.ProvisioningMode == provisionModeManual {
+			pendingMsg = "draft written; awaiting " + microv1.AnnotationProvisionApprove + "=approved annotation"
+		} else {
+			pendingMsg = "draft written; provisioning is " + cp.Spec.ProvisioningMode
+		}
 		meta.SetStatusCondition(&si.Status.Conditions, metav1.Condition{
 			Type: microv1.ConditionProvisioned, Status: metav1.ConditionFalse, Reason: microv1.ReasonProvisionPending,
-			Message: "draft written; provisioning is " + cp.Spec.ProvisioningMode,
+			Message: pendingMsg,
 		})
 	}
 
@@ -110,6 +149,34 @@ func (r *SegmentationIntentReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{RequeueAfter: siRequeueHealthy}, nil
+}
+
+// finalize deletes the owned ruleset and provisions the removal. Best-effort:
+// if the PCE is unreachable, allow deletion to proceed rather than blocking
+// k8s object removal indefinitely.
+func (r *SegmentationIntentReconciler) finalize(ctx context.Context, si *microv1.SegmentationIntent) error {
+	cp, cfg, eds, ready, err := r.resolveClusterProfile(ctx, si.Namespace)
+	if err != nil {
+		return err
+	}
+	if !ready {
+		// Can't reach the PCE; allow deletion to proceed rather than blocking k8s
+		// object removal indefinitely. Orphaned draft ruleset is cleaned on next
+		// full reconcile or manually.
+		return nil
+	}
+	_ = cp
+	pclient := r.NewPolicyClient(cfg)
+	owner := pce.Owner{DataSet: eds, Reference: string(si.UID)}
+	rs, err := pclient.FindRuleSetByOwner(ctx, owner)
+	if err != nil || rs == nil {
+		return err
+	}
+	if err := pclient.DeleteRuleSet(ctx, rs.Href); err != nil {
+		return err
+	}
+	_, err = pclient.ProvisionRuleSets(ctx, []string{rs.Href}, "delete "+si.Namespace+"/"+si.Name)
+	return err
 }
 
 // resolveClusterProfile finds an Onboarded ClusterProfile whose namespace rules
