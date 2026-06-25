@@ -1,10 +1,16 @@
 package controller
 
 import (
+	"maps"
 	"path"
 	"strings"
 
 	microv1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
+)
+
+const (
+	// enforcementIdle is the default enforcement mode for managed namespaces.
+	enforcementIdle = "idle"
 )
 
 // DesiredCWP is the computed desired Container Workload Profile config for a namespace.
@@ -46,7 +52,7 @@ func ComputeDesiredCWP(name string, nsLabels, nsAnnotations map[string]string, r
 
 	// 4. Default enforcement for managed namespaces.
 	if d.Managed && d.EnforcementMode == "" {
-		d.EnforcementMode = "idle"
+		d.EnforcementMode = enforcementIdle
 	}
 	return d
 }
@@ -117,9 +123,7 @@ func applyAnnotationOverrides(d *DesiredCWP, annos map[string]string) {
 }
 
 func copyLabels(in map[string]string) map[string]string {
-	out := map[string]string{}
-	for k, v := range in {
-		out[k] = v
-	}
+	out := make(map[string]string, len(in))
+	maps.Copy(out, in)
 	return out
 }

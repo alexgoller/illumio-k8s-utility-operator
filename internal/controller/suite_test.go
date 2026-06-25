@@ -113,6 +113,7 @@ var _ = BeforeSuite(func() {
 		Scheme:              k8sManager.GetScheme(),
 		OperatorNamespace:   operatorNamespaceForTest,
 		NewOnboardingClient: func(pce.Config) OnboardingClient { return fakeOnboardingClient{} },
+		Recorder:            k8sManager.GetEventRecorderFor("clusterprofile-controller"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -154,6 +155,14 @@ func (fakeOnboardingClient) GeneratePairingKey(context.Context, string) (string,
 }
 func (fakeOnboardingClient) EnsureLabel(_ context.Context, key, value string, _ pce.Owner) (*pce.Label, error) {
 	return &pce.Label{Href: "/orgs/1/labels/" + key + "-" + value, Key: key, Value: value}, nil
+}
+func (fakeOnboardingClient) ListContainerWorkloadProfiles(_ context.Context, _ string) ([]pce.ContainerWorkloadProfile, error) {
+	return []pce.ContainerWorkloadProfile{
+		{Href: "/orgs/1/container_clusters/uuid-ob/container_workload_profiles/p1", Namespace: cwpTestNamespace, Managed: false},
+	}, nil
+}
+func (fakeOnboardingClient) UpdateContainerWorkloadProfile(_ context.Context, _ string, _ pce.CWPUpdate) error {
+	return nil
 }
 
 // getFirstFoundEnvTestBinaryDir locates the first binary in the specified path.

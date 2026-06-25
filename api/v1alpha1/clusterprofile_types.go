@@ -65,8 +65,8 @@ type NamespaceRule struct {
 }
 
 // SystemNamespacesSpec is a convenience to manage the cluster's system
-// namespaces (OpenShift/Kubernetes) out of the box. User NamespaceRules take
-// precedence over these defaults.
+// namespaces (OpenShift/Kubernetes) out of the box. SystemNamespaces takes
+// precedence over NamespaceRules for namespaces that match the system patterns.
 type SystemNamespacesSpec struct {
 	// Manage turns on management of system namespaces.
 	// +optional
@@ -115,8 +115,10 @@ type ClusterProfileSpec struct {
 	// SystemNamespaces manages OpenShift/Kubernetes system namespaces out of the box.
 	// +optional
 	SystemNamespaces SystemNamespacesSpec `json:"systemNamespaces,omitempty"`
-	// NamespaceRules are evaluated in order; the first match wins. They take
-	// precedence over SystemNamespaces.
+	// NamespaceRules are evaluated in order; the first match wins. For namespaces
+	// that match the SystemNamespaces patterns, SystemNamespaces takes precedence
+	// and overrides any matching NamespaceRule. For all other namespaces,
+	// the first matching NamespaceRule governs.
 	// +optional
 	NamespaceRules []NamespaceRule `json:"namespaceRules,omitempty"`
 }

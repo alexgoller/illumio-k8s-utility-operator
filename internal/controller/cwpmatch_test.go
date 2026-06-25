@@ -6,54 +6,62 @@ import (
 	microv1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
 )
 
+const (
+	testLabelKeyRole       = "role"
+	testLabelKeyEnv        = "env"
+	testLabelValueProd     = "prod"
+	testEnforcementVisOnly = "visibility_only"
+	testNamespaceTeamA     = "team-a"
+)
+
 func TestComputeDesiredCWP(t *testing.T) {
 	sys := microv1.SystemNamespacesSpec{
-		Manage: true, Labels: map[string]string{"role": "control"}, EnforcementMode: "visibility_only",
+		Manage: true, Labels: map[string]string{testLabelKeyRole: "control"}, EnforcementMode: testEnforcementVisOnly,
 	}
 	rules := []microv1.NamespaceRule{
 		{
-			Match:        microv1.NamespaceMatch{NamePattern: "payments"},
-			Managed:      true,
-			AssignLabels: map[string]microv1.LabelAssignment{"env": {Value: "prod"}, "app": {FromNamespaceLabel: "app.kubernetes.io/part-of"}},
+			Match:           microv1.NamespaceMatch{NamePattern: "payments"},
+			Managed:         true,
+			AssignLabels:    map[string]microv1.LabelAssignment{testLabelKeyEnv: {Value: testLabelValueProd}, "app": {FromNamespaceLabel: "app.kubernetes.io/part-of"}},
 			EnforcementMode: "full",
 		},
 		{Match: microv1.NamespaceMatch{NamePattern: "*"}, Managed: false},
 	}
 
 	tests := []struct {
-		name    string
-		nsName  string
-		labels  map[string]string
-		annos   map[string]string
-		want    DesiredCWP
+		name   string
+		nsName string
+		labels map[string]string
+		annos  map[string]string
+		want   DesiredCWP
 	}{
 		{
 			name:   "system namespace gets system defaults",
 			nsName: "openshift-monitoring",
-			want:   DesiredCWP{Managed: true, Labels: map[string]string{"role": "control"}, EnforcementMode: "visibility_only"},
+			want:   DesiredCWP{Managed: true, Labels: map[string]string{testLabelKeyRole: "control"}, EnforcementMode: testEnforcementVisOnly},
 		},
 		{
 			name:   "user rule wins over system + resolves fromNamespaceLabel",
 			nsName: "payments",
 			labels: map[string]string{"app.kubernetes.io/part-of": "checkout"},
-			want:   DesiredCWP{Managed: true, Labels: map[string]string{"env": "prod", "app": "checkout"}, EnforcementMode: "full"},
+			want:   DesiredCWP{Managed: true, Labels: map[string]string{testLabelKeyEnv: testLabelValueProd, "app": "checkout"}, EnforcementMode: "full"},
 		},
 		{
 			name:   "non-system, catch-all unmanaged",
-			nsName: "team-a",
+			nsName: testNamespaceTeamA,
 			want:   DesiredCWP{Managed: false, Labels: map[string]string{}, EnforcementMode: ""},
 		},
 		{
 			name:   "annotation overrides managed + enforcement + label",
-			nsName: "team-a",
-			annos:  map[string]string{microv1.AnnotationManaged: "true", microv1.AnnotationEnforcement: "idle", microv1.AnnotationLabelPrefix + "env": "dev"},
-			want:   DesiredCWP{Managed: true, Labels: map[string]string{"env": "dev"}, EnforcementMode: "idle"},
+			nsName: testNamespaceTeamA,
+			annos:  map[string]string{microv1.AnnotationManaged: "true", microv1.AnnotationEnforcement: enforcementIdle, microv1.AnnotationLabelPrefix + testLabelKeyEnv: "dev"},
+			want:   DesiredCWP{Managed: true, Labels: map[string]string{testLabelKeyEnv: "dev"}, EnforcementMode: enforcementIdle},
 		},
 		{
 			name:   "managed with no enforcement defaults to idle",
-			nsName: "team-a",
+			nsName: testNamespaceTeamA,
 			annos:  map[string]string{microv1.AnnotationManaged: "true"},
-			want:   DesiredCWP{Managed: true, Labels: map[string]string{}, EnforcementMode: "idle"},
+			want:   DesiredCWP{Managed: true, Labels: map[string]string{}, EnforcementMode: enforcementIdle},
 		},
 	}
 

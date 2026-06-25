@@ -11,9 +11,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	microv1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
 	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
@@ -30,12 +33,15 @@ type ClusterProfileReconciler struct {
 	Scheme              *runtime.Scheme
 	OperatorNamespace   string
 	NewOnboardingClient OnboardingClientFactory
+	Recorder            record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=microsegment.io,resources=clusterprofiles,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=microsegment.io,resources=clusterprofiles/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=microsegment.io,resources=pceconnections,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var cp microv1.ClusterProfile
@@ -123,7 +129,7 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			}
 			mode := npp.EnforcementMode
 			if mode == "" {
-				mode = "idle"
+				mode = enforcementIdle
 			}
 			pp, err = pclient.CreatePairingProfile(ctx, pce.PairingProfile{
 				Name: ppName, Enabled: true, EnforcementMode: mode,
@@ -148,6 +154,13 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if err := r.writeCredentialsSecret(ctx, &cp, cfg.PCEURL, "", code); err != nil {
 		return ctrl.Result{}, err
 	}
+
+	// Reconcile per-namespace CWPs now that the cluster is onboarded.
+	managed, cwpErr := r.reconcileNamespaceCWPs(ctx, &cp, pclient, owner)
+	if cwpErr != nil {
+		return ctrl.Result{}, cwpErr
+	}
+	cp.Status.ManagedNamespaces = managed
 
 	meta.SetStatusCondition(&cp.Status.Conditions, metav1.Condition{
 		Type: microv1.ConditionOnboarded, Status: metav1.ConditionTrue,
@@ -234,5 +247,129 @@ func (r *ClusterProfileReconciler) onboardFail(ctx context.Context, cp *microv1.
 func (r *ClusterProfileReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&microv1.ClusterProfile{}).
+		Watches(&corev1.Namespace{}, handler.EnqueueRequestsFromMapFunc(r.clusterProfilesForNamespace)).
 		Complete(r)
+}
+
+// clusterProfilesForNamespace enqueues all ClusterProfiles when any namespace
+// changes (rules apply cluster-wide).
+func (r *ClusterProfileReconciler) clusterProfilesForNamespace(ctx context.Context, _ client.Object) []reconcile.Request {
+	var list microv1.ClusterProfileList
+	if err := r.List(ctx, &list); err != nil {
+		return nil
+	}
+	reqs := make([]reconcile.Request, 0, len(list.Items))
+	for i := range list.Items {
+		reqs = append(reqs, reconcile.Request{NamespacedName: types.NamespacedName{Name: list.Items[i].Name}})
+	}
+	return reqs
+}
+
+// reconcileNamespaceCWPs evaluates every namespace against the profile's rules
+// and updates each namespace's CWP in the PCE. Returns the managed count.
+func (r *ClusterProfileReconciler) reconcileNamespaceCWPs(ctx context.Context, cp *microv1.ClusterProfile, pclient OnboardingClient, owner pce.Owner) (int, error) {
+	if cp.Status.ContainerClusterID == "" {
+		return 0, nil
+	}
+	var nsList corev1.NamespaceList
+	if err := r.List(ctx, &nsList); err != nil {
+		return 0, err
+	}
+	cwps, err := pclient.ListContainerWorkloadProfiles(ctx, cp.Status.ContainerClusterID)
+	if err != nil {
+		return 0, err
+	}
+	byNS := make(map[string]pce.ContainerWorkloadProfile, len(cwps))
+	for _, c := range cwps {
+		if c.Namespace != "" {
+			byNS[c.Namespace] = c
+		}
+	}
+
+	labelHref := map[string]string{} // "key|value" -> href cache
+	managed := 0
+	for i := range nsList.Items {
+		nsObj := &nsList.Items[i]
+		desired := ComputeDesiredCWP(nsObj.Name, nsObj.Labels, nsObj.Annotations, cp.Spec.NamespaceRules, cp.Spec.SystemNamespaces)
+		if desired.Managed {
+			managed++
+		}
+		cwp, ok := byNS[nsObj.Name]
+		if !ok {
+			// Kubelink has not created this namespace's CWP yet; reconcile later.
+			continue
+		}
+		update, changed, lerr := r.buildCWPUpdate(ctx, pclient, owner, cwp, desired, labelHref)
+		if lerr != nil {
+			return managed, lerr
+		}
+		if !changed {
+			continue
+		}
+		if err := pclient.UpdateContainerWorkloadProfile(ctx, cwp.Href, update); err != nil {
+			return managed, err
+		}
+		if r.Recorder != nil {
+			r.Recorder.Eventf(nsObj, corev1.EventTypeNormal, "CWPConfigured",
+				"managed=%v enforcement=%s", desired.Managed, desired.EnforcementMode)
+		}
+	}
+	return managed, nil
+}
+
+// buildCWPUpdate resolves desired labels to Illumio hrefs and diffs against the
+// current CWP. Returns the update body and whether anything changed.
+func (r *ClusterProfileReconciler) buildCWPUpdate(ctx context.Context, pclient OnboardingClient, owner pce.Owner, current pce.ContainerWorkloadProfile, desired DesiredCWP, labelHref map[string]string) (pce.CWPUpdate, bool, error) {
+	// Resolve desired labels to hrefs (create-if-missing, cached).
+	desiredLabels := make([]pce.CWPLabel, 0, len(desired.Labels))
+	desiredHrefByKey := map[string]string{}
+	for key, value := range desired.Labels {
+		cacheKey := key + "|" + value
+		href, ok := labelHref[cacheKey]
+		if !ok {
+			lbl, err := pclient.EnsureLabel(ctx, key, value, owner)
+			if err != nil {
+				return pce.CWPUpdate{}, false, err
+			}
+			href = lbl.Href
+			labelHref[cacheKey] = href
+		}
+		desiredHrefByKey[key] = href
+		desiredLabels = append(desiredLabels, pce.CWPLabel{Key: key, Assignment: &pce.LabelRef{Href: href}})
+	}
+
+	// Diff: managed, enforcement, and the set of (key->href) assignments.
+	changed := current.Managed != desired.Managed
+	enforcement := desired.EnforcementMode
+	if desired.Managed && current.EnforcementMode != enforcement && enforcement != "" {
+		changed = true
+	}
+	currentHrefByKey := map[string]string{}
+	for _, l := range current.Labels {
+		if l.Assignment != nil {
+			currentHrefByKey[l.Key] = l.Assignment.Href
+		}
+	}
+	if !sameLabelSet(currentHrefByKey, desiredHrefByKey) {
+		changed = true
+	}
+
+	managed := desired.Managed
+	update := pce.CWPUpdate{Managed: &managed, Labels: desiredLabels}
+	if desired.Managed && enforcement != "" {
+		update.EnforcementMode = enforcement
+	}
+	return update, changed, nil
+}
+
+func sameLabelSet(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
 }

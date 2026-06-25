@@ -59,8 +59,10 @@ spec:
             properties:
               namespaceRules:
                 description: |-
-                  NamespaceRules are evaluated in order; the first match wins. They take
-                  precedence over SystemNamespaces.
+                  NamespaceRules are evaluated in order; the first match wins. For namespaces
+                  that match the SystemNamespaces patterns, SystemNamespaces takes precedence
+                  and overrides any matching NamespaceRule. For all other namespaces,
+                  the first matching NamespaceRule governs.
                 items:
                   description: NamespaceRule maps matching namespaces to a desired
                     CWP configuration.
