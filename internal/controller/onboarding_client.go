@@ -17,6 +17,9 @@ type OnboardingClient interface {
 	EnsureLabel(ctx context.Context, key, value string, owner pce.Owner) (*pce.Label, error)
 }
 
+// Compile-time assertion: *pce.Client must implement OnboardingClient.
+var _ OnboardingClient = (*pce.Client)(nil)
+
 // OnboardingClientFactory builds an OnboardingClient from a Config (injectable for tests).
 type OnboardingClientFactory func(cfg pce.Config) OnboardingClient
 

@@ -7,7 +7,7 @@ A `ClusterProfile` tells the operator to register this Kubernetes cluster with t
 When you create a `ClusterProfile`:
 
 1. Reads the referenced `PCEConnection` and waits for it to be `Connected`.
-2. Calls the PCE API to ensure a **Container Cluster** with the specified name exists (creates it if missing; reuses the existing one if the name is already taken).
+2. Calls the PCE API to create a **Container Cluster** with the specified name. If a cluster with that name already exists and the operator has not yet recorded its href, onboarding fails (see [Pre-existing cluster caveat](#pre-existing-cluster-caveat)).
 3. Ensures a **node Pairing Profile** exists — either creating one with the supplied labels and enforcement mode, or reusing an existing profile by name.
 4. Calls the PCE to **generate a pairing key** for that profile.
 5. Writes the credentials to a Kubernetes Secret in the operator's namespace (key: `credentialsOutputSecret`).
@@ -166,12 +166,16 @@ helm install illumio-cven <cven-chart> \
 
 ## Pre-existing cluster caveat
 
-If the Container Cluster already exists on the PCE (e.g., from a previous run or a manual creation), the operator will reuse it — **but the pairing token is only returned by the PCE at initial key-generation time and cannot be retrieved again**.
+If a Container Cluster with the requested name already exists on the PCE **and this `ClusterProfile` has not yet recorded its href**, the operator sets `Onboarded=False` with reason `OnboardFailed` and stops reconciling. It does **not** reuse the existing cluster, because the one-time pairing token cannot be recovered after the cluster was originally created.
 
-If the output Secret is missing or stale and you need fresh credentials, you have two options:
+To recover, you have two options:
 
-- **Delete the Container Cluster** from the PCE and let the operator recreate it. The operator will then generate a new pairing key.
-- **Supply credentials manually**: create the output Secret yourself with valid values, bypassing the operator's credential-writing step. The operator will still reconcile status but will not overwrite a Secret that already exists with matching keys.
+- **Delete the Container Cluster** from the PCE. On the next reconcile the operator will create a new one, obtain a fresh pairing token, and complete onboarding.
+- **Supply credentials manually**: create the output Secret yourself with valid `pce_url`, `cluster_id`, `cluster_token`, and `cluster_code` values. You must also patch the `ClusterProfile` status to set `containerClusterHref` so the operator skips the create branch on subsequent reconciles.
+
+## Output Secret ownership
+
+The output Secret named by `credentialsOutputSecret` is **operator-managed**. The operator creates or updates it on every successful reconcile: `pce_url` and `cluster_id` are always (re)written; `cluster_token` is written once when the cluster is freshly created and preserved on subsequent reconciles; `cluster_code` is (re)written on every reconcile (a new pairing key is generated each time). Do not edit this Secret manually — the operator will overwrite your changes.
 
 ## One-command install with the Helm chart
 

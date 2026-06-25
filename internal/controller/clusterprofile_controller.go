@@ -52,7 +52,7 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	if !ready {
 		return r.onboardFail(ctx, &cp, microv1.ReasonPCEConnectionNotReady,
-			"referenced PCEConnection is missing or not Connected", onboardRequeueNotReady)
+			"referenced PCEConnection is missing, not Connected, or its credentials Secret is unavailable", onboardRequeueNotReady)
 	}
 
 	pclient := r.NewOnboardingClient(cfg)

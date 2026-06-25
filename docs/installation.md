@@ -69,6 +69,7 @@ The Secret must exist in the release namespace and contain the keys `api_key` an
 | `pce.existingSecret` | `""` | Name of a pre-existing Secret with `api_key`/`api_secret`. |
 | `pce.connectionName` | `default` | Name of the `PCEConnection` resource to create. |
 | `onboarding.enabled` | `false` | When `true`, creates a `ClusterProfile` for this cluster. |
+| `onboarding.name` | `this-cluster` | `metadata.name` of the rendered `ClusterProfile`. Because `ClusterProfile` is cluster-scoped, each cluster must use a unique name to avoid resource collisions. |
 | `onboarding.containerClusterName` | `""` | Required when `onboarding.enabled=true`. |
 | `onboarding.credentialsOutputSecret` | `illumio-cluster-creds` | Name of the Secret the operator writes credentials into. |
 | `onboarding.nodePairingProfile.existingName` | `""` | Reuse this existing PCE Pairing Profile by name. |

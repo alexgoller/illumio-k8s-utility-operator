@@ -30,6 +30,12 @@ func TestCreateContainerCluster_ReturnsTokenAndStampsOwnership(t *testing.T) {
 	if posted.Name != "ocp-prod" {
 		t.Errorf("posted name = %q", posted.Name)
 	}
+	if posted.ExternalDataSet != testExternalDataSet {
+		t.Errorf("posted ExternalDataSet = %q, want %q", posted.ExternalDataSet, testExternalDataSet)
+	}
+	if posted.ExternalDataReference != testExternalDataRef {
+		t.Errorf("posted ExternalDataReference = %q, want %q", posted.ExternalDataReference, testExternalDataRef)
+	}
 	if ContainerClusterUUID(cl.Href) != "1b85-uuid" {
 		t.Errorf("uuid = %q, want 1b85-uuid", ContainerClusterUUID(cl.Href))
 	}
