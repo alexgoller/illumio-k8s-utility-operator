@@ -179,10 +179,11 @@ func main() {
 	}
 
 	if err := (&controller.PCEConnectionReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		NewPCEClient: controller.DefaultClientFactory,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "Failed to create controller", "controller", "pceconnection")
+		setupLog.Error(err, "unable to create controller", "controller", "PCEConnection")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

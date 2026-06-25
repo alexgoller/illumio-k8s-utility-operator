@@ -19,45 +19,116 @@ package controller
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	microsegmentv1alpha1 "github.com/microsegment-io/illumio-k8s-utility-operator/api/v1alpha1"
+	microv1 "github.com/microsegment-io/illumio-k8s-utility-operator/api/v1alpha1"
+	"github.com/microsegment-io/illumio-k8s-utility-operator/internal/pce"
 )
 
-// PCEConnectionReconciler reconciles a PCEConnection object
+// PCEConnectionReconciler reconciles a PCEConnection object.
 type PCEConnectionReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme       *runtime.Scheme
+	NewPCEClient ClientFactory
 }
 
 // +kubebuilder:rbac:groups=microsegment.io,resources=pceconnections,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=microsegment.io,resources=pceconnections/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=microsegment.io,resources=pceconnections/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the PCEConnection object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.24.1/pkg/reconcile
 func (r *PCEConnectionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
+	var conn microv1.PCEConnection
+	if err := r.Get(ctx, req.NamespacedName, &conn); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
 
-	// TODO(user): your logic here
+	cfg, reason, msg, ok := r.loadConfig(ctx, &conn)
+	if !ok {
+		return r.fail(ctx, &conn, reason, msg)
+	}
 
-	return ctrl.Result{}, nil
+	factory := r.NewPCEClient
+	if factory == nil {
+		factory = DefaultClientFactory
+	}
+	if err := factory(cfg).Ping(ctx); err != nil {
+		reason, msg := classifyPingError(err)
+		return r.fail(ctx, &conn, reason, msg)
+	}
+
+	meta.SetStatusCondition(&conn.Status.Conditions, metav1.Condition{
+		Type:               microv1.ConditionConnected,
+		Status:             metav1.ConditionTrue,
+		Reason:             microv1.ReasonConnected,
+		Message:            "PCE reachable and credentials accepted",
+		ObservedGeneration: conn.Generation,
+	})
+	conn.Status.ObservedGeneration = conn.Generation
+	return ctrl.Result{}, r.Status().Update(ctx, &conn)
+}
+
+func (r *PCEConnectionReconciler) loadConfig(ctx context.Context, conn *microv1.PCEConnection) (pce.Config, string, string, bool) {
+	var secret corev1.Secret
+	key := types.NamespacedName{
+		Name:      conn.Spec.CredentialsSecretRef.Name,
+		Namespace: conn.Spec.CredentialsSecretRef.Namespace,
+	}
+	if err := r.Get(ctx, key, &secret); err != nil {
+		if apierrors.IsNotFound(err) {
+			return pce.Config{}, microv1.ReasonSecretMissing, "credentials secret not found", false
+		}
+		return pce.Config{}, microv1.ReasonSecretMissing, err.Error(), false
+	}
+	apiKey := string(secret.Data["api_key"])
+	apiSecret := string(secret.Data["api_secret"])
+	if apiKey == "" || apiSecret == "" {
+		return pce.Config{}, microv1.ReasonSecretMissing, "secret missing api_key or api_secret", false
+	}
+	return pce.Config{
+		PCEURL:    conn.Spec.PCEURL,
+		OrgID:     conn.Spec.OrgID,
+		APIKey:    apiKey,
+		APISecret: apiSecret,
+	}, "", "", true
+}
+
+func (r *PCEConnectionReconciler) fail(ctx context.Context, conn *microv1.PCEConnection, reason, msg string) (ctrl.Result, error) {
+	meta.SetStatusCondition(&conn.Status.Conditions, metav1.Condition{
+		Type:               microv1.ConditionConnected,
+		Status:             metav1.ConditionFalse,
+		Reason:             reason,
+		Message:            msg,
+		ObservedGeneration: conn.Generation,
+	})
+	conn.Status.ObservedGeneration = conn.Generation
+	return ctrl.Result{}, r.Status().Update(ctx, conn)
+}
+
+func classifyPingError(err error) (reason, msg string) {
+	switch e := err.(type) {
+	case *pce.RateLimitError:
+		return microv1.ReasonRateLimited, e.Error()
+	case *pce.APIError:
+		if e.StatusCode == 401 || e.StatusCode == 403 {
+			return microv1.ReasonAuthFailed, e.Error()
+		}
+		return microv1.ReasonPCEUnreachable, e.Error()
+	default:
+		return microv1.ReasonPCEUnreachable, err.Error()
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *PCEConnectionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&microsegmentv1alpha1.PCEConnection{}).
+		For(&microv1.PCEConnection{}).
 		Named("pceconnection").
 		Complete(r)
 }

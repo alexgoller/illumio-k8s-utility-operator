@@ -28,12 +28,14 @@ import (
 
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	microsegmentv1alpha1 "github.com/microsegment-io/illumio-k8s-utility-operator/api/v1alpha1"
+	"github.com/microsegment-io/illumio-k8s-utility-operator/internal/pce"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -84,6 +86,30 @@ var _ = BeforeSuite(func() {
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
+
+	By("starting the controller manager")
+	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme: scheme.Scheme,
+	})
+	Expect(err).NotTo(HaveOccurred())
+
+	err = (&PCEConnectionReconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+		NewPCEClient: func(cfg pce.Config) PCEPinger {
+			if cfg.APIKey == "bad" {
+				return fakePinger{err: errAuth}
+			}
+			return fakePinger{err: nil}
+		},
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	go func() {
+		defer GinkgoRecover()
+		err = k8sManager.Start(ctx)
+		Expect(err).ToNot(HaveOccurred(), "manager failed to start")
+	}()
 })
 
 var _ = AfterSuite(func() {
