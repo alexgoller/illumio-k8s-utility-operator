@@ -21,46 +21,56 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// PCEConnectionSpec defines the desired state of PCEConnection
-type PCEConnectionSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	// The following markers will use OpenAPI v3 schema to validate the value
-	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
-
-	// foo is an example field of PCEConnection. Edit pceconnection_types.go to remove/update
+// SecretReference points to a Kubernetes Secret holding PCE API credentials.
+type SecretReference struct {
+	// Name of the Secret (keys: api_key, api_secret).
+	Name string `json:"name"`
+	// Namespace of the Secret. Defaults to the operator's namespace if empty.
 	// +optional
-	Foo *string `json:"foo,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
 }
 
-// PCEConnectionStatus defines the observed state of PCEConnection.
+// PCEConnectionSpec defines a connection to one Illumio PCE.
+type PCEConnectionSpec struct {
+	// PCEURL is the PCE host:port (443 for SaaS, 8443 typical on-prem).
+	PCEURL string `json:"pceUrl"`
+	// OrgID is the PCE organization id.
+	OrgID int `json:"orgId"`
+	// CredentialsSecretRef references the Secret with api_key / api_secret.
+	CredentialsSecretRef SecretReference `json:"credentialsSecretRef"`
+	// ExternalDataSet is the ownership tag stamped on PCE objects this
+	// operator creates. Defaults to "illumio-operator" if empty.
+	// +optional
+	ExternalDataSet string `json:"externalDataSet,omitempty"`
+}
+
+// PCEConnectionStatus is the observed connection state.
 type PCEConnectionStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// For Kubernetes API conventions, see:
-	// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
-
-	// conditions represent the current state of the PCEConnection resource.
-	// Each condition has a unique type and reflects the status of a specific aspect of the resource.
-	//
-	// Standard condition types include:
-	// - "Available": the resource is fully functional
-	// - "Progressing": the resource is being created or updated
-	// - "Degraded": the resource failed to reach or maintain its desired state
-	//
-	// The status of each condition is one of True, False, or Unknown.
+	// +optional
 	// +listType=map
 	// +listMapKey=type
-	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
+
+// Condition types and reasons for PCEConnection.
+const (
+	ConditionConnected = "Connected"
+
+	ReasonConnected      = "Connected"
+	ReasonSecretMissing  = "SecretMissing"
+	ReasonAuthFailed     = "AuthFailed"
+	ReasonRateLimited    = "RateLimited"
+	ReasonPCEUnreachable = "PCEUnreachable"
+)
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster,categories=illumio,shortName=pceconn
+// +kubebuilder:printcolumn:name="PCE",type=string,JSONPath=`.spec.pceUrl`
+// +kubebuilder:printcolumn:name="Org",type=integer,JSONPath=`.spec.orgId`
+// +kubebuilder:printcolumn:name="Connected",type=string,JSONPath=`.status.conditions[?(@.type=="Connected")].status`
 
 // PCEConnection is the Schema for the pceconnections API
 type PCEConnection struct {
