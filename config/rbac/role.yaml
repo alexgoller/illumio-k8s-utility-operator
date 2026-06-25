@@ -1,0 +1,32 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - microsegment.io
+  resources:
+  - pceconnections
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - microsegment.io
+  resources:
+  - pceconnections/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - microsegment.io
+  resources:
+  - pceconnections/status
+  verbs:
+  - get
+  - patch
+  - update
