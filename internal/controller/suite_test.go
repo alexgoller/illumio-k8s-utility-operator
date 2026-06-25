@@ -34,8 +34,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	microsegmentv1alpha1 "github.com/microsegment-io/illumio-k8s-utility-operator/api/v1alpha1"
-	"github.com/microsegment-io/illumio-k8s-utility-operator/internal/pce"
+	microsegmentv1alpha1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
+	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -108,6 +108,14 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	err = (&ClusterProfileReconciler{
+		Client:              k8sManager.GetClient(),
+		Scheme:              k8sManager.GetScheme(),
+		OperatorNamespace:   operatorNamespaceForTest,
+		NewOnboardingClient: func(pce.Config) OnboardingClient { return fakeOnboardingClient{} },
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
 	go func() {
 		defer GinkgoRecover()
 		err = k8sManager.Start(ctx)
@@ -122,6 +130,31 @@ var _ = AfterSuite(func() {
 		return testEnv.Stop()
 	}, time.Minute, time.Second).Should(Succeed())
 })
+
+const operatorNamespaceForTest = "default"
+
+// fakeOnboardingClient returns deterministic onboarding results for envtest.
+type fakeOnboardingClient struct{}
+
+func (fakeOnboardingClient) FindContainerClusterByName(context.Context, string) (*pce.ContainerCluster, error) {
+	return nil, nil // not found → controller creates
+}
+func (fakeOnboardingClient) CreateContainerCluster(_ context.Context, name, _ string, _ pce.Owner) (*pce.ContainerCluster, error) {
+	return &pce.ContainerCluster{Href: "/orgs/1/container_clusters/uuid-ob", Name: name, ContainerClusterToken: "tok-ob"}, nil
+}
+func (fakeOnboardingClient) FindPairingProfileByName(context.Context, string) (*pce.PairingProfile, error) {
+	return nil, nil
+}
+func (fakeOnboardingClient) CreatePairingProfile(_ context.Context, pp pce.PairingProfile) (*pce.PairingProfile, error) {
+	pp.Href = "/orgs/1/pairing_profiles/9"
+	return &pp, nil
+}
+func (fakeOnboardingClient) GeneratePairingKey(context.Context, string) (string, error) {
+	return "act-ob", nil
+}
+func (fakeOnboardingClient) EnsureLabel(_ context.Context, key, value string, _ pce.Owner) (*pce.Label, error) {
+	return &pce.Label{Href: "/orgs/1/labels/" + key + "-" + value, Key: key, Value: value}, nil
+}
 
 // getFirstFoundEnvTestBinaryDir locates the first binary in the specified path.
 // ENVTEST-based tests depend on specific binaries, usually located in paths set by

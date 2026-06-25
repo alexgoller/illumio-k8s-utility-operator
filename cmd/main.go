@@ -35,8 +35,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	microsegmentv1alpha1 "github.com/microsegment-io/illumio-k8s-utility-operator/api/v1alpha1"
-	"github.com/microsegment-io/illumio-k8s-utility-operator/internal/controller"
+	microsegmentv1alpha1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
+	"github.com/alexgoller/illumio-k8s-utility-operator/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -184,6 +184,20 @@ func main() {
 		NewPCEClient: controller.DefaultClientFactory,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PCEConnection")
+		os.Exit(1)
+	}
+
+	operatorNamespace := os.Getenv("POD_NAMESPACE")
+	if operatorNamespace == "" {
+		operatorNamespace = "illumio-operator"
+	}
+	if err := (&controller.ClusterProfileReconciler{
+		Client:              mgr.GetClient(),
+		Scheme:              mgr.GetScheme(),
+		OperatorNamespace:   operatorNamespace,
+		NewOnboardingClient: controller.DefaultOnboardingClientFactory,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ClusterProfile")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

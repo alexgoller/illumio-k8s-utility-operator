@@ -7,6 +7,11 @@ import (
 	"testing"
 )
 
+const (
+	testExternalDataSet = "illumio-operator"
+	testExternalDataRef = "cp-uid"
+)
+
 func newTestClient(t *testing.T, h http.HandlerFunc) *Client {
 	t.Helper()
 	srv := httptest.NewServer(h)

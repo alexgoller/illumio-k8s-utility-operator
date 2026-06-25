@@ -1,0 +1,48 @@
+site_name: Illumio K8s Utility Operator
+site_description: A Kubernetes operator that automates Illumio PCE-side configuration (onboarding, container workload profiles, segmentation policy).
+repo_url: https://github.com/alexgoller/illumio-k8s-utility-operator
+repo_name: alexgoller/illumio-k8s-utility-operator
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+  palette:
+    - scheme: default
+      primary: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - toc:
+      permalink: true
+
+# docs/superpowers/** (internal specs & plans) is intentionally excluded.
+exclude_docs: |
+  superpowers/
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Installation: installation.md
+  - Concepts: concepts.md
+  - Guides:
+      - Onboarding: guides/onboarding.md
+  - API Reference:
+      - PCEConnection: reference/pceconnection.md
+      - ClusterProfile: reference/clusterprofile.md
+      - Generated API: reference/api.md

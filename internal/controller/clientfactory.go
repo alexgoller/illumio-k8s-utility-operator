@@ -3,7 +3,7 @@ package controller
 import (
 	"context"
 
-	"github.com/microsegment-io/illumio-k8s-utility-operator/internal/pce"
+	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
 )
 
 // PCEPinger is the subset of the PCE client the connection controller needs.

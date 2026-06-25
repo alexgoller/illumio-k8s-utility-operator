@@ -9,12 +9,16 @@ rules:
   resources:
   - secrets
   verbs:
+  - create
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - microsegment.io
   resources:
+  - clusterprofiles
   - pceconnections
   verbs:
   - create
@@ -27,6 +31,7 @@ rules:
 - apiGroups:
   - microsegment.io
   resources:
+  - clusterprofiles/status
   - pceconnections/status
   verbs:
   - get
