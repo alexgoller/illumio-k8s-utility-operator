@@ -1,4 +1,4 @@
-module github.com/microsegment-io/illumio-k8s-utility-operator
+module github.com/alexgoller/illumio-k8s-utility-operator
 
 go 1.26.0
 

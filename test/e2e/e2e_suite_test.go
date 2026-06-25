@@ -28,7 +28,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/microsegment-io/illumio-k8s-utility-operator/test/utils"
+	"github.com/alexgoller/illumio-k8s-utility-operator/test/utils"
 )
 
 var (

@@ -34,8 +34,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	microsegmentv1alpha1 "github.com/microsegment-io/illumio-k8s-utility-operator/api/v1alpha1"
-	"github.com/microsegment-io/illumio-k8s-utility-operator/internal/pce"
+	microsegmentv1alpha1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
+	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
 	// +kubebuilder:scaffold:imports
 )
 

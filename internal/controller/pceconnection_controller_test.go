@@ -11,8 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	microv1 "github.com/microsegment-io/illumio-k8s-utility-operator/api/v1alpha1"
-	"github.com/microsegment-io/illumio-k8s-utility-operator/internal/pce"
+	microv1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
+	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
 )
 
 const (

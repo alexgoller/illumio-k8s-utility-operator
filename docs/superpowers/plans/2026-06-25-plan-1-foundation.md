@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - **Go version:** 1.22+ (matches kubebuilder v4 scaffolding).
-- **Module path:** `github.com/microsegment-io/illumio-k8s-utility-operator` (adjust once if your VCS path differs — it only affects import paths).
+- **Module path:** `github.com/alexgoller/illumio-k8s-utility-operator` (adjust once if your VCS path differs — it only affects import paths).
 - **API group:** `microsegment.io`. Kubebuilder forms the group as `<group>.<domain>`, so scaffold with `--domain io` and `--group microsegment` to yield exactly `microsegment.io`.
 - **API version:** `v1alpha1`.
 - **CRD conventions:** every CRD registers category `illumio` and a shortName; `PCEConnection` is **cluster-scoped**.
@@ -38,7 +38,7 @@
 Run in the repo root (it is an empty git repo):
 
 ```bash
-kubebuilder init --domain io --repo github.com/microsegment-io/illumio-k8s-utility-operator
+kubebuilder init --domain io --repo github.com/alexgoller/illumio-k8s-utility-operator
 ```
 
 Expected: scaffolds `go.mod`, `cmd/main.go`, `Makefile`, `config/`, `PROJECT`. (`--domain io` + group `microsegment` below = API group `microsegment.io`.)
@@ -698,8 +698,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	microv1 "github.com/microsegment-io/illumio-k8s-utility-operator/api/v1alpha1"
-	"github.com/microsegment-io/illumio-k8s-utility-operator/internal/pce"
+	microv1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
+	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
 )
 
 var _ = Describe("PCEConnection controller", func() {
@@ -822,7 +822,7 @@ package controller
 import (
 	"context"
 
-	"github.com/microsegment-io/illumio-k8s-utility-operator/internal/pce"
+	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
 )
 
 // PCEPinger is the subset of the PCE client the connection controller needs.
@@ -857,8 +857,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	microv1 "github.com/microsegment-io/illumio-k8s-utility-operator/api/v1alpha1"
-	"github.com/microsegment-io/illumio-k8s-utility-operator/internal/pce"
+	microv1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
+	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
 )
 
 // PCEConnectionReconciler reconciles a PCEConnection object.

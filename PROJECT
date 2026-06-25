@@ -7,7 +7,7 @@ domain: io
 layout:
 - go.kubebuilder.io/v4
 projectName: illumio-k8s-utility-operator
-repo: github.com/microsegment-io/illumio-k8s-utility-operator
+repo: github.com/alexgoller/illumio-k8s-utility-operator
 resources:
 - api:
     crdVersion: v1
@@ -16,6 +16,6 @@ resources:
   domain: io
   group: microsegment
   kind: PCEConnection
-  path: github.com/microsegment-io/illumio-k8s-utility-operator/api/v1alpha1
+  path: github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1
   version: v1alpha1
 version: "3"
