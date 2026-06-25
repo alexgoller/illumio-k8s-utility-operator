@@ -77,6 +77,19 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		cp.Status.ContainerClusterHref = created.Href
 		cp.Status.ContainerClusterID = pce.ContainerClusterUUID(created.Href)
 		token = created.ContainerClusterToken
+
+		// Persist href/ID and the one-time token immediately so that a crash
+		// during the subsequent pairing-profile steps leaves the next reconcile
+		// able to skip the create branch and find the token already in the Secret.
+		// A crash between CreateContainerCluster returning and these two writes is
+		// a sub-second unavoidable window; it results in the same dead-end, but
+		// that window is orders of magnitude smaller than the entire reconcile loop.
+		if err := r.writeCredentialsSecret(ctx, &cp, cfg.PCEURL, token, ""); err != nil {
+			return ctrl.Result{}, err
+		}
+		if err := r.Status().Update(ctx, &cp); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	// Ensure the node pairing profile (cluster_code source).
@@ -129,8 +142,10 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	// Publish the output Secret (only set cluster_token when freshly created).
-	if err := r.writeCredentialsSecret(ctx, &cp, cfg.PCEURL, token, code); err != nil {
+	// Publish cluster_code into the output Secret. Pass an empty token so
+	// writeCredentialsSecret preserves the token written in the early persist step
+	// (or a no-op on reconcile paths where the cluster already existed).
+	if err := r.writeCredentialsSecret(ctx, &cp, cfg.PCEURL, "", code); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -179,6 +194,8 @@ func (r *ClusterProfileReconciler) resolveConnection(ctx context.Context, cp *mi
 
 // writeCredentialsSecret creates/updates the output Secret. cluster_token is
 // only written when token != "" (it is recoverable only at cluster creation).
+// cluster_code is only written when code != "" so an early write (token-only)
+// does not blank an existing code written by a later call.
 func (r *ClusterProfileReconciler) writeCredentialsSecret(ctx context.Context, cp *microv1.ClusterProfile, pceURL, token, code string) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -192,9 +209,11 @@ func (r *ClusterProfileReconciler) writeCredentialsSecret(ctx context.Context, c
 		}
 		secret.Data["pce_url"] = []byte(pceURL)
 		secret.Data["cluster_id"] = []byte(cp.Status.ContainerClusterID)
-		secret.Data["cluster_code"] = []byte(code)
 		if token != "" {
 			secret.Data["cluster_token"] = []byte(token)
+		}
+		if code != "" {
+			secret.Data["cluster_code"] = []byte(code)
 		}
 		return nil
 	})
