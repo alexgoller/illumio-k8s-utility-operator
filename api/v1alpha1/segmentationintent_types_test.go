@@ -6,7 +6,7 @@ func TestSegmentationIntent_Shape(t *testing.T) {
 	si := SegmentationIntent{
 		Spec: SegmentationIntentSpec{
 			Allow: []IntentAllow{
-				{From: map[string]string{"app": "checkout", "env": "prod"}, Ports: []IntentPort{{Port: 8443, Protocol: "TCP"}}},
+				{From: map[string]string{"app": "checkout", "env": testLabelValueProd}, Ports: []IntentPort{{Port: 8443, Protocol: "TCP"}}},
 			},
 		},
 	}

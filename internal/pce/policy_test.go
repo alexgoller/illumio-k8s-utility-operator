@@ -7,6 +7,11 @@ import (
 	"testing"
 )
 
+const (
+	testLabelHref14 = "/orgs/7/labels/14"
+	testRuleResolve = "workloads"
+)
+
 func TestCreateRuleSet_PostsScopesAndOwnership(t *testing.T) {
 	var posted RuleSet
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
@@ -19,7 +24,7 @@ func TestCreateRuleSet_PostsScopesAndOwnership(t *testing.T) {
 	})
 	rs, err := c.CreateRuleSet(context.Background(), RuleSet{
 		Name: "rs", Enabled: true,
-		Scopes:          [][]RuleSetScope{{{Label: LabelRef{Href: "/orgs/7/labels/14"}}}},
+		Scopes:          [][]RuleSetScope{{{Label: LabelRef{Href: testLabelHref14}}}},
 		ExternalDataSet: "illumio-operator", ExternalDataReference: "cr-uid",
 	})
 	if err != nil {
@@ -47,11 +52,11 @@ func TestCreateRule_PostsResolveLabelsAndInlinePort(t *testing.T) {
 		_, _ = w.Write([]byte(`{"href":"/orgs/7/sec_policy/draft/rule_sets/843/sec_rules/9"}`))
 	})
 	rule, err := c.CreateRule(context.Background(), "/orgs/7/sec_policy/draft/rule_sets/843", SecRule{
-		Enabled:         true,
-		ResolveLabelsAs: ResolveLabelsAs{Providers: []string{"workloads"}, Consumers: []string{"workloads"}},
-		Providers:       []Actor{{Label: &LabelRef{Href: "/orgs/7/labels/14"}}},
-		Consumers:       []Actor{{Label: &LabelRef{Href: "/orgs/7/labels/15"}}},
-		IngressServices: []IngressService{{Proto: 6, Port: 8443}},
+		Enabled:           true,
+		ResolveLabelsAs:   ResolveLabelsAs{Providers: []string{testRuleResolve}, Consumers: []string{testRuleResolve}},
+		Providers:         []Actor{{Label: &LabelRef{Href: testLabelHref14}}},
+		Consumers:         []Actor{{Label: &LabelRef{Href: "/orgs/7/labels/15"}}},
+		IngressServices:   []IngressService{{Proto: 6, Port: 8443}},
 		UnscopedConsumers: true,
 	})
 	if err != nil {
@@ -60,7 +65,7 @@ func TestCreateRule_PostsResolveLabelsAndInlinePort(t *testing.T) {
 	if rule.Href != "/orgs/7/sec_policy/draft/rule_sets/843/sec_rules/9" {
 		t.Errorf("href = %q", rule.Href)
 	}
-	if posted.ResolveLabelsAs.Providers[0] != "workloads" || !posted.UnscopedConsumers {
+	if posted.ResolveLabelsAs.Providers[0] != testRuleResolve || !posted.UnscopedConsumers {
 		t.Errorf("posted = %+v", posted)
 	}
 	if len(posted.IngressServices) != 1 || posted.IngressServices[0].Proto != 6 || posted.IngressServices[0].Port != 8443 {

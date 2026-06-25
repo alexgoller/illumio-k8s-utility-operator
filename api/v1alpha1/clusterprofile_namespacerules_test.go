@@ -2,6 +2,8 @@ package v1alpha1
 
 import "testing"
 
+const testLabelValueProd = "prod"
+
 func TestNamespaceRule_Shape(t *testing.T) {
 	cp := ClusterProfile{
 		Spec: ClusterProfileSpec{
@@ -14,13 +16,13 @@ func TestNamespaceRule_Shape(t *testing.T) {
 				{
 					Match:           NamespaceMatch{NamePattern: "payments"},
 					Managed:         true,
-					AssignLabels:    map[string]LabelAssignment{"env": {Value: "prod"}, "app": {FromNamespaceLabel: "app.kubernetes.io/part-of"}},
+					AssignLabels:    map[string]LabelAssignment{"env": {Value: testLabelValueProd}, "app": {FromNamespaceLabel: "app.kubernetes.io/part-of"}},
 					EnforcementMode: "full",
 				},
 			},
 		},
 	}
-	if cp.Spec.NamespaceRules[0].AssignLabels["env"].Value != "prod" {
+	if cp.Spec.NamespaceRules[0].AssignLabels["env"].Value != testLabelValueProd {
 		t.Errorf("env value = %q", cp.Spec.NamespaceRules[0].AssignLabels["env"].Value)
 	}
 	if AnnotationManaged != "microsegment.io/managed" {

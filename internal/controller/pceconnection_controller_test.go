@@ -16,9 +16,10 @@ import (
 )
 
 const (
-	testPCEURL   = "pce.example.com:8443"
-	keyAPIKey    = "api_key"
-	keyAPISecret = "api_secret"
+	testPCEURL     = "pce.example.com:8443"
+	keyAPIKey      = "api_key"
+	keyAPISecret   = "api_secret"
+	apiKeyBadValue = "bad"
 )
 
 var _ = Describe("PCEConnection controller", func() {
@@ -55,7 +56,7 @@ var _ = Describe("PCEConnection controller", func() {
 		ctx := context.Background()
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Name: "creds-bad", Namespace: ns},
-			Data:       map[string][]byte{keyAPIKey: []byte("bad"), keyAPISecret: []byte("s")},
+			Data:       map[string][]byte{keyAPIKey: []byte(apiKeyBadValue), keyAPISecret: []byte("s")},
 		}
 		Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 

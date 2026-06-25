@@ -6,6 +6,13 @@ import (
 	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
 )
 
+const (
+	// resolveWorkloads is the Illumio label resolution mode for pod workloads.
+	resolveWorkloads = "workloads"
+	// defaultExternalDataSet is the external_data_set stamped on PCE objects the operator creates.
+	defaultExternalDataSet = "illumio-operator"
+)
+
 // ResolvedAllow is an IntentAllow after consumer labels are resolved to hrefs.
 type ResolvedAllow struct {
 	ConsumerHrefs []string
@@ -50,7 +57,7 @@ func BuildRules(providerHrefs []string, allows []ResolvedAllow) []pce.SecRule {
 		}
 		rules = append(rules, pce.SecRule{
 			Enabled:           true,
-			ResolveLabelsAs:   pce.ResolveLabelsAs{Providers: []string{"workloads"}, Consumers: []string{"workloads"}},
+			ResolveLabelsAs:   pce.ResolveLabelsAs{Providers: []string{resolveWorkloads}, Consumers: []string{resolveWorkloads}},
 			Providers:         providers,
 			Consumers:         consumers,
 			IngressServices:   a.Ports,

@@ -98,7 +98,7 @@ var _ = BeforeSuite(func() {
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 		NewPCEClient: func(cfg pce.Config) PCEPinger {
-			if cfg.APIKey == "bad" {
+			if cfg.APIKey == apiKeyBadValue {
 				return fakePinger{err: errAuth}
 			}
 			if cfg.APIKey == "rate" {
@@ -115,6 +115,13 @@ var _ = BeforeSuite(func() {
 		OperatorNamespace:   operatorNamespaceForTest,
 		NewOnboardingClient: func(pce.Config) OnboardingClient { return fakeOnboardingClient{} },
 		Recorder:            k8sManager.GetEventRecorder("clusterprofile-controller"),
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&SegmentationIntentReconciler{
+		Client:          k8sManager.GetClient(),
+		Scheme:          k8sManager.GetScheme(),
+		NewPolicyClient: func(pce.Config) PolicyClient { return fakePolicyClient{} },
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -176,6 +183,36 @@ func (fakeOnboardingClient) UpdateContainerWorkloadProfile(_ context.Context, hr
 	lastCWPHref = href
 	cwpUpdatesMu.Unlock()
 	return nil
+}
+
+// fakePolicyClient is a test double for PolicyClient used by the
+// SegmentationIntent controller tests.
+type fakePolicyClient struct{}
+
+func (fakePolicyClient) FindLabel(_ context.Context, key, value string) (*pce.Label, error) {
+	if value == "does-not-exist" {
+		return nil, pce.ErrLabelNotFound
+	}
+	return &pce.Label{Href: "/orgs/1/labels/" + key + "-" + value, Key: key, Value: value}, nil
+}
+func (fakePolicyClient) FindRuleSetByOwner(context.Context, pce.Owner) (*pce.RuleSet, error) {
+	return nil, nil
+}
+func (fakePolicyClient) CreateRuleSet(_ context.Context, rs pce.RuleSet) (*pce.RuleSet, error) {
+	rs.Href = "/orgs/1/sec_policy/draft/rule_sets/843"
+	return &rs, nil
+}
+func (fakePolicyClient) DeleteRuleSet(context.Context, string) error { return nil }
+func (fakePolicyClient) ListRules(context.Context, string) ([]pce.SecRule, error) {
+	return nil, nil
+}
+func (fakePolicyClient) CreateRule(_ context.Context, _ string, rule pce.SecRule) (*pce.SecRule, error) {
+	rule.Href = "/orgs/1/sec_policy/draft/rule_sets/843/sec_rules/1"
+	return &rule, nil
+}
+func (fakePolicyClient) DeleteRule(context.Context, string) error { return nil }
+func (fakePolicyClient) ProvisionRuleSets(context.Context, []string, string) (*pce.ProvisionResult, error) {
+	return &pce.ProvisionResult{Version: 80, WorkloadsAffected: 2}, nil
 }
 
 // getFirstFoundEnvTestBinaryDir locates the first binary in the specified path.
