@@ -49,7 +49,7 @@ func TestEnsureLabel_CreatesWithOwnershipWhenMissing(t *testing.T) {
 		w.WriteHeader(http.StatusCreated)
 		_, _ = w.Write([]byte(`{"href":"/orgs/7/labels/99","key":"role","value":"control"}`))
 	})
-	owner := Owner{DataSet: "illumio-operator", Reference: "cr-uid-1"}
+	owner := Owner{DataSet: testExternalDataSet, Reference: testExternalDataRef}
 	l, err := c.EnsureLabel(context.Background(), "role", "control", owner)
 	if err != nil {
 		t.Fatalf("EnsureLabel error: %v", err)
@@ -57,9 +57,9 @@ func TestEnsureLabel_CreatesWithOwnershipWhenMissing(t *testing.T) {
 	if l.Href != "/orgs/7/labels/99" {
 		t.Errorf("Href = %q, want /orgs/7/labels/99", l.Href)
 	}
-	if posted.ExternalDataSet != "illumio-operator" || posted.ExternalDataReference != "cr-uid-1" {
-		t.Errorf("ownership = %q/%q, want illumio-operator/cr-uid-1",
-			posted.ExternalDataSet, posted.ExternalDataReference)
+	if posted.ExternalDataSet != testExternalDataSet || posted.ExternalDataReference != testExternalDataRef {
+		t.Errorf("ownership = %q/%q, want %s/%s",
+			posted.ExternalDataSet, posted.ExternalDataReference, testExternalDataSet, testExternalDataRef)
 	}
 }
 

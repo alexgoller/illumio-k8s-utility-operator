@@ -20,7 +20,7 @@ func TestCreateContainerCluster_ReturnsTokenAndStampsOwnership(t *testing.T) {
 		w.WriteHeader(http.StatusCreated)
 		_, _ = w.Write([]byte(`{"href":"/orgs/7/container_clusters/1b85-uuid","name":"ocp-prod","container_cluster_token":"7_abc123"}`))
 	})
-	cl, err := c.CreateContainerCluster(context.Background(), "ocp-prod", "managed by operator", Owner{DataSet: "illumio-operator", Reference: "cp-uid"})
+	cl, err := c.CreateContainerCluster(context.Background(), "ocp-prod", "managed by operator", Owner{DataSet: testExternalDataSet, Reference: testExternalDataRef})
 	if err != nil {
 		t.Fatalf("CreateContainerCluster error: %v", err)
 	}

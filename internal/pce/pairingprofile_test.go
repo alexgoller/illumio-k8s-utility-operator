@@ -20,7 +20,7 @@ func TestCreatePairingProfile_PostsEnabledAndOwnership(t *testing.T) {
 	pp, err := c.CreatePairingProfile(context.Background(), PairingProfile{
 		Name: "pp-cven", Enabled: true, EnforcementMode: "visibility_only",
 		Labels:          []LabelRef{{Href: "/orgs/7/labels/224"}},
-		ExternalDataSet: "illumio-operator", ExternalDataReference: "cp-uid",
+		ExternalDataSet: testExternalDataSet, ExternalDataReference: testExternalDataRef,
 	})
 	if err != nil {
 		t.Fatalf("error: %v", err)
@@ -28,7 +28,7 @@ func TestCreatePairingProfile_PostsEnabledAndOwnership(t *testing.T) {
 	if pp.Href != "/orgs/7/pairing_profiles/5" {
 		t.Errorf("href = %q", pp.Href)
 	}
-	if !posted.Enabled || posted.ExternalDataReference != "cp-uid" {
+	if !posted.Enabled || posted.ExternalDataReference != testExternalDataRef {
 		t.Errorf("posted = %+v", posted)
 	}
 	if len(posted.Labels) != 1 || posted.Labels[0].Href != "/orgs/7/labels/224" {
