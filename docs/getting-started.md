@@ -99,3 +99,34 @@ kubectl get cprof
 ```
 
 See the [Namespace management guide](guides/namespace-management.md) for the full precedence model, per-namespace annotation overrides, and troubleshooting tips.
+
+## 5. Write segmentation policy
+
+Once a namespace is managed by the `ClusterProfile`, app teams can declare which consumers are allowed to reach their application using a `SegmentationIntent`:
+
+```yaml
+apiVersion: microsegment.io/v1alpha1
+kind: SegmentationIntent
+metadata:
+  name: payments-ingress
+  namespace: payments
+spec:
+  allow:
+    - from: { app: checkout, env: prod }
+      ports:
+        - { port: 8443, protocol: TCP }
+    - from: { app: ledger, env: prod }
+      ports:
+        - { port: 5432, protocol: TCP }
+```
+
+```bash
+kubectl apply -f payments-ingress.yaml
+kubectl get segintent -n payments
+# NAME               READY   PROVISIONED   AFFECTED
+# payments-ingress   True    True          12
+```
+
+The operator compiles the intent into one Illumio ruleset scoped to the `payments` namespace's app and provisions it according to `ClusterProfile.spec.provisioningMode`. Consumer labels in `from` must already exist in the PCE (Kubelink creates them from running workloads). Rules only **block** non-allowed traffic when the namespace's enforcement mode is `full`.
+
+See the [Segmentation policy guide](guides/segmentation-policy.md) for compilation details, provisioning modes, and enforcement notes.
