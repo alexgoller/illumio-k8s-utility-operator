@@ -201,7 +201,7 @@ spec:
                   patterns:
                     description: |-
                       Patterns of system namespace name globs. Defaults (when empty) to:
-                      openshift-*, kube-*, default, kube-system, kube-public, kube-node-lease.
+                      openshift-*, kube-*, default.
                     items:
                       type: string
                     type: array

@@ -26,10 +26,12 @@ type ContainerWorkloadProfile struct {
 }
 
 // CWPUpdate is the body of a CWP update; only set fields are changed.
+// Labels must NOT use omitempty: an explicit empty slice serializes as
+// "labels":[] which instructs the PCE to clear all label assignments.
 type CWPUpdate struct {
 	Managed         *bool      `json:"managed,omitempty"`
 	EnforcementMode string     `json:"enforcement_mode,omitempty"`
-	Labels          []CWPLabel `json:"labels,omitempty"`
+	Labels          []CWPLabel `json:"labels"`
 }
 
 // ListContainerWorkloadProfiles lists the CWPs for a container cluster.

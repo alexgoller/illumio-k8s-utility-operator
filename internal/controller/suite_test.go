@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -134,6 +135,13 @@ var _ = AfterSuite(func() {
 
 const operatorNamespaceForTest = "default"
 
+// cwpUpdatesMu guards the last-recorded CWP update for race-safe assertions.
+var (
+	cwpUpdatesMu  sync.Mutex
+	lastCWPUpdate *pce.CWPUpdate
+	lastCWPHref   string
+)
+
 // fakeOnboardingClient returns deterministic onboarding results for envtest.
 type fakeOnboardingClient struct{}
 
@@ -161,7 +169,12 @@ func (fakeOnboardingClient) ListContainerWorkloadProfiles(_ context.Context, _ s
 		{Href: "/orgs/1/container_clusters/uuid-ob/container_workload_profiles/p1", Namespace: cwpTestNamespace, Managed: false},
 	}, nil
 }
-func (fakeOnboardingClient) UpdateContainerWorkloadProfile(_ context.Context, _ string, _ pce.CWPUpdate) error {
+func (fakeOnboardingClient) UpdateContainerWorkloadProfile(_ context.Context, href string, u pce.CWPUpdate) error {
+	cwpUpdatesMu.Lock()
+	copy := u
+	lastCWPUpdate = &copy
+	lastCWPHref = href
+	cwpUpdatesMu.Unlock()
 	return nil
 }
 

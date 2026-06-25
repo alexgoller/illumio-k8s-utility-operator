@@ -20,8 +20,10 @@ type DesiredCWP struct {
 	EnforcementMode string
 }
 
+// defaultSystemPatterns is the built-in list of system namespace globs.
+// kube-* covers kube-system, kube-public, and kube-node-lease.
 var defaultSystemPatterns = []string{
-	"openshift-*", "kube-*", "default", "kube-system", "kube-public", "kube-node-lease",
+	"openshift-*", "kube-*", "default",
 }
 
 // ComputeDesiredCWP resolves the desired CWP for a namespace. Precedence:

@@ -77,5 +77,20 @@ var _ = Describe("ClusterProfile CWP reconcile", func() {
 			g.Expect(meta.FindStatusCondition(got.Status.Conditions, microv1.ConditionOnboarded)).NotTo(BeNil())
 			g.Expect(got.Status.ManagedNamespaces).To(BeNumerically(">=", 1))
 		}, 15*time.Second, 250*time.Millisecond).Should(Succeed())
+
+		// Assert the recorded CWP update body has the correct fields.
+		Eventually(func(g Gomega) {
+			cwpUpdatesMu.Lock()
+			u := lastCWPUpdate
+			cwpUpdatesMu.Unlock()
+			g.Expect(u).NotTo(BeNil())
+			g.Expect(u.Managed).NotTo(BeNil())
+			g.Expect(*u.Managed).To(BeTrue())
+			g.Expect(u.EnforcementMode).To(Equal(testEnforcementVisOnly))
+			g.Expect(u.Labels).To(HaveLen(1))
+			g.Expect(u.Labels[0].Key).To(Equal(cwpTestLabelEnv))
+			g.Expect(u.Labels[0].Assignment).NotTo(BeNil())
+			g.Expect(u.Labels[0].Assignment.Href).NotTo(BeEmpty())
+		}, 15*time.Second, 250*time.Millisecond).Should(Succeed())
 	})
 })

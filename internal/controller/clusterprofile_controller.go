@@ -13,9 +13,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	microv1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
@@ -248,7 +250,10 @@ func (r *ClusterProfileReconciler) onboardFail(ctx context.Context, cp *microv1.
 func (r *ClusterProfileReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&microv1.ClusterProfile{}).
-		Watches(&corev1.Namespace{}, handler.EnqueueRequestsFromMapFunc(r.clusterProfilesForNamespace)).
+		Watches(&corev1.Namespace{},
+			handler.EnqueueRequestsFromMapFunc(r.clusterProfilesForNamespace),
+			builder.WithPredicates(predicate.Or(predicate.LabelChangedPredicate{}, predicate.AnnotationChangedPredicate{})),
+		).
 		Complete(r)
 }
 

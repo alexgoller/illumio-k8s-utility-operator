@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 )
+
+const testEnforcementVisOnly = "visibility_only"
 
 func TestListContainerWorkloadProfiles(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
@@ -26,6 +29,21 @@ func TestListContainerWorkloadProfiles(t *testing.T) {
 	}
 }
 
+func ptrBool(b bool) *bool { return &b }
+
+// TestCWPUpdate_EmptyLabelsSerializesAsArray verifies that an explicit empty
+// Labels slice is serialized as "labels":[] (not omitted), so the PCE CWP API
+// clears all label assignments when the slice is empty.
+func TestCWPUpdate_EmptyLabelsSerializesAsArray(t *testing.T) {
+	b, err := json.Marshal(CWPUpdate{Managed: ptrBool(false), Labels: []CWPLabel{}})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(b), `"labels":[]`) {
+		t.Errorf("expected %q to contain %q", string(b), `"labels":[]`)
+	}
+}
+
 func TestUpdateContainerWorkloadProfile_PutsFieldsToHref(t *testing.T) {
 	var body CWPUpdate
 	var gotMethod, gotPath string
@@ -38,7 +56,7 @@ func TestUpdateContainerWorkloadProfile_PutsFieldsToHref(t *testing.T) {
 	href := "/orgs/7/container_clusters/cid-1/container_workload_profiles/p1"
 	err := c.UpdateContainerWorkloadProfile(context.Background(), href, CWPUpdate{
 		Managed:         &managed,
-		EnforcementMode: "visibility_only",
+		EnforcementMode: testEnforcementVisOnly,
 		Labels: []CWPLabel{
 			{Key: "role", Assignment: &LabelRef{Href: "/orgs/7/labels/5"}},
 		},
@@ -52,7 +70,7 @@ func TestUpdateContainerWorkloadProfile_PutsFieldsToHref(t *testing.T) {
 	if gotPath != "/api/v2"+href {
 		t.Errorf("path = %q, want %q", gotPath, "/api/v2"+href)
 	}
-	if body.Managed == nil || !*body.Managed || body.EnforcementMode != "visibility_only" {
+	if body.Managed == nil || !*body.Managed || body.EnforcementMode != testEnforcementVisOnly {
 		t.Errorf("body = %+v", body)
 	}
 	if len(body.Labels) != 1 || body.Labels[0].Key != "role" || body.Labels[0].Assignment.Href != "/orgs/7/labels/5" {
