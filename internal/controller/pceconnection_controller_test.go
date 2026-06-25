@@ -7,11 +7,18 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	microv1 "github.com/microsegment-io/illumio-k8s-utility-operator/api/v1alpha1"
 	"github.com/microsegment-io/illumio-k8s-utility-operator/internal/pce"
+)
+
+const (
+	testPCEURL   = "pce.example.com:8443"
+	keyAPIKey    = "api_key"
+	keyAPISecret = "api_secret"
 )
 
 var _ = Describe("PCEConnection controller", func() {
@@ -21,14 +28,14 @@ var _ = Describe("PCEConnection controller", func() {
 		ctx := context.Background()
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Name: "creds-ok", Namespace: ns},
-			Data:       map[string][]byte{"api_key": []byte("k"), "api_secret": []byte("s")},
+			Data:       map[string][]byte{keyAPIKey: []byte("k"), keyAPISecret: []byte("s")},
 		}
 		Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 
 		conn := &microv1.PCEConnection{
 			ObjectMeta: metav1.ObjectMeta{Name: "conn-ok"},
 			Spec: microv1.PCEConnectionSpec{
-				PCEURL: "pce.example.com:8443", OrgID: 1,
+				PCEURL: testPCEURL, OrgID: 1,
 				CredentialsSecretRef: microv1.SecretReference{Name: "creds-ok", Namespace: ns},
 			},
 		}
@@ -37,7 +44,7 @@ var _ = Describe("PCEConnection controller", func() {
 		Eventually(func(g Gomega) {
 			got := &microv1.PCEConnection{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "conn-ok"}, got)).To(Succeed())
-			c := meta_FindStatusCondition(got.Status.Conditions, microv1.ConditionConnected)
+			c := meta.FindStatusCondition(got.Status.Conditions, microv1.ConditionConnected)
 			g.Expect(c).NotTo(BeNil())
 			g.Expect(c.Status).To(Equal(metav1.ConditionTrue))
 			g.Expect(c.Reason).To(Equal(microv1.ReasonConnected))
@@ -48,14 +55,14 @@ var _ = Describe("PCEConnection controller", func() {
 		ctx := context.Background()
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Name: "creds-bad", Namespace: ns},
-			Data:       map[string][]byte{"api_key": []byte("bad"), "api_secret": []byte("s")},
+			Data:       map[string][]byte{keyAPIKey: []byte("bad"), keyAPISecret: []byte("s")},
 		}
 		Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 
 		conn := &microv1.PCEConnection{
 			ObjectMeta: metav1.ObjectMeta{Name: "conn-bad"},
 			Spec: microv1.PCEConnectionSpec{
-				PCEURL: "pce.example.com:8443", OrgID: 1,
+				PCEURL: testPCEURL, OrgID: 1,
 				CredentialsSecretRef: microv1.SecretReference{Name: "creds-bad", Namespace: ns},
 			},
 		}
@@ -64,7 +71,7 @@ var _ = Describe("PCEConnection controller", func() {
 		Eventually(func(g Gomega) {
 			got := &microv1.PCEConnection{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "conn-bad"}, got)).To(Succeed())
-			c := meta_FindStatusCondition(got.Status.Conditions, microv1.ConditionConnected)
+			c := meta.FindStatusCondition(got.Status.Conditions, microv1.ConditionConnected)
 			g.Expect(c).NotTo(BeNil())
 			g.Expect(c.Status).To(Equal(metav1.ConditionFalse))
 			g.Expect(c.Reason).To(Equal(microv1.ReasonAuthFailed))
@@ -77,7 +84,7 @@ var _ = Describe("PCEConnection controller", func() {
 		conn := &microv1.PCEConnection{
 			ObjectMeta: metav1.ObjectMeta{Name: "conn-nosecret"},
 			Spec: microv1.PCEConnectionSpec{
-				PCEURL: "pce.example.com:8443", OrgID: 1,
+				PCEURL: testPCEURL, OrgID: 1,
 				CredentialsSecretRef: microv1.SecretReference{Name: "creds-does-not-exist", Namespace: ns},
 			},
 		}
@@ -86,7 +93,7 @@ var _ = Describe("PCEConnection controller", func() {
 		Eventually(func(g Gomega) {
 			got := &microv1.PCEConnection{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "conn-nosecret"}, got)).To(Succeed())
-			c := meta_FindStatusCondition(got.Status.Conditions, microv1.ConditionConnected)
+			c := meta.FindStatusCondition(got.Status.Conditions, microv1.ConditionConnected)
 			g.Expect(c).NotTo(BeNil())
 			g.Expect(c.Status).To(Equal(metav1.ConditionFalse))
 			g.Expect(c.Reason).To(Equal(microv1.ReasonSecretMissing))
@@ -97,14 +104,14 @@ var _ = Describe("PCEConnection controller", func() {
 		ctx := context.Background()
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Name: "creds-rate", Namespace: ns},
-			Data:       map[string][]byte{"api_key": []byte("rate"), "api_secret": []byte("s")},
+			Data:       map[string][]byte{keyAPIKey: []byte("rate"), keyAPISecret: []byte("s")},
 		}
 		Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 
 		conn := &microv1.PCEConnection{
 			ObjectMeta: metav1.ObjectMeta{Name: "conn-rate"},
 			Spec: microv1.PCEConnectionSpec{
-				PCEURL: "pce.example.com:8443", OrgID: 1,
+				PCEURL: testPCEURL, OrgID: 1,
 				CredentialsSecretRef: microv1.SecretReference{Name: "creds-rate", Namespace: ns},
 			},
 		}
@@ -113,7 +120,7 @@ var _ = Describe("PCEConnection controller", func() {
 		Eventually(func(g Gomega) {
 			got := &microv1.PCEConnection{}
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "conn-rate"}, got)).To(Succeed())
-			c := meta_FindStatusCondition(got.Status.Conditions, microv1.ConditionConnected)
+			c := meta.FindStatusCondition(got.Status.Conditions, microv1.ConditionConnected)
 			g.Expect(c).NotTo(BeNil())
 			g.Expect(c.Status).To(Equal(metav1.ConditionFalse))
 			g.Expect(c.Reason).To(Equal(microv1.ReasonRateLimited))
