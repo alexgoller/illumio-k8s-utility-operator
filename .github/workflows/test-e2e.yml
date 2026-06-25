@@ -2,9 +2,14 @@ name: E2E Tests
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions: {}
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test-e2e:

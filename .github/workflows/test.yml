@@ -2,9 +2,14 @@ name: Tests
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions: {}
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -22,6 +27,17 @@ jobs:
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: go.mod
+
+      - name: Build
+        run: make build
+
+      - name: Verify generated code & manifests are up to date
+        run: |
+          make manifests generate
+          if ! git diff --exit-code -- api/ config/; then
+            echo "::error::Generated code/manifests are out of date. Run 'make manifests generate' and commit the result."
+            exit 1
+          fi
 
       - name: Running Tests
         run: |
