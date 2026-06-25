@@ -20,11 +20,11 @@ type PairingProfile struct {
 	EnforcementMode string `json:"enforcement_mode,omitempty"`
 	VisibilityLevel string `json:"visibility_level,omitempty"`
 	// AllowedUsesPerKey and KeyLifespan accept the literal string "unlimited".
-	AllowedUsesPerKey string     `json:"allowed_uses_per_key,omitempty"`
-	KeyLifespan       string     `json:"key_lifespan,omitempty"`
-	Labels            []LabelRef `json:"labels,omitempty"`
-	ExternalDataSet       string `json:"external_data_set,omitempty"`
-	ExternalDataReference string `json:"external_data_reference,omitempty"`
+	AllowedUsesPerKey     string     `json:"allowed_uses_per_key,omitempty"`
+	KeyLifespan           string     `json:"key_lifespan,omitempty"`
+	Labels                []LabelRef `json:"labels,omitempty"`
+	ExternalDataSet       string     `json:"external_data_set,omitempty"`
+	ExternalDataReference string     `json:"external_data_reference,omitempty"`
 }
 
 // FindPairingProfileByName returns the profile with the exact name, or (nil, nil).
