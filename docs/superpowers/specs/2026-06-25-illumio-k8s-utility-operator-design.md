@@ -25,7 +25,7 @@ The operator is the **PCE-side automation brain**: a client of the **Illumio PCE
 
 **In scope:**
 - **Onboarding** — ensure the **Container Cluster** object exists in the PCE; publish the resulting credentials for the agents (see §6).
-- **CWP management** — reconcile the auto-created CWPs: `managed` flag, fixed labels for system namespaces, enforcement state. (Workload labeling for app namespaces is handled by Kubelink via the LabelMap — §4.3.)
+- **CWP / namespace labeling** — reconcile the auto-created CWPs: `managed` flag, **namespace (CWP) labels**, and enforcement state. Setting CWP labels across all namespaces (especially the OpenShift system namespaces) is the big initial effort the operator automates. *Pod/workload* labeling is done automatically by Kubelink's LabelMap; the operator does **not** read or manage the LabelMap (§4.3).
 - **Segmentation policy** — compile application-team CRDs into PCE rulesets/rules/services and provision them.
 
 **Explicitly out of scope:**
@@ -41,7 +41,7 @@ The operator is the **PCE-side automation brain**: a client of the **Illumio PCE
 
 ## 3. Personas
 
-- **Platform / Security admin (Persona A)** — owns cluster onboarding, the namespace→CWP rules, the Illumio **LabelMap** (the approved label vocabulary, §4.3), and the default provisioning behavior. Cluster-scoped CRDs.
+- **Platform / Security admin (Persona A)** — owns cluster onboarding, the namespace→CWP rules and CWP labels, and the default provisioning behavior. Cluster-scoped CRDs.
 - **Application team (Persona B)** — owns segmentation policy for *their own* namespace. Namespaced CRDs. Can only compose within the vocabulary and guardrails the admin defines.
 
 ---
@@ -57,11 +57,7 @@ The operator is the **PCE-side automation brain**: a client of the **Illumio PCE
 | `SegmentationPolicy` | namespaced | B | **NetworkPolicy-style** policy front-end. |
 | `SegmentationIntent` | namespaced | B | **Simplified intent** policy front-end. |
 
-**CRD this operator consumes (does NOT define):**
-
-| CRD | Owner | Purpose |
-|---|---|---|
-| `LabelMap` (`ic4k.illumio.com/v1alpha1`) | Illumio (Kubelink) | The existing Illumio CRD that maps k8s labels → Illumio labels. Cluster-scoped singleton `default`. **Kubelink** applies the labels and creates missing Illumio label values (`allowCreate`). Our operator **reads** it as the approved vocabulary and to resolve policy references — it never writes it. See §4.3. |
+> **Not our concern:** Illumio's own `LabelMap` CRD (`ic4k.illumio.com/v1alpha1`, Kubelink-owned) already publishes each deployment's k8s labels onto its pods/workloads as Illumio labels. The operator does **not** define, read, or manage it. It only labels the **CWP/namespace** level, which the LabelMap does not touch (§4.3).
 
 `SegmentationPolicy` and `SegmentationIntent` are **two front-ends over one backend** (§7). Both ship in v1.
 
@@ -100,14 +96,13 @@ spec:
     containerClusterName: ocp-prod-01
     credentialsOutputSecret: illumio-cluster-creds   # operator WRITES this (see §6)
 
-  # Reads the Illumio LabelMap singleton (ic4k.illumio.com) named "default"; see §4.3.
-
   defaults:
     provisioningMode: manual          # auto | manual | draft-only
 
-  # Ordered rules: first match wins. Decide `managed`, and assign FIXED labels
-  # for system namespaces that have no meaningful k8s labels. App namespaces are
-  # labeled via the LabelMap from their own k8s labels (no fixed labels needed).
+  # Ordered rules: first match wins. Each rule decides `managed` and the
+  # CWP/namespace labels. Labels may be fixed values or derived from the
+  # namespace's own k8s labels via `fromNamespaceLabel`. (Pod labels are
+  # separately handled by Kubelink's LabelMap — not here.)
   namespaceRules:
     - match: { namePattern: "openshift-*" }
       managed: true
@@ -116,7 +111,10 @@ spec:
       managed: true
       assignLabels: { role: control, env: prod, loc: eu-west }
     - match: { labels: { "illumio.ryte.de/managed": "true" } }
-      managed: true                    # labels come from the LabelMap
+      managed: true
+      assignLabels:
+        app:  { fromNamespaceLabel: app.kubernetes.io/part-of }
+        env:  { fromNamespaceLabel: app.kubernetes.io/environment }
     - match: { namePattern: "*" }        # default catch-all
       managed: false
 status:
@@ -125,33 +123,19 @@ status:
   effectiveProfiles: [...]              # per-namespace resolved view
 ```
 
-### 4.3 Consuming the Illumio `LabelMap` (existing CRD)
-Label mapping is **already solved by Illumio** and is not reimplemented. Kubelink ships and reconciles a cluster-scoped singleton CRD:
+### 4.3 Workload labels vs CWP labels (division of responsibility)
+There are two distinct labeling concerns in Illumio, and the operator owns only one of them:
 
-```yaml
-apiVersion: ic4k.illumio.com/v1alpha1   # owned by Kubelink — we only READ it
-kind: LabelMap
-metadata:
-  name: default                          # singleton; name must be "default"
-workloadLabelMap:                        # k8s Workload labels → Illumio labels (CLAS + PCE 24.5+)
-  - fromKey: app.kubernetes.io/name
-    toKey: app
-    allowCreate: true                    # Kubelink creates missing Illumio label values
-  - fromKey: app.kubernetes.io/environment
-    toKey: env
-    allowCreate: true
-nodeLabelMap:                            # node labels → Illumio labels
-  - fromKey: topology.kubernetes.io/region
-    toKey: loc
-    allowCreate: true
-```
+| Concern | Who does it | How |
+|---|---|---|
+| **Pod / Workload labels** | **Kubelink + LabelMap** (Illumio) | The existing `ic4k.illumio.com` `LabelMap` maps each deployment's k8s labels onto its Illumio workload labels automatically. The operator does **not** read, manage, or depend on it. |
+| **CWP / namespace labels** | **This operator** | The LabelMap does **not** set namespace-level CWP labels. The operator does, via `ClusterProfile.namespaceRules` — the large initial effort, especially for OpenShift system namespaces. |
 
-**Division of responsibility:**
-- **Kubelink** reads the LabelMap and applies Illumio labels to Kubernetes Workloads, creating missing Illumio label *values* when `allowCreate: true`. Our operator **never** creates Illumio labels — avoiding a double-writer conflict.
-- **Our operator reads the LabelMap** for two things: (1) the **approved vocabulary** — persona B policy may only reference k8s label keys that appear in `workloadLabelMap`; (2) to **resolve** a policy's k8s-label reference to the same Illumio label Kubelink will have applied, then look up that label's `href` from the PCE when building rules.
-- If a referenced Illumio label does not yet exist in the PCE (Kubelink hasn't created it, or `allowCreate: false`), the operator does **not** create it — it sets the CR to a pending/`Rejected` condition with a clear reason and requeues. Label creation stays Kubelink's job.
+**How the operator uses Illumio labels:**
+- **Setting CWP labels (persona A).** For each managed namespace, the operator resolves the rule's `assignLabels` (fixed values or `fromNamespaceLabel`) to Illumio label `href`s via the PCE `/labels` API. For admin-defined CWP labels, it may **create-if-missing** (bounded by the rules, ownership-tagged §8) — e.g. `role=control` that no workload would have produced.
+- **Resolving policy references (persona B).** Consumer references in a policy CR resolve to **existing** Illumio labels in the PCE (the ones Kubelink already created from real workloads). If a referenced label does not exist, the operator **never creates it** — it sets the CR to `Rejected`/pending with a clear reason and requeues.
 
-This keeps app teams using their normal k8s labels (no `com.illumio.*` annotations) while the operator stays a pure policy/CWP reconciler.
+This split keeps app teams using their normal k8s labels (no `com.illumio.*` annotations, no operator involvement in pod labeling) while the operator focuses on the CWP-level work the LabelMap leaves undone.
 
 ### 4.4 Per-namespace override
 A `Namespace` object may carry annotations that override the central rule for that namespace (e.g. `illumio.ryte.de/managed`, `illumio.ryte.de/env`). **Precedence: central rule match → per-namespace annotation → operator default.** Resolution is deterministic and surfaced in `ClusterProfile.status.effectiveProfiles`.
@@ -166,10 +150,11 @@ metadata:
 spec:
   enforcement: visibility_only          # idle | visibility_only | full (per-policy; resolved per §5)
   allow:
-    # 'from' references native k8s labels resolved via the LabelMap (§4.3).
-    - from: { app.kubernetes.io/name: checkout, app.kubernetes.io/environment: prod }
+    # 'from' references existing Illumio labels in the PCE (key: value), which
+    # Kubelink already created from the consumer app's workloads (§4.3).
+    - from: { app: checkout, env: prod }
       ports: [ { port: 8443, protocol: TCP } ]
-    - from: { app.kubernetes.io/name: ledger,   app.kubernetes.io/environment: prod }
+    - from: { app: ledger,   env: prod }
       ports: [ { port: 5432, protocol: TCP } ]
 status:
   conditions: [...]                     # Ready / Rejected(reason) / Provisioned
@@ -188,7 +173,7 @@ Mirrors a supported **subset** of k8s `NetworkPolicy` (ingress/egress, selectors
 The operator is a **guardrail**, not just a translator. For every app-team CR:
 
 1. **Provider is locked to the namespace's own identity.** The operator derives the provider (the protected app) from the namespace's resolved CWP labels. A team can only write rules protecting *their own* app's inbound — never put another app in provider position.
-2. **Consumers must come from the approved vocabulary (the LabelMap).** Any consumer reference (`from:`) must use a k8s label key present in the Illumio `LabelMap` `workloadLabelMap` (§4.3), and (if `valuesMap`/`allowedValues` constrains it) an accepted value. Unknown key/value ⇒ CR **rejected** with `status.conditions: Rejected(reason="label key app.kubernetes.io/foo not in LabelMap")`. The operator never creates Illumio labels (Kubelink owns that).
+2. **Consumers must resolve to an existing Illumio label.** Any consumer reference (`from:`) must resolve to a label that already exists in the PCE (created by Kubelink from real workloads). Unknown label ⇒ CR **rejected**/pending with `status.conditions: Rejected(reason="no Illumio label app=foo in PCE")` and requeue. The operator **never creates** labels for policy references. Optionally, an admin allowlist can further restrict which existing labels persona B may reference.
 3. **Supported-subset enforcement (fail loud).** NetworkPolicy-style constructs that cannot map faithfully to the Illumio model (e.g. `ipBlock` with `except`, certain selector combinations, egress semantics that don't translate) are **rejected**, never approximated. *A half-correct firewall rule is a vulnerability.* The supported subset is documented and versioned.
 4. **No estate-wide scope.** The operator never emits `All|All|All` scopes or `unscoped_consumers: true` from an app-team CR. Scope is always bound to the namespace's labels.
 
@@ -301,16 +286,16 @@ This is the load-bearing safety mechanism. It lets the operator:
 2. **`enforcement_mode` API type** in bulk vs single update (string enum vs integer seen in docs) — verify against the target PCE version.
 3. **`labels` vs deprecated `assign_labels`** on the CWP API — prefer `labels`; confirm minimum PCE version.
 4. **Impact/dry-run endpoint** availability (experimental) for surfacing `workloadsAffected` before provisioning.
-5. **Label `href` resolution.** How the operator resolves a mapped Illumio label to its PCE `href` (GET `/labels` + cache/watch), and how it behaves when Kubelink hasn't created the label yet (requeue vs reject) — see §4.3.
-6. **LabelMap timing/coupling.** The operator depends on the `ic4k.illumio.com` CRD being installed (Kubelink present). Define behavior when the LabelMap singleton is absent (degraded, clear status) so we don't hard-fail before Kubelink is deployed.
+5. **Label `href` resolution.** How the operator resolves a label to its PCE `href` (GET `/labels` + cache/watch), and behavior when a policy-referenced label doesn't exist yet — requeue vs reject (§4.3, §5).
+6. **CWP label creation policy.** Confirm the operator may create-if-missing for admin-defined CWP labels (bounded) vs. requiring them to pre-exist. Default in this spec: create-if-missing for CWP labels only; never for policy references (§4.3).
 
 ---
 
 ## 13. Sequencing (high level)
 
 1. PCE API client package + `PCEConnection` (auth, ownership tagging, rate-limit handling).
-2. LabelMap reader + label `href` resolver (read-only client for `ic4k.illumio.com/v1alpha1`; PCE `/labels` lookup + cache).
-3. `ClusterProfile` CWP reconciler (namespace rules, `managed` flag, fixed labels for system namespaces, enforcement, OpenShift defaults).
+2. PCE label resolver (GET `/labels` lookup + cache; create-if-missing for CWP labels only).
+3. `ClusterProfile` CWP reconciler (namespace rules, `managed` flag, CWP/namespace labels incl. `fromNamespaceLabel`, enforcement, OpenShift defaults).
 4. Onboarding + credential-output Secret.
 5. Illumio IR + Reconciler + provisioning (auto/manual/draft-only, scoped change_subset).
 6. `SegmentationIntent` front-end + guardrails.
