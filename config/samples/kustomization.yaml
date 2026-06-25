@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- microsegment_v1alpha1_pceconnection.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

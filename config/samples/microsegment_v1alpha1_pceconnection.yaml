@@ -1,0 +1,9 @@
+apiVersion: microsegment.io/v1alpha1
+kind: PCEConnection
+metadata:
+  labels:
+    app.kubernetes.io/name: illumio-k8s-utility-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: pceconnection-sample
+spec:
+  # TODO(user): Add fields here
