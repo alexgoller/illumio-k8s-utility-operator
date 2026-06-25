@@ -25,42 +25,55 @@ The operator is the **PCE-side automation brain**: a client of the **Illumio PCE
 
 **In scope:**
 - **Onboarding** — ensure the **Container Cluster** object exists in the PCE; publish the resulting credentials for the agents (see §6).
-- **CWP management** — reconcile the auto-created CWPs: `managed` flag, label assignment, enforcement state.
+- **CWP management** — reconcile the auto-created CWPs: `managed` flag, fixed labels for system namespaces, enforcement state. (Workload labeling for app namespaces is handled by Kubelink via the LabelMap — §4.3.)
 - **Segmentation policy** — compile application-team CRDs into PCE rulesets/rules/services and provision them.
 
 **Explicitly out of scope:**
 - **Deploying or upgrading the C-VEN / Kubelink agents.** This stays with the official **Helm chart** (`oci://quay.io/illumio/illumio`). The operator never runs Helm.
 - Acting as a native `NetworkPolicy` controller or CNI. The operator does not enforce traffic itself; the C-VEN does.
 
+**Target mode: CLAS.** The operator targets **CLAS** (Cluster Local Actor Store, Illumio Core for Kubernetes ≥ 5.0.0) exclusively. Legacy mode is not a target. This fixes the workload object model (Kubernetes Workloads, not per-Pod Container Workloads), annotation placement, and label precedence to a single, current behavior — no dual-mode branching.
+
 **Known boundary risks (documented, not solved by the operator):**
 - **Firewall coexistence.** In *exclusive* mode the C-VEN flushes non-Illumio iptables rules, which can break an iptables-based CNI / native NetworkPolicy. This is a deployment concern owned by Helm/cluster config; the operator documents and (where visible) warns, but does not manage it.
-- **CLAS vs legacy** (Illumio Core for Kubernetes ≥ 5.0.0) changes the workload object model and annotation placement, and flips label precedence. The operator must be explicit about which mode it targets (see §9).
 
 ---
 
 ## 3. Personas
 
-- **Platform / Security admin (Persona A)** — owns cluster onboarding, the namespace→CWP rules, the approved Illumio **label catalog**, and the default provisioning behavior. Cluster-scoped CRDs.
+- **Platform / Security admin (Persona A)** — owns cluster onboarding, the namespace→CWP rules, the Illumio **LabelMap** (the approved label vocabulary, §4.3), and the default provisioning behavior. Cluster-scoped CRDs.
 - **Application team (Persona B)** — owns segmentation policy for *their own* namespace. Namespaced CRDs. Can only compose within the vocabulary and guardrails the admin defines.
 
 ---
 
 ## 4. CRD Set
 
+**CRDs this operator defines:**
+
 | CRD | Scope | Persona | Purpose |
 |---|---|---|---|
 | `PCEConnection` | cluster | A / platform | PCE endpoint (`pceUrl`, `orgId`) + reference to the Secret holding the operator's API key/secret. One per PCE. |
-| `ClusterProfile` | cluster | A | Onboarding + ordered namespace→CWP rules + approved label catalog + default `provisioningMode`. Ships built-in defaults for `openshift-*`/`kube-*`. |
+| `ClusterProfile` | cluster | A | Onboarding + ordered namespace→CWP rules (`managed` flag, fixed labels for system namespaces) + default `provisioningMode`. Ships built-in defaults for `openshift-*`/`kube-*`. |
 | `SegmentationPolicy` | namespaced | B | **NetworkPolicy-style** policy front-end. |
 | `SegmentationIntent` | namespaced | B | **Simplified intent** policy front-end. |
 
-> CRD names are working names; final API group e.g. `illumio.example.com/v1alpha1`.
+**CRD this operator consumes (does NOT define):**
+
+| CRD | Owner | Purpose |
+|---|---|---|
+| `LabelMap` (`ic4k.illumio.com/v1alpha1`) | Illumio (Kubelink) | The existing Illumio CRD that maps k8s labels → Illumio labels. Cluster-scoped singleton `default`. **Kubelink** applies the labels and creates missing Illumio label values (`allowCreate`). Our operator **reads** it as the approved vocabulary and to resolve policy references — it never writes it. See §4.3. |
 
 `SegmentationPolicy` and `SegmentationIntent` are **two front-ends over one backend** (§7). Both ship in v1.
 
+### 4.0 API conventions & naming
+- **API group:** `illumio.ryte.de` (vendor-domain group). The group — not the Kind — signals that these are Illumio CRDs, e.g. `kubectl api-resources | grep illumio.ryte.de`.
+- **Kinds stay clean** (`LabelMap`, `SegmentationPolicy`, …); no `Illumio` prefix (redundant with the group).
+- **Category `illumio`** registered on every CRD so `kubectl get illumio` lists all operator objects; plus shortNames (e.g. `segpol`, `cprof`).
+- **Version:** start at `v1alpha1`.
+
 ### 4.1 `PCEConnection` (sketch)
 ```yaml
-apiVersion: illumio.example.com/v1alpha1
+apiVersion: illumio.ryte.de/v1alpha1
 kind: PCEConnection
 metadata:
   name: prod-pce
@@ -76,7 +89,7 @@ status:
 
 ### 4.2 `ClusterProfile` (sketch)
 ```yaml
-apiVersion: illumio.example.com/v1alpha1
+apiVersion: illumio.ryte.de/v1alpha1
 kind: ClusterProfile
 metadata:
   name: this-cluster
@@ -87,17 +100,14 @@ spec:
     containerClusterName: ocp-prod-01
     credentialsOutputSecret: illumio-cluster-creds   # operator WRITES this (see §6)
 
+  # Reads the Illumio LabelMap singleton (ic4k.illumio.com) named "default"; see §4.3.
+
   defaults:
     provisioningMode: manual          # auto | manual | draft-only
 
-  # Approved Illumio label vocabulary persona B may reference.
-  labelCatalog:
-    - { key: app, values: [payments, checkout, ledger] }
-    - { key: env, values: [dev, test, prod] }
-    - { key: loc, values: [eu-west, us-east] }
-    # 'role' typically derived per-namespace by rules below.
-
-  # Ordered rules: first match wins for label assignment; managed flag.
+  # Ordered rules: first match wins. Decide `managed`, and assign FIXED labels
+  # for system namespaces that have no meaningful k8s labels. App namespaces are
+  # labeled via the LabelMap from their own k8s labels (no fixed labels needed).
   namespaceRules:
     - match: { namePattern: "openshift-*" }
       managed: true
@@ -105,8 +115,8 @@ spec:
     - match: { namePattern: "kube-*" }
       managed: true
       assignLabels: { role: control, env: prod, loc: eu-west }
-    - match: { labels: { "illumio.example.com/managed": "true" } }
-      managed: true
+    - match: { labels: { "illumio.ryte.de/managed": "true" } }
+      managed: true                    # labels come from the LabelMap
     - match: { namePattern: "*" }        # default catch-all
       managed: false
 status:
@@ -115,12 +125,40 @@ status:
   effectiveProfiles: [...]              # per-namespace resolved view
 ```
 
-### 4.3 Per-namespace override
-A `Namespace` object may carry annotations that override the central rule for that namespace (e.g. `illumio.example.com/managed`, `illumio.example.com/env`). **Precedence: central rule match → per-namespace annotation → operator default.** Resolution is deterministic and surfaced in `ClusterProfile.status.effectiveProfiles`.
+### 4.3 Consuming the Illumio `LabelMap` (existing CRD)
+Label mapping is **already solved by Illumio** and is not reimplemented. Kubelink ships and reconciles a cluster-scoped singleton CRD:
 
-### 4.4 `SegmentationIntent` (sketch — intent front-end)
 ```yaml
-apiVersion: illumio.example.com/v1alpha1
+apiVersion: ic4k.illumio.com/v1alpha1   # owned by Kubelink — we only READ it
+kind: LabelMap
+metadata:
+  name: default                          # singleton; name must be "default"
+workloadLabelMap:                        # k8s Workload labels → Illumio labels (CLAS + PCE 24.5+)
+  - fromKey: app.kubernetes.io/name
+    toKey: app
+    allowCreate: true                    # Kubelink creates missing Illumio label values
+  - fromKey: app.kubernetes.io/environment
+    toKey: env
+    allowCreate: true
+nodeLabelMap:                            # node labels → Illumio labels
+  - fromKey: topology.kubernetes.io/region
+    toKey: loc
+    allowCreate: true
+```
+
+**Division of responsibility:**
+- **Kubelink** reads the LabelMap and applies Illumio labels to Kubernetes Workloads, creating missing Illumio label *values* when `allowCreate: true`. Our operator **never** creates Illumio labels — avoiding a double-writer conflict.
+- **Our operator reads the LabelMap** for two things: (1) the **approved vocabulary** — persona B policy may only reference k8s label keys that appear in `workloadLabelMap`; (2) to **resolve** a policy's k8s-label reference to the same Illumio label Kubelink will have applied, then look up that label's `href` from the PCE when building rules.
+- If a referenced Illumio label does not yet exist in the PCE (Kubelink hasn't created it, or `allowCreate: false`), the operator does **not** create it — it sets the CR to a pending/`Rejected` condition with a clear reason and requeues. Label creation stays Kubelink's job.
+
+This keeps app teams using their normal k8s labels (no `com.illumio.*` annotations) while the operator stays a pure policy/CWP reconciler.
+
+### 4.4 Per-namespace override
+A `Namespace` object may carry annotations that override the central rule for that namespace (e.g. `illumio.ryte.de/managed`, `illumio.ryte.de/env`). **Precedence: central rule match → per-namespace annotation → operator default.** Resolution is deterministic and surfaced in `ClusterProfile.status.effectiveProfiles`.
+
+### 4.5 `SegmentationIntent` (sketch — intent front-end)
+```yaml
+apiVersion: illumio.ryte.de/v1alpha1
 kind: SegmentationIntent
 metadata:
   name: payments-ingress
@@ -128,9 +166,10 @@ metadata:
 spec:
   enforcement: visibility_only          # idle | visibility_only | full (per-policy; resolved per §5)
   allow:
-    - from: { app: checkout, env: prod } # references must exist in labelCatalog
+    # 'from' references native k8s labels resolved via the LabelMap (§4.3).
+    - from: { app.kubernetes.io/name: checkout, app.kubernetes.io/environment: prod }
       ports: [ { port: 8443, protocol: TCP } ]
-    - from: { app: ledger,   env: prod }
+    - from: { app.kubernetes.io/name: ledger,   app.kubernetes.io/environment: prod }
       ports: [ { port: 5432, protocol: TCP } ]
 status:
   conditions: [...]                     # Ready / Rejected(reason) / Provisioned
@@ -139,7 +178,7 @@ status:
   workloadsAffected: 12
 ```
 
-### 4.5 `SegmentationPolicy` (sketch — NetworkPolicy-style front-end)
+### 4.6 `SegmentationPolicy` (sketch — NetworkPolicy-style front-end)
 Mirrors a supported **subset** of k8s `NetworkPolicy` (ingress/egress, selectors mapped to Illumio labels, ports). Constructs outside the subset are **rejected** with a clear status reason (§5). Lowers into the same IR as `SegmentationIntent`.
 
 ---
@@ -149,7 +188,7 @@ Mirrors a supported **subset** of k8s `NetworkPolicy` (ingress/egress, selectors
 The operator is a **guardrail**, not just a translator. For every app-team CR:
 
 1. **Provider is locked to the namespace's own identity.** The operator derives the provider (the protected app) from the namespace's resolved CWP labels. A team can only write rules protecting *their own* app's inbound — never put another app in provider position.
-2. **Consumers must come from the approved label catalog.** Any consumer reference (`from:`) must resolve to a label in `ClusterProfile.spec.labelCatalog`. Unknown label ⇒ CR **rejected** with `status.conditions: Rejected(reason="unknown label app=foo")`. No silent creation of labels.
+2. **Consumers must come from the approved vocabulary (the LabelMap).** Any consumer reference (`from:`) must use a k8s label key present in the Illumio `LabelMap` `workloadLabelMap` (§4.3), and (if `valuesMap`/`allowedValues` constrains it) an accepted value. Unknown key/value ⇒ CR **rejected** with `status.conditions: Rejected(reason="label key app.kubernetes.io/foo not in LabelMap")`. The operator never creates Illumio labels (Kubelink owns that).
 3. **Supported-subset enforcement (fail loud).** NetworkPolicy-style constructs that cannot map faithfully to the Illumio model (e.g. `ipBlock` with `except`, certain selector combinations, egress semantics that don't translate) are **rejected**, never approximated. *A half-correct firewall rule is a vulnerability.* The supported subset is documented and versioned.
 4. **No estate-wide scope.** The operator never emits `All|All|All` scopes or `unscoped_consumers: true` from an app-team CR. Scope is always bound to the namespace's labels.
 
@@ -258,20 +297,22 @@ This is the load-bearing safety mechanism. It lets the operator:
 
 ## 12. Open Questions / Version-Dependence to Pin Before Coding
 
-1. **CLAS vs legacy** target (≥5.0.0 changes annotation placement and label precedence). Which do we support first?
+1. **Minimum versions.** `workloadLabelMap` requires **CLAS + PCE 24.5+**; confirm the target PCE/Core-for-K8s versions and set them as hard prerequisites.
 2. **`enforcement_mode` API type** in bulk vs single update (string enum vs integer seen in docs) — verify against the target PCE version.
 3. **`labels` vs deprecated `assign_labels`** on the CWP API — prefer `labels`; confirm minimum PCE version.
 4. **Impact/dry-run endpoint** availability (experimental) for surfacing `workloadsAffected` before provisioning.
-5. **Label catalog seeding** — should the operator optionally import existing PCE labels into the catalog, or is the catalog strictly admin-authored?
+5. **Label `href` resolution.** How the operator resolves a mapped Illumio label to its PCE `href` (GET `/labels` + cache/watch), and how it behaves when Kubelink hasn't created the label yet (requeue vs reject) — see §4.3.
+6. **LabelMap timing/coupling.** The operator depends on the `ic4k.illumio.com` CRD being installed (Kubelink present). Define behavior when the LabelMap singleton is absent (degraded, clear status) so we don't hard-fail before Kubelink is deployed.
 
 ---
 
 ## 13. Sequencing (high level)
 
 1. PCE API client package + `PCEConnection` (auth, ownership tagging, rate-limit handling).
-2. `ClusterProfile` CWP reconciler (namespace rules, label catalog, enforcement, OpenShift defaults).
-3. Onboarding + credential-output Secret.
-4. Illumio IR + Reconciler + provisioning (auto/manual/draft-only, scoped change_subset).
-5. `SegmentationIntent` front-end + guardrails.
-6. `SegmentationPolicy` front-end (supported subset) over the same backend.
-7. Drift detection/revert, finalizers, status polish.
+2. LabelMap reader + label `href` resolver (read-only client for `ic4k.illumio.com/v1alpha1`; PCE `/labels` lookup + cache).
+3. `ClusterProfile` CWP reconciler (namespace rules, `managed` flag, fixed labels for system namespaces, enforcement, OpenShift defaults).
+4. Onboarding + credential-output Secret.
+5. Illumio IR + Reconciler + provisioning (auto/manual/draft-only, scoped change_subset).
+6. `SegmentationIntent` front-end + guardrails.
+7. `SegmentationPolicy` front-end (supported subset) over the same backend.
+8. Drift detection/revert, finalizers, status polish.
