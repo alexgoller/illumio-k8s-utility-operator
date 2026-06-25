@@ -17,6 +17,7 @@ import (
 const (
 	obPCEConnectionName = "pce-ob"
 	obCredSecretName    = "pce-creds-ob"
+	testNodeLabelRole   = "role"
 )
 
 var _ = Describe("ClusterProfile onboarding controller", func() {
@@ -59,8 +60,8 @@ var _ = Describe("ClusterProfile onboarding controller", func() {
 					ContainerClusterName:    "ocp-test",
 					CredentialsOutputSecret: "cluster-creds-out",
 					NodePairingProfile: microv1.NodePairingProfileSpec{
-						Labels:          map[string]string{"role": "node"},
-						EnforcementMode: "idle",
+						Labels:          map[string]string{testNodeLabelRole: "node"},
+						EnforcementMode: enforcementIdle,
 					},
 				},
 			},

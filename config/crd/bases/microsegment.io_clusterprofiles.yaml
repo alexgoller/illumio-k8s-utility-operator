@@ -28,6 +28,9 @@ spec:
     - jsonPath: .status.conditions[?(@.type=="Onboarded")].status
       name: Onboarded
       type: string
+    - jsonPath: .status.managedNamespaces
+      name: Managed-NS
+      type: integer
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -54,6 +57,61 @@ spec:
             description: ClusterProfileSpec is the desired onboarding state for this
               cluster.
             properties:
+              namespaceRules:
+                description: |-
+                  NamespaceRules are evaluated in order; the first match wins. For namespaces
+                  that match the SystemNamespaces patterns, SystemNamespaces takes precedence
+                  and overrides any matching NamespaceRule. For all other namespaces,
+                  the first matching NamespaceRule governs.
+                items:
+                  description: NamespaceRule maps matching namespaces to a desired
+                    CWP configuration.
+                  properties:
+                    assignLabels:
+                      additionalProperties:
+                        description: |-
+                          LabelAssignment assigns an Illumio label value: a fixed Value, or a value
+                          read from one of the namespace's own k8s labels.
+                        properties:
+                          fromNamespaceLabel:
+                            type: string
+                          value:
+                            type: string
+                        type: object
+                      description: AssignLabels maps Illumio label keys (role/app/env/loc/custom)
+                        to values.
+                      type: object
+                    enforcementMode:
+                      description: EnforcementMode for the namespace. One of idle,
+                        visibility_only, full.
+                      enum:
+                      - idle
+                      - visibility_only
+                      - full
+                      type: string
+                    managed:
+                      description: Managed marks the namespace's CWP as PCE-managed.
+                      type: boolean
+                    match:
+                      description: NamespaceMatch selects namespaces by name glob
+                        and/or required k8s labels.
+                      properties:
+                        labels:
+                          additionalProperties:
+                            type: string
+                          description: Labels that must all be present on the namespace
+                            (subset match).
+                          type: object
+                        namePattern:
+                          description: NamePattern is a glob (path.Match syntax, e.g.
+                            "openshift-*"). Empty matches any name.
+                          type: string
+                      type: object
+                  required:
+                  - managed
+                  - match
+                  type: object
+                type: array
               onboarding:
                 description: Onboarding configures PCE cluster onboarding.
                 properties:
@@ -120,6 +178,34 @@ spec:
                 - manual
                 - draft-only
                 type: string
+              systemNamespaces:
+                description: SystemNamespaces manages OpenShift/Kubernetes system
+                  namespaces out of the box.
+                properties:
+                  enforcementMode:
+                    description: EnforcementMode for system namespaces. Defaults to
+                      idle.
+                    enum:
+                    - idle
+                    - visibility_only
+                    - full
+                    type: string
+                  labels:
+                    additionalProperties:
+                      type: string
+                    description: Labels assigned to system-namespace CWPs.
+                    type: object
+                  manage:
+                    description: Manage turns on management of system namespaces.
+                    type: boolean
+                  patterns:
+                    description: |-
+                      Patterns of system namespace name globs. Defaults (when empty) to:
+                      openshift-*, kube-*, default.
+                    items:
+                      type: string
+                    type: array
+                type: object
             required:
             - onboarding
             - pceConnectionRef
@@ -194,6 +280,10 @@ spec:
                 description: ContainerClusterID is the cluster UUID (last segment
                   of the href).
                 type: string
+              managedNamespaces:
+                description: ManagedNamespaces is the number of namespaces whose CWP
+                  is managed.
+                type: integer
               observedGeneration:
                 format: int64
                 type: integer

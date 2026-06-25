@@ -31,6 +31,59 @@ type NodePairingProfileSpec struct {
 	EnforcementMode string `json:"enforcementMode,omitempty"`
 }
 
+// NamespaceMatch selects namespaces by name glob and/or required k8s labels.
+type NamespaceMatch struct {
+	// NamePattern is a glob (path.Match syntax, e.g. "openshift-*"). Empty matches any name.
+	// +optional
+	NamePattern string `json:"namePattern,omitempty"`
+	// Labels that must all be present on the namespace (subset match).
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+}
+
+// LabelAssignment assigns an Illumio label value: a fixed Value, or a value
+// read from one of the namespace's own k8s labels.
+type LabelAssignment struct {
+	// +optional
+	Value string `json:"value,omitempty"`
+	// +optional
+	FromNamespaceLabel string `json:"fromNamespaceLabel,omitempty"`
+}
+
+// NamespaceRule maps matching namespaces to a desired CWP configuration.
+type NamespaceRule struct {
+	Match NamespaceMatch `json:"match"`
+	// Managed marks the namespace's CWP as PCE-managed.
+	Managed bool `json:"managed"`
+	// AssignLabels maps Illumio label keys (role/app/env/loc/custom) to values.
+	// +optional
+	AssignLabels map[string]LabelAssignment `json:"assignLabels,omitempty"`
+	// EnforcementMode for the namespace. One of idle, visibility_only, full.
+	// +kubebuilder:validation:Enum=idle;visibility_only;full
+	// +optional
+	EnforcementMode string `json:"enforcementMode,omitempty"`
+}
+
+// SystemNamespacesSpec is a convenience to manage the cluster's system
+// namespaces (OpenShift/Kubernetes) out of the box. SystemNamespaces takes
+// precedence over NamespaceRules for namespaces that match the system patterns.
+type SystemNamespacesSpec struct {
+	// Manage turns on management of system namespaces.
+	// +optional
+	Manage bool `json:"manage,omitempty"`
+	// Patterns of system namespace name globs. Defaults (when empty) to:
+	// openshift-*, kube-*, default.
+	// +optional
+	Patterns []string `json:"patterns,omitempty"`
+	// Labels assigned to system-namespace CWPs.
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+	// EnforcementMode for system namespaces. Defaults to idle.
+	// +kubebuilder:validation:Enum=idle;visibility_only;full
+	// +optional
+	EnforcementMode string `json:"enforcementMode,omitempty"`
+}
+
 // OnboardingSpec configures how the cluster is onboarded to the PCE.
 type OnboardingSpec struct {
 	// ContainerClusterName is the name of the PCE Container Cluster object to
@@ -59,6 +112,15 @@ type ClusterProfileSpec struct {
 	// +kubebuilder:default=manual
 	// +optional
 	ProvisioningMode string `json:"provisioningMode,omitempty"`
+	// SystemNamespaces manages OpenShift/Kubernetes system namespaces out of the box.
+	// +optional
+	SystemNamespaces SystemNamespacesSpec `json:"systemNamespaces,omitempty"`
+	// NamespaceRules are evaluated in order; the first match wins. For namespaces
+	// that match the SystemNamespaces patterns, SystemNamespaces takes precedence
+	// and overrides any matching NamespaceRule. For all other namespaces,
+	// the first matching NamespaceRule governs.
+	// +optional
+	NamespaceRules []NamespaceRule `json:"namespaceRules,omitempty"`
 }
 
 // ClusterProfileStatus is the observed onboarding state.
@@ -73,6 +135,9 @@ type ClusterProfileStatus struct {
 	// ContainerClusterID is the cluster UUID (last segment of the href).
 	// +optional
 	ContainerClusterID string `json:"containerClusterID,omitempty"`
+	// ManagedNamespaces is the number of namespaces whose CWP is managed.
+	// +optional
+	ManagedNamespaces int `json:"managedNamespaces,omitempty"`
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
@@ -86,12 +151,20 @@ const (
 	ReasonOnboardFailed         = "OnboardFailed"
 )
 
+// Namespace annotation keys for per-namespace CWP overrides.
+const (
+	AnnotationManaged     = "microsegment.io/managed"     // "true"/"false"
+	AnnotationEnforcement = "microsegment.io/enforcement" // idle|visibility_only|full
+	AnnotationLabelPrefix = "microsegment.io/label."      // e.g. microsegment.io/label.env=prod
+)
+
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,categories=illumio,shortName=cprof
 // +kubebuilder:printcolumn:name="Cluster",type=string,JSONPath=`.spec.onboarding.containerClusterName`
 // +kubebuilder:printcolumn:name="ClusterID",type=string,JSONPath=`.status.containerClusterID`
 // +kubebuilder:printcolumn:name="Onboarded",type=string,JSONPath=`.status.conditions[?(@.type=="Onboarded")].status`
+// +kubebuilder:printcolumn:name="Managed-NS",type=integer,JSONPath=`.status.managedNamespaces`
 
 // ClusterProfile onboards a Kubernetes cluster to an Illumio PCE.
 type ClusterProfile struct {

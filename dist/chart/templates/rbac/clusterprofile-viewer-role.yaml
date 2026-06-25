@@ -1,0 +1,33 @@
+{{- if .Values.rbac.helpers.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+{{- if .Values.rbac.namespaced }}
+kind: Role
+{{- else }}
+kind: ClusterRole
+{{- end }}
+metadata:
+{{- if .Values.rbac.namespaced }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/name: {{ include "illumio-k8s-utility-operator.name" . }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  name: {{ include "illumio-k8s-utility-operator.resourceName" (dict "suffix" "clusterprofile-viewer-role" "context" $) }}
+rules:
+- apiGroups:
+  - microsegment.io
+  resources:
+  - clusterprofiles
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - microsegment.io
+  resources:
+  - clusterprofiles/status
+  verbs:
+  - get
+{{- end }}

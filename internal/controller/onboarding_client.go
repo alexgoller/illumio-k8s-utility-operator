@@ -15,6 +15,8 @@ type OnboardingClient interface {
 	CreatePairingProfile(ctx context.Context, pp pce.PairingProfile) (*pce.PairingProfile, error)
 	GeneratePairingKey(ctx context.Context, profileHref string) (string, error)
 	EnsureLabel(ctx context.Context, key, value string, owner pce.Owner) (*pce.Label, error)
+	ListContainerWorkloadProfiles(ctx context.Context, clusterID string) ([]pce.ContainerWorkloadProfile, error)
+	UpdateContainerWorkloadProfile(ctx context.Context, profileHref string, update pce.CWPUpdate) error
 }
 
 // Compile-time assertion: *pce.Client must implement OnboardingClient.

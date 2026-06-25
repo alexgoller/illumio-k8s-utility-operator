@@ -18,7 +18,7 @@ func TestCreatePairingProfile_PostsEnabledAndOwnership(t *testing.T) {
 		_, _ = w.Write([]byte(`{"href":"/orgs/7/pairing_profiles/5","name":"pp-cven","enabled":true}`))
 	})
 	pp, err := c.CreatePairingProfile(context.Background(), PairingProfile{
-		Name: "pp-cven", Enabled: true, EnforcementMode: "visibility_only",
+		Name: "pp-cven", Enabled: true, EnforcementMode: testEnforcementVisOnly,
 		Labels:          []LabelRef{{Href: "/orgs/7/labels/224"}},
 		ExternalDataSet: testExternalDataSet, ExternalDataReference: testExternalDataRef,
 	})

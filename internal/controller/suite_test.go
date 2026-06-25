@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -113,6 +114,7 @@ var _ = BeforeSuite(func() {
 		Scheme:              k8sManager.GetScheme(),
 		OperatorNamespace:   operatorNamespaceForTest,
 		NewOnboardingClient: func(pce.Config) OnboardingClient { return fakeOnboardingClient{} },
+		Recorder:            k8sManager.GetEventRecorder("clusterprofile-controller"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -132,6 +134,13 @@ var _ = AfterSuite(func() {
 })
 
 const operatorNamespaceForTest = "default"
+
+// cwpUpdatesMu guards the last-recorded CWP update for race-safe assertions.
+var (
+	cwpUpdatesMu  sync.Mutex
+	lastCWPUpdate *pce.CWPUpdate
+	lastCWPHref   string
+)
 
 // fakeOnboardingClient returns deterministic onboarding results for envtest.
 type fakeOnboardingClient struct{}
@@ -154,6 +163,19 @@ func (fakeOnboardingClient) GeneratePairingKey(context.Context, string) (string,
 }
 func (fakeOnboardingClient) EnsureLabel(_ context.Context, key, value string, _ pce.Owner) (*pce.Label, error) {
 	return &pce.Label{Href: "/orgs/1/labels/" + key + "-" + value, Key: key, Value: value}, nil
+}
+func (fakeOnboardingClient) ListContainerWorkloadProfiles(_ context.Context, _ string) ([]pce.ContainerWorkloadProfile, error) {
+	return []pce.ContainerWorkloadProfile{
+		{Href: "/orgs/1/container_clusters/uuid-ob/container_workload_profiles/p1", Namespace: cwpTestNamespace, Managed: false},
+	}, nil
+}
+func (fakeOnboardingClient) UpdateContainerWorkloadProfile(_ context.Context, href string, u pce.CWPUpdate) error {
+	cwpUpdatesMu.Lock()
+	copy := u
+	lastCWPUpdate = &copy
+	lastCWPHref = href
+	cwpUpdatesMu.Unlock()
+	return nil
 }
 
 // getFirstFoundEnvTestBinaryDir locates the first binary in the specified path.
