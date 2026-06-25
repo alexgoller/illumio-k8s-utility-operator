@@ -7,6 +7,59 @@ import (
 	"testing"
 )
 
+const testOwnerRefB = "uid-B"
+
+func TestFindRuleSetByOwner(t *testing.T) {
+	// Fixture: three rulesets — uid-A, uid-B, and one with an empty reference.
+	fixture := []RuleSet{
+		{Href: "/orgs/7/sec_policy/draft/rule_sets/1", Name: "rs-a", Enabled: true, Scopes: [][]RuleSetScope{}, ExternalDataSet: "ds", ExternalDataReference: "uid-A"},
+		{Href: "/orgs/7/sec_policy/draft/rule_sets/2", Name: "rs-b", Enabled: true, Scopes: [][]RuleSetScope{}, ExternalDataSet: "ds", ExternalDataReference: testOwnerRefB},
+		{Href: "/orgs/7/sec_policy/draft/rule_sets/3", Name: "rs-empty", Enabled: true, Scopes: [][]RuleSetScope{}, ExternalDataSet: "ds", ExternalDataReference: ""},
+	}
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/orgs/7/sec_policy/draft/rule_sets" {
+			t.Errorf("path = %q", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(fixture)
+	})
+
+	// (a) Lookup uid-B — should return the second ruleset.
+	got, err := c.FindRuleSetByOwner(context.Background(), Owner{Reference: testOwnerRefB})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected a ruleset, got nil")
+	}
+	if got.ExternalDataReference != testOwnerRefB {
+		t.Errorf("ExternalDataReference = %q, want %s", got.ExternalDataReference, testOwnerRefB)
+	}
+	if got.Href != "/orgs/7/sec_policy/draft/rule_sets/2" {
+		t.Errorf("Href = %q, want /orgs/7/sec_policy/draft/rule_sets/2", got.Href)
+	}
+
+	// (b) Lookup uid-Z (no match) — should return (nil, nil).
+	got, err = c.FindRuleSetByOwner(context.Background(), Owner{Reference: "uid-Z"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != nil {
+		t.Errorf("expected nil for unknown reference, got %+v", got)
+	}
+
+	// (c) Security invariant: empty reference must NOT match the ruleset with an
+	// empty external_data_reference. An empty owner reference is not a valid
+	// ownership claim and must never match anything.
+	got, err = c.FindRuleSetByOwner(context.Background(), Owner{Reference: ""})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != nil {
+		t.Errorf("empty owner reference must not match any ruleset, got %+v", got)
+	}
+}
+
 const (
 	testLabelHref14 = "/orgs/7/labels/14"
 	testRuleResolve = "workloads"

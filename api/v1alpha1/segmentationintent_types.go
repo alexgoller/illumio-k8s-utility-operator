@@ -28,6 +28,7 @@ type IntentAllow struct {
 // SegmentationIntentSpec is an app team's allow-list for their namespace's app.
 type SegmentationIntentSpec struct {
 	// Allow is the set of permitted inbound flows to this namespace's app.
+	// +kubebuilder:validation:MinItems=1
 	Allow []IntentAllow `json:"allow"`
 }
 

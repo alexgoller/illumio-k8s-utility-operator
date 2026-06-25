@@ -296,7 +296,10 @@ func (r *SegmentationIntentReconciler) reconcileRuleSet(ctx context.Context, si 
 		rsHref = created.Href
 	} else {
 		rsHref = existing.Href
-		// Remove existing rules (replace-all).
+		// Remove existing rules (replace-all). Note: the DRAFT ruleset is
+		// transiently partial while rules are deleted and recreated here, but
+		// the ENFORCED (provisioned/active) policy is untouched — ProvisionRuleSets
+		// only runs after the draft is fully rebuilt below.
 		rules, lerr := pclient.ListRules(ctx, rsHref)
 		if lerr != nil {
 			return "", lerr

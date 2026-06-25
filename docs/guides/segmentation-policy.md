@@ -86,7 +86,14 @@ The operator writes the ruleset as a **draft** and waits. A human (app team memb
 kubectl annotate segmentationintent payments-ingress microsegment.io/provision=approved -n payments
 ```
 
-Once the annotation is detected, the operator provisions the draft and removes the annotation. The `Provisioned` condition transitions from `ProvisionPending` to `Provisioned`.
+While the annotation is present, the operator keeps the intent's policy provisioned — re-provisioning whenever the spec changes. The `Provisioned` condition transitions from `ProvisionPending` to `Provisioned`. To stop further provisioning of new changes, remove the annotation:
+
+```bash
+kubectl annotate segmentationintent payments-ingress microsegment.io/provision- -n payments
+```
+
+!!! note "Per-change approval"
+    Per-change approval (re-approving each individual edit) is planned for a future release. Today the annotation is sticky: once set, the operator continues provisioning on every spec change until the annotation is removed.
 
 ### `draft-only`
 

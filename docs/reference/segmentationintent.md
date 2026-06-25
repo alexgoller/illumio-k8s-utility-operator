@@ -18,7 +18,7 @@ Short name: `segintent`. Category: `illumio`.
 
 | Annotation | Value | Effect |
 |------------|-------|--------|
-| `microsegment.io/provision` | `approved` | When `ClusterProfile.spec.provisioningMode` is `manual`, the operator waits for this annotation before provisioning the compiled draft. Set it with `kubectl annotate segmentationintent <name> microsegment.io/provision=approved`. The operator removes the annotation after provisioning. |
+| `microsegment.io/provision` | `approved` | When `ClusterProfile.spec.provisioningMode` is `manual`, the operator waits for this annotation before provisioning the compiled draft. Set it with `kubectl annotate segmentationintent <name> microsegment.io/provision=approved`. While the annotation is present, the operator keeps the intent's policy provisioned and re-provisions on every spec change. To stop further provisioning of new changes, remove the annotation with `kubectl annotate segmentationintent <name> microsegment.io/provision-`. Per-change approval (re-approving each individual edit) is planned for a future release. |
 
 ## Status
 

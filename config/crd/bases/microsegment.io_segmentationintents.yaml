@@ -91,6 +91,7 @@ spec:
                   required:
                   - from
                   type: object
+                minItems: 1
                 type: array
             required:
             - allow
