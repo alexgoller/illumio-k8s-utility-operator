@@ -73,7 +73,9 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 		return fmt.Errorf("build request: %w", err)
 	}
 	req.SetBasicAuth(c.apiKey, c.apiSecret)
-	req.Header.Set("Content-Type", "application/json")
+	if reader != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(req)

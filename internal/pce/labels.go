@@ -31,6 +31,8 @@ func (c *Client) FindLabel(ctx context.Context, key, value string) (*Label, erro
 	if err := c.do(ctx, http.MethodGet, c.orgPath("/labels")+"?"+q.Encode(), nil, &labels); err != nil {
 		return nil, err
 	}
+	// The PCE key/value query params are filters, not exact-match guarantees, so we
+	// confirm an exact key+value match in Go before returning.
 	for i := range labels {
 		if labels[i].Key == key && labels[i].Value == value {
 			return &labels[i], nil

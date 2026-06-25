@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +31,12 @@ import (
 
 	microv1 "github.com/microsegment-io/illumio-k8s-utility-operator/api/v1alpha1"
 	"github.com/microsegment-io/illumio-k8s-utility-operator/internal/pce"
+)
+
+const (
+	requeueSecretMissing = time.Minute
+	requeueUnreachable   = 30 * time.Second
+	requeueHealthy       = 5 * time.Minute
 )
 
 // PCEConnectionReconciler reconciles a PCEConnection object.
@@ -49,9 +56,14 @@ func (r *PCEConnectionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	cfg, reason, msg, ok := r.loadConfig(ctx, &conn)
+	cfg, reason, msg, transientErr, ok := r.loadConfig(ctx, &conn)
+	if transientErr != nil {
+		// Transient error fetching the Secret (not NotFound) — return the error so
+		// controller-runtime applies exponential backoff.
+		return ctrl.Result{}, transientErr
+	}
 	if !ok {
-		return r.fail(ctx, &conn, reason, msg)
+		return r.fail(ctx, &conn, reason, msg, ctrl.Result{RequeueAfter: requeueSecretMissing})
 	}
 
 	factory := r.NewPCEClient
@@ -59,8 +71,8 @@ func (r *PCEConnectionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		factory = DefaultClientFactory
 	}
 	if err := factory(cfg).Ping(ctx); err != nil {
-		reason, msg := classifyPingError(err)
-		return r.fail(ctx, &conn, reason, msg)
+		result, reason, msg := classifyPingError(err)
+		return r.fail(ctx, &conn, reason, msg, result)
 	}
 
 	meta.SetStatusCondition(&conn.Status.Conditions, metav1.Condition{
@@ -71,10 +83,14 @@ func (r *PCEConnectionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		ObservedGeneration: conn.Generation,
 	})
 	conn.Status.ObservedGeneration = conn.Generation
-	return ctrl.Result{}, r.Status().Update(ctx, &conn)
+	return ctrl.Result{RequeueAfter: requeueHealthy}, r.Status().Update(ctx, &conn)
 }
 
-func (r *PCEConnectionReconciler) loadConfig(ctx context.Context, conn *microv1.PCEConnection) (pce.Config, string, string, bool) {
+// loadConfig reads the credentials Secret and returns the pce.Config.
+// It returns (cfg, "", "", nil, true) on success.
+// It returns ("", reason, msg, nil, false) for expected failures (secret missing/empty).
+// It returns ("", "", "", err, false) for transient errors (non-NotFound API errors).
+func (r *PCEConnectionReconciler) loadConfig(ctx context.Context, conn *microv1.PCEConnection) (pce.Config, string, string, error, bool) {
 	var secret corev1.Secret
 	key := types.NamespacedName{
 		Name:      conn.Spec.CredentialsSecretRef.Name,
@@ -82,24 +98,25 @@ func (r *PCEConnectionReconciler) loadConfig(ctx context.Context, conn *microv1.
 	}
 	if err := r.Get(ctx, key, &secret); err != nil {
 		if apierrors.IsNotFound(err) {
-			return pce.Config{}, microv1.ReasonSecretMissing, "credentials secret not found", false
+			return pce.Config{}, microv1.ReasonSecretMissing, "credentials secret not found", nil, false
 		}
-		return pce.Config{}, microv1.ReasonSecretMissing, err.Error(), false
+		// Transient error — propagate so controller-runtime can backoff.
+		return pce.Config{}, "", "", err, false
 	}
 	apiKey := string(secret.Data["api_key"])
 	apiSecret := string(secret.Data["api_secret"])
 	if apiKey == "" || apiSecret == "" {
-		return pce.Config{}, microv1.ReasonSecretMissing, "secret missing api_key or api_secret", false
+		return pce.Config{}, microv1.ReasonSecretMissing, "secret missing api_key or api_secret", nil, false
 	}
 	return pce.Config{
 		PCEURL:    conn.Spec.PCEURL,
 		OrgID:     conn.Spec.OrgID,
 		APIKey:    apiKey,
 		APISecret: apiSecret,
-	}, "", "", true
+	}, "", "", nil, true
 }
 
-func (r *PCEConnectionReconciler) fail(ctx context.Context, conn *microv1.PCEConnection, reason, msg string) (ctrl.Result, error) {
+func (r *PCEConnectionReconciler) fail(ctx context.Context, conn *microv1.PCEConnection, reason, msg string, result ctrl.Result) (ctrl.Result, error) {
 	meta.SetStatusCondition(&conn.Status.Conditions, metav1.Condition{
 		Type:               microv1.ConditionConnected,
 		Status:             metav1.ConditionFalse,
@@ -108,20 +125,21 @@ func (r *PCEConnectionReconciler) fail(ctx context.Context, conn *microv1.PCECon
 		ObservedGeneration: conn.Generation,
 	})
 	conn.Status.ObservedGeneration = conn.Generation
-	return ctrl.Result{}, r.Status().Update(ctx, conn)
+	return result, r.Status().Update(ctx, conn)
 }
 
-func classifyPingError(err error) (reason, msg string) {
+func classifyPingError(err error) (ctrl.Result, string, string) {
 	switch e := err.(type) {
 	case *pce.RateLimitError:
-		return microv1.ReasonRateLimited, e.Error()
+		return ctrl.Result{RequeueAfter: e.RetryAfter}, microv1.ReasonRateLimited, e.Error()
 	case *pce.APIError:
 		if e.StatusCode == 401 || e.StatusCode == 403 {
-			return microv1.ReasonAuthFailed, e.Error()
+			// Bad credentials — no point retrying automatically.
+			return ctrl.Result{}, microv1.ReasonAuthFailed, e.Error()
 		}
-		return microv1.ReasonPCEUnreachable, e.Error()
+		return ctrl.Result{RequeueAfter: requeueUnreachable}, microv1.ReasonPCEUnreachable, e.Error()
 	default:
-		return microv1.ReasonPCEUnreachable, err.Error()
+		return ctrl.Result{RequeueAfter: requeueUnreachable}, microv1.ReasonPCEUnreachable, err.Error()
 	}
 }
 

@@ -100,6 +100,9 @@ var _ = BeforeSuite(func() {
 			if cfg.APIKey == "bad" {
 				return fakePinger{err: errAuth}
 			}
+			if cfg.APIKey == "rate" {
+				return fakePinger{err: &pce.RateLimitError{RetryAfter: 30 * time.Second}}
+			}
 			return fakePinger{err: nil}
 		},
 	}).SetupWithManager(k8sManager)
