@@ -175,6 +175,24 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	"$(KUSTOMIZE)" build config/default | "$(KUBECTL)" delete --ignore-not-found=$(ignore-not-found) -f -
 
+##@ Documentation
+
+.PHONY: docs-api
+docs-api: ## Generate CRD API reference markdown from Go types.
+	go run github.com/elastic/crd-ref-docs@latest \
+		--source-path=./api \
+		--config=docs/crd-ref-docs.yaml \
+		--renderer=markdown \
+		--output-path=docs/reference/api.md
+
+.PHONY: docs-build
+docs-build: ## Build the docs site into ./site (requires mkdocs-material).
+	mkdocs build --strict
+
+.PHONY: docs-serve
+docs-serve: ## Serve the docs locally at http://localhost:8000.
+	mkdocs serve
+
 ##@ Dependencies
 
 ## Location to install dependencies to
