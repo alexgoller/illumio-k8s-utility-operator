@@ -25,6 +25,7 @@ import (
 const (
 	onboardRequeueNotReady = 30 * time.Second
 	onboardRequeueHealthy  = 10 * time.Minute
+	onboardRequeueTerminal = time.Hour
 )
 
 // ClusterProfileReconciler reconciles a ClusterProfile (onboarding).
@@ -74,7 +75,7 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if existing != nil {
 			return r.onboardFail(ctx, &cp, microv1.ReasonOnboardFailed,
 				fmt.Sprintf("container cluster %q already exists in the PCE; its one-time token cannot be recovered. Delete it or supply credentials manually.", cp.Spec.Onboarding.ContainerClusterName),
-				onboardRequeueHealthy)
+				onboardRequeueTerminal)
 		}
 		created, err := pclient.CreateContainerCluster(ctx, cp.Spec.Onboarding.ContainerClusterName, "Managed by illumio-k8s-utility-operator", owner)
 		if err != nil {
