@@ -15,6 +15,8 @@ Package v1alpha1 contains API Schema definitions for the microsegment v1alpha1 A
 - [PCEConnectionList](#pceconnectionlist)
 - [SegmentationIntent](#segmentationintent)
 - [SegmentationIntentList](#segmentationintentlist)
+- [SegmentationPolicy](#segmentationpolicy)
+- [SegmentationPolicyList](#segmentationpolicylist)
 
 
 
@@ -75,6 +77,23 @@ _Appears in:_
 | `namespaceRules` _[NamespaceRule](#namespacerule) array_ | NamespaceRules are evaluated in order; the first match wins. For namespaces<br />that match the SystemNamespaces patterns, SystemNamespaces takes precedence<br />and overrides any matching NamespaceRule. For all other namespaces,<br />the first matching NamespaceRule governs. |  | Optional: \{\} <br /> |
 
 
+
+
+#### IngressRule
+
+
+
+IngressRule allows traffic from the listed peers on the listed ports.
+
+
+
+_Appears in:_
+- [SegmentationPolicySpec](#segmentationpolicyspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `from` _[NetworkPolicyPeer](#networkpolicypeer) array_ |  |  |  |
+| `ports` _[NetworkPolicyPort](#networkpolicyport) array_ |  |  |  |
 
 
 #### IntentAllow
@@ -180,6 +199,40 @@ _Appears in:_
 | `managed` _boolean_ | Managed marks the namespace's CWP as PCE-managed. |  |  |
 | `assignLabels` _object (keys:string, values:[LabelAssignment](#labelassignment))_ | AssignLabels maps Illumio label keys (role/app/env/loc/custom) to values. |  | Optional: \{\} <br /> |
 | `enforcementMode` _string_ | EnforcementMode for the namespace. One of idle, visibility_only, full. |  | Enum: [idle visibility_only full] <br />Optional: \{\} <br /> |
+
+
+#### NetworkPolicyPeer
+
+
+
+NetworkPolicyPeer is a consumer selector (a supported subset of k8s NetworkPolicyPeer).
+
+
+
+_Appears in:_
+- [IngressRule](#ingressrule)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `podSelector` _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ |  |  | Optional: \{\} <br /> |
+| `namespaceSelector` _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ |  |  | Optional: \{\} <br /> |
+
+
+#### NetworkPolicyPort
+
+
+
+NetworkPolicyPort is a port/protocol.
+
+
+
+_Appears in:_
+- [IngressRule](#ingressrule)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `port` _integer_ |  |  |  |
+| `protocol` _string_ |  | TCP | Enum: [TCP UDP] <br />Optional: \{\} <br /> |
 
 
 #### NodePairingProfileSpec
@@ -345,7 +398,66 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `allow` _[IntentAllow](#intentallow) array_ | Allow is the set of permitted inbound flows to this namespace's app. |  |  |
+| `allow` _[IntentAllow](#intentallow) array_ | Allow is the set of permitted inbound flows to this namespace's app. |  | MinItems: 1 <br /> |
+| `enforcement` _string_ | Enforcement requests a namespace enforcement mode. The operator applies<br />the strictest mode requested across all policy CRs in the namespace (on<br />top of the admin baseline). One of idle, visibility_only, full. |  | Enum: [idle visibility_only full] <br />Optional: \{\} <br /> |
+
+
+
+
+#### SegmentationPolicy
+
+
+
+SegmentationPolicy is a NetworkPolicy-style Illumio allow-list for a namespace.
+
+
+
+_Appears in:_
+- [SegmentationPolicyList](#segmentationpolicylist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `microsegment.io/v1alpha1` | | |
+| `kind` _string_ | `SegmentationPolicy` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[SegmentationPolicySpec](#segmentationpolicyspec)_ |  |  |  |
+
+
+#### SegmentationPolicyList
+
+
+
+SegmentationPolicyList contains a list of SegmentationPolicy.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `microsegment.io/v1alpha1` | | |
+| `kind` _string_ | `SegmentationPolicyList` | | |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[SegmentationPolicy](#segmentationpolicy) array_ |  |  |  |
+
+
+#### SegmentationPolicySpec
+
+
+
+SegmentationPolicySpec mirrors a supported subset of k8s NetworkPolicy.
+
+
+
+_Appears in:_
+- [SegmentationPolicy](#segmentationpolicy)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `podSelector` _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ | PodSelector selects the pods to which this policy applies. |  | Optional: \{\} <br /> |
+| `ingress` _[IngressRule](#ingressrule) array_ | Ingress rules (the only supported direction). |  |  |
+| `policyTypes` _string array_ | PolicyTypes must be ["Ingress"]. |  | Optional: \{\} <br /> |
+| `enforcement` _string_ | Enforcement requests a namespace enforcement mode (see SegmentationIntent). |  | Enum: [idle visibility_only full] <br />Optional: \{\} <br /> |
 
 
 

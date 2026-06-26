@@ -44,8 +44,10 @@ nav:
       - Onboarding: guides/onboarding.md
       - Namespace management: guides/namespace-management.md
       - Segmentation policy: guides/segmentation-policy.md
+      - NetworkPolicy-style: guides/networkpolicy-style.md
   - API Reference:
       - PCEConnection: reference/pceconnection.md
       - ClusterProfile: reference/clusterprofile.md
       - SegmentationIntent: reference/segmentationintent.md
+      - SegmentationPolicy: reference/segmentationpolicy.md
       - Generated API: reference/api.md
