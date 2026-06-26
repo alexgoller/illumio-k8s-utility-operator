@@ -34,10 +34,12 @@ type Condition struct {
 
 // BackendResult holds the outcome of ReconcilePolicy.
 type BackendResult struct {
-	Ready             *Condition
-	Provisioned       *Condition
-	WorkloadsAffected int
-	Requeue           time.Duration
+	Ready                *Condition
+	Provisioned          *Condition
+	WorkloadsAffected    int
+	Requeue              time.Duration
+	EffectiveEnforcement string
+	EnforcementSetBy     string
 }
 
 // applyBackendResult writes the Ready and Provisioned conditions from res onto
@@ -95,6 +97,16 @@ func ReconcilePolicy(
 			},
 			Requeue: siRequeueNotReady,
 		}, nil
+	}
+
+	// Compute the effective enforcement for the namespace (admin baseline + policy CRs).
+	var effEnforcement, enfSetBy string
+	{
+		var nsObj corev1.Namespace
+		if err := k8s.Get(ctx, types.NamespacedName{Name: namespace}, &nsObj); err == nil {
+			baseline := ComputeDesiredCWP(namespace, nsObj.Labels, nsObj.Annotations, cp.Spec.NamespaceRules, cp.Spec.SystemNamespaces).EnforcementMode
+			effEnforcement, enfSetBy, _ = EffectiveEnforcement(ctx, k8s, namespace, baseline)
+		}
 	}
 
 	pclient := factory(cfg)
@@ -158,8 +170,10 @@ func ReconcilePolicy(
 				Reason:  microv1.ReasonProvisioned,
 				Message: fmt.Sprintf("provisioned; %d workloads affected", res.WorkloadsAffected),
 			},
-			WorkloadsAffected: res.WorkloadsAffected,
-			Requeue:           siRequeueHealthy,
+			WorkloadsAffected:    res.WorkloadsAffected,
+			Requeue:              siRequeueHealthy,
+			EffectiveEnforcement: effEnforcement,
+			EnforcementSetBy:     enfSetBy,
 		}, nil
 	}
 
@@ -176,7 +190,9 @@ func ReconcilePolicy(
 			Reason:  microv1.ReasonProvisionPending,
 			Message: pendingMsg,
 		},
-		Requeue: siRequeueHealthy,
+		Requeue:              siRequeueHealthy,
+		EffectiveEnforcement: effEnforcement,
+		EnforcementSetBy:     enfSetBy,
 	}, nil
 }
 

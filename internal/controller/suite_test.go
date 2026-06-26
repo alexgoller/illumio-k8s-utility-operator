@@ -156,6 +156,13 @@ var (
 	lastCWPHref   string
 )
 
+// cwpEnfUpdatesMu guards per-href CWP update recording for enforcement assertions.
+var (
+	cwpEnfUpdatesMu sync.Mutex
+	// cwpEnfUpdates records all CWP updates keyed by href for enforcement testing.
+	cwpEnfUpdates = map[string]pce.CWPUpdate{}
+)
+
 // fakeOnboardingClient returns deterministic onboarding results for envtest.
 type fakeOnboardingClient struct{}
 
@@ -181,6 +188,7 @@ func (fakeOnboardingClient) EnsureLabel(_ context.Context, key, value string, _ 
 func (fakeOnboardingClient) ListContainerWorkloadProfiles(_ context.Context, _ string) ([]pce.ContainerWorkloadProfile, error) {
 	return []pce.ContainerWorkloadProfile{
 		{Href: "/orgs/1/container_clusters/uuid-ob/container_workload_profiles/p1", Namespace: cwpTestNamespace, Managed: false},
+		{Href: "/orgs/1/container_clusters/uuid-ob/container_workload_profiles/p2", Namespace: enfTestNamespace, Managed: false},
 	}, nil
 }
 func (fakeOnboardingClient) UpdateContainerWorkloadProfile(_ context.Context, href string, u pce.CWPUpdate) error {
@@ -189,6 +197,10 @@ func (fakeOnboardingClient) UpdateContainerWorkloadProfile(_ context.Context, hr
 	lastCWPUpdate = &copy
 	lastCWPHref = href
 	cwpUpdatesMu.Unlock()
+	// Also record by href for enforcement assertions.
+	cwpEnfUpdatesMu.Lock()
+	cwpEnfUpdates[href] = u
+	cwpEnfUpdatesMu.Unlock()
 	return nil
 }
 

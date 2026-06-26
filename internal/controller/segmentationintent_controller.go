@@ -65,6 +65,8 @@ func (r *SegmentationIntentReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	applyBackendResult(&si.Status.Conditions, res)
 	si.Status.WorkloadsAffected = res.WorkloadsAffected
+	si.Status.EffectiveEnforcement = res.EffectiveEnforcement
+	si.Status.EnforcementSetBy = res.EnforcementSetBy
 	si.Status.ObservedGeneration = si.Generation
 	if err := r.Status().Update(ctx, &si); err != nil {
 		return ctrl.Result{}, err

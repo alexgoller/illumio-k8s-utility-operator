@@ -71,6 +71,8 @@ func (r *SegmentationPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 	applyBackendResult(&sp.Status.Conditions, res)
 	sp.Status.WorkloadsAffected = res.WorkloadsAffected
+	sp.Status.EffectiveEnforcement = res.EffectiveEnforcement
+	sp.Status.EnforcementSetBy = res.EnforcementSetBy
 	sp.Status.ObservedGeneration = sp.Generation
 	if err := r.Status().Update(ctx, &sp); err != nil {
 		return ctrl.Result{}, err
