@@ -2,7 +2,13 @@ package v1alpha1
 
 import "testing"
 
-const testLabelValueProd = "prod"
+const (
+	testLabelValueProd     = "prod"
+	testLabelValueCheckout = "checkout"
+	testLabelKeyApp        = "app"
+	testEnforcementFull    = "full"
+	testPolicyTypeIngress  = "Ingress"
+)
 
 func TestNamespaceRule_Shape(t *testing.T) {
 	cp := ClusterProfile{
@@ -16,8 +22,8 @@ func TestNamespaceRule_Shape(t *testing.T) {
 				{
 					Match:           NamespaceMatch{NamePattern: "payments"},
 					Managed:         true,
-					AssignLabels:    map[string]LabelAssignment{"env": {Value: testLabelValueProd}, "app": {FromNamespaceLabel: "app.kubernetes.io/part-of"}},
-					EnforcementMode: "full",
+					AssignLabels:    map[string]LabelAssignment{"env": {Value: testLabelValueProd}, testLabelKeyApp: {FromNamespaceLabel: "app.kubernetes.io/part-of"}},
+					EnforcementMode: testEnforcementFull,
 				},
 			},
 		},

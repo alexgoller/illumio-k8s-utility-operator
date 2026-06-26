@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"maps"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -14,6 +15,10 @@ const (
 	resolveWorkloads = "workloads"
 	// defaultExternalDataSet is the external_data_set stamped on PCE objects the operator creates.
 	defaultExternalDataSet = "illumio-operator"
+	// policyTypeIngress is the only supported policyType for SegmentationPolicy.
+	policyTypeIngress = "Ingress"
+	// enforcementFull is the strictest enforcement mode.
+	enforcementFull = "full"
 )
 
 // ResolvedAllow is an IntentAllow after consumer labels are resolved to hrefs.
@@ -102,7 +107,7 @@ func CompileIntent(allows []microv1.IntentAllow) []CompiledAllow {
 // CompiledAllow, returning a descriptive error for any unsupported construct.
 func CompilePolicy(spec microv1.SegmentationPolicySpec) ([]CompiledAllow, error) {
 	for _, t := range spec.PolicyTypes {
-		if t != "Ingress" {
+		if t != policyTypeIngress {
 			return nil, fmt.Errorf("unsupported policyType %q: only Ingress is supported", t)
 		}
 	}
@@ -123,9 +128,7 @@ func CompilePolicy(spec microv1.SegmentationPolicySpec) ([]CompiledAllow, error)
 				if len(sel.MatchExpressions) > 0 {
 					return nil, fmt.Errorf("ingress[%d].from[%d]: matchExpressions are not supported; use matchLabels", i, j)
 				}
-				for k, v := range sel.MatchLabels {
-					from[k] = v
-				}
+				maps.Copy(from, sel.MatchLabels)
 			}
 			if peer.PodSelector == nil && peer.NamespaceSelector == nil {
 				return nil, fmt.Errorf("ingress[%d].from[%d]: a podSelector or namespaceSelector is required (ipBlock is not supported)", i, j)
@@ -143,7 +146,7 @@ func CompilePolicy(spec microv1.SegmentationPolicySpec) ([]CompiledAllow, error)
 	return out, nil
 }
 
-var enforcementRank = map[string]int{"": 0, "idle": 1, "visibility_only": 2, "full": 3}
+var enforcementRank = map[string]int{"": 0, "idle": 1, "visibility_only": 2, enforcementFull: 3}
 
 // StrictestEnforcement returns the strictest non-empty mode, or "" if none.
 func StrictestEnforcement(modes ...string) string {

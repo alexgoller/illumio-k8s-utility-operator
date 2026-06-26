@@ -9,11 +9,13 @@ import (
 	microv1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
 )
 
+const testPolicyTypeIngress = "Ingress"
+
 func TestCompilePolicy_SupportedSubset(t *testing.T) {
 	spec := microv1.SegmentationPolicySpec{
-		PolicyTypes: []string{"Ingress"},
+		PolicyTypes: []string{testPolicyTypeIngress},
 		Ingress: []microv1.IngressRule{{
-			From:  []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "checkout", "env": "prod"}}}},
+			From:  []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyApp: testLabelValueCheckout, testLabelKeyEnv: testLabelValueProd}}}},
 			Ports: []microv1.NetworkPolicyPort{{Port: 8443, Protocol: "TCP"}},
 		}},
 	}
@@ -21,7 +23,7 @@ func TestCompilePolicy_SupportedSubset(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(allows) != 1 || allows[0].From["app"] != "checkout" || allows[0].From["env"] != "prod" {
+	if len(allows) != 1 || allows[0].From[testLabelKeyApp] != testLabelValueCheckout || allows[0].From[testLabelKeyEnv] != testLabelValueProd {
 		t.Fatalf("allows = %+v", allows)
 	}
 	if len(allows[0].Ports) != 1 || allows[0].Ports[0].Proto != 6 || allows[0].Ports[0].Port != 8443 {
@@ -31,10 +33,10 @@ func TestCompilePolicy_SupportedSubset(t *testing.T) {
 
 func TestCompilePolicy_RejectsUnsupported(t *testing.T) {
 	cases := map[string]microv1.SegmentationPolicySpec{
-		"egress policyType":    {PolicyTypes: []string{"Ingress", "Egress"}, Ingress: []microv1.IngressRule{{From: []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "x"}}}}}}},
-		"non-empty podSelector": {PodSelector: metav1.LabelSelector{MatchLabels: map[string]string{"role": "db"}}, Ingress: []microv1.IngressRule{{From: []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "x"}}}}}}},
-		"matchExpressions":     {Ingress: []microv1.IngressRule{{From: []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{Key: "app", Operator: metav1.LabelSelectorOpExists}}}}}}}},
-		"empty from":           {Ingress: []microv1.IngressRule{{From: nil}}},
+		"egress policyType":     {PolicyTypes: []string{testPolicyTypeIngress, "Egress"}, Ingress: []microv1.IngressRule{{From: []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyApp: "x"}}}}}}},
+		"non-empty podSelector": {PodSelector: metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyRole: "db"}}, Ingress: []microv1.IngressRule{{From: []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyApp: "x"}}}}}}},
+		"matchExpressions":      {Ingress: []microv1.IngressRule{{From: []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{Key: testLabelKeyApp, Operator: metav1.LabelSelectorOpExists}}}}}}}},
+		"empty from":            {Ingress: []microv1.IngressRule{{From: nil}}},
 	}
 	for name, spec := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -48,10 +50,10 @@ func TestCompilePolicy_RejectsUnsupported(t *testing.T) {
 }
 
 func TestStrictestEnforcement(t *testing.T) {
-	if StrictestEnforcement("idle", "full", "visibility_only") != "full" {
+	if StrictestEnforcement("idle", testEnforcementFull, testEnforcementVisOnly) != testEnforcementFull {
 		t.Errorf("want full")
 	}
-	if StrictestEnforcement("", "visibility_only", "idle") != "visibility_only" {
+	if StrictestEnforcement("", testEnforcementVisOnly, "idle") != testEnforcementVisOnly {
 		t.Errorf("want visibility_only")
 	}
 	if StrictestEnforcement("", "") != "" {
