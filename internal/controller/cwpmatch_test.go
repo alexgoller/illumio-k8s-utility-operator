@@ -9,9 +9,13 @@ import (
 const (
 	testLabelKeyRole       = "role"
 	testLabelKeyEnv        = "env"
+	testLabelKeyApp        = "app"
 	testLabelValueProd     = "prod"
+	testLabelValueCheckout = "checkout"
 	testEnforcementVisOnly = "visibility_only"
 	testNamespaceTeamA     = "team-a"
+	testNamespacePayments  = "payments"
+	testNSLabelPartOf      = "app.kubernetes.io/part-of"
 )
 
 func TestComputeDesiredCWP(t *testing.T) {
@@ -20,9 +24,9 @@ func TestComputeDesiredCWP(t *testing.T) {
 	}
 	rules := []microv1.NamespaceRule{
 		{
-			Match:           microv1.NamespaceMatch{NamePattern: "payments"},
+			Match:           microv1.NamespaceMatch{NamePattern: testNamespacePayments},
 			Managed:         true,
-			AssignLabels:    map[string]microv1.LabelAssignment{testLabelKeyEnv: {Value: testLabelValueProd}, "app": {FromNamespaceLabel: "app.kubernetes.io/part-of"}},
+			AssignLabels:    map[string]microv1.LabelAssignment{testLabelKeyEnv: {Value: testLabelValueProd}, testLabelKeyApp: {FromNamespaceLabel: testNSLabelPartOf}},
 			EnforcementMode: "full",
 		},
 		{Match: microv1.NamespaceMatch{NamePattern: "*"}, Managed: false},
@@ -42,9 +46,9 @@ func TestComputeDesiredCWP(t *testing.T) {
 		},
 		{
 			name:   "user rule wins over system + resolves fromNamespaceLabel",
-			nsName: "payments",
-			labels: map[string]string{"app.kubernetes.io/part-of": "checkout"},
-			want:   DesiredCWP{Managed: true, Labels: map[string]string{testLabelKeyEnv: testLabelValueProd, "app": "checkout"}, EnforcementMode: "full"},
+			nsName: testNamespacePayments,
+			labels: map[string]string{testNSLabelPartOf: testLabelValueCheckout},
+			want:   DesiredCWP{Managed: true, Labels: map[string]string{testLabelKeyEnv: testLabelValueProd, testLabelKeyApp: testLabelValueCheckout}, EnforcementMode: "full"},
 		},
 		{
 			name:   "non-system, catch-all unmanaged",

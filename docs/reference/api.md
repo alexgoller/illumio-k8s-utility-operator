@@ -13,6 +13,8 @@ Package v1alpha1 contains API Schema definitions for the microsegment v1alpha1 A
 - [ClusterProfileList](#clusterprofilelist)
 - [PCEConnection](#pceconnection)
 - [PCEConnectionList](#pceconnectionlist)
+- [SegmentationIntent](#segmentationintent)
+- [SegmentationIntentList](#segmentationintentlist)
 
 
 
@@ -73,6 +75,41 @@ _Appears in:_
 | `namespaceRules` _[NamespaceRule](#namespacerule) array_ | NamespaceRules are evaluated in order; the first match wins. For namespaces<br />that match the SystemNamespaces patterns, SystemNamespaces takes precedence<br />and overrides any matching NamespaceRule. For all other namespaces,<br />the first matching NamespaceRule governs. |  | Optional: \{\} <br /> |
 
 
+
+
+#### IntentAllow
+
+
+
+IntentAllow allows a consumer (referenced by existing Illumio labels) to
+reach this namespace's app on the given ports.
+
+
+
+_Appears in:_
+- [SegmentationIntentSpec](#segmentationintentspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `from` _object (keys:string, values:string)_ | From is the consumer's Illumio labels (key -> value), e.g.<br />\{"app":"checkout","env":"prod"\}. They must already exist in the PCE. |  |  |
+| `ports` _[IntentPort](#intentport) array_ | Ports the consumer may reach. Empty means all ports. |  | Optional: \{\} <br /> |
+
+
+#### IntentPort
+
+
+
+IntentPort is a port/protocol a consumer is allowed to reach.
+
+
+
+_Appears in:_
+- [IntentAllow](#intentallow)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `port` _integer_ |  |  |  |
+| `protocol` _string_ |  | TCP | Enum: [TCP UDP] <br />Optional: \{\} <br /> |
 
 
 #### LabelAssignment
@@ -258,6 +295,61 @@ _Appears in:_
 | `namespace` _string_ | Namespace of the Secret. Defaults to the operator's namespace if empty. |  | Optional: \{\} <br /> |
 
 
+#### SegmentationIntent
+
+
+
+SegmentationIntent is an app team's Illumio allow-list for their namespace.
+
+
+
+_Appears in:_
+- [SegmentationIntentList](#segmentationintentlist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `microsegment.io/v1alpha1` | | |
+| `kind` _string_ | `SegmentationIntent` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[SegmentationIntentSpec](#segmentationintentspec)_ |  |  |  |
+
+
+#### SegmentationIntentList
+
+
+
+SegmentationIntentList contains a list of SegmentationIntent.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `microsegment.io/v1alpha1` | | |
+| `kind` _string_ | `SegmentationIntentList` | | |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[SegmentationIntent](#segmentationintent) array_ |  |  |  |
+
+
+#### SegmentationIntentSpec
+
+
+
+SegmentationIntentSpec is an app team's allow-list for their namespace's app.
+
+
+
+_Appears in:_
+- [SegmentationIntent](#segmentationintent)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `allow` _[IntentAllow](#intentallow) array_ | Allow is the set of permitted inbound flows to this namespace's app. |  |  |
+
+
+
+
 #### SystemNamespacesSpec
 
 
@@ -274,7 +366,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `manage` _boolean_ | Manage turns on management of system namespaces. |  | Optional: \{\} <br /> |
-| `patterns` _string array_ | Patterns of system namespace name globs. Defaults (when empty) to:<br />openshift-*, kube-*, default, kube-system, kube-public, kube-node-lease. |  | Optional: \{\} <br /> |
+| `patterns` _string array_ | Patterns of system namespace name globs. Defaults (when empty) to:<br />openshift-*, kube-*, default. |  | Optional: \{\} <br /> |
 | `labels` _object (keys:string, values:string)_ | Labels assigned to system-namespace CWPs. |  | Optional: \{\} <br /> |
 | `enforcementMode` _string_ | EnforcementMode for system namespaces. Defaults to idle. |  | Enum: [idle visibility_only full] <br />Optional: \{\} <br /> |
 

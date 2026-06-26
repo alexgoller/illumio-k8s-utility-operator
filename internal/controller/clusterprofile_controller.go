@@ -203,7 +203,7 @@ func (r *ClusterProfileReconciler) resolveConnection(ctx context.Context, cp *mi
 	}
 	eds := conn.Spec.ExternalDataSet
 	if eds == "" {
-		eds = "illumio-operator"
+		eds = defaultExternalDataSet
 	}
 	return pce.Config{PCEURL: conn.Spec.PCEURL, OrgID: conn.Spec.OrgID, APIKey: apiKey, APISecret: apiSecret}, eds, true, nil
 }
