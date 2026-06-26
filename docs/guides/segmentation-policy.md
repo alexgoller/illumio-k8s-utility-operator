@@ -18,14 +18,52 @@ Before writing any intent, understand the two hard constraints:
 
 **The namespace must be managed.** The namespace must be enrolled by a `ClusterProfile` namespace rule (Plan 3 / [Namespace management](namespace-management.md)). If no `ClusterProfile` covers the namespace, the intent is rejected with reason `ClusterProfileNotReady`.
 
-## Enforcement is separate
+## NetworkPolicy-style alternative
 
-Writing a `SegmentationIntent` compiles rules and can provision them to the PCE, but **non-allowed traffic is only blocked when the namespace's Container Workload Profile (CWP) is in `full` enforcement mode**. In `visibility_only` mode the rules are computed and provisioned but traffic flows freely — nothing is blocked.
+If you prefer expressing policy in the same shape as Kubernetes `NetworkPolicy` — with `ingress` blocks, `from` peers using `podSelector`/`namespaceSelector`, and a `ports` list — use `SegmentationPolicy` instead. Both front-ends compile to the same Illumio ruleset backend with identical guardrails.
 
-Enforcement mode is controlled by the `ClusterProfile`'s namespace rules or per-namespace `microsegment.io/enforcement` annotation, not by the `SegmentationIntent` itself. See the [Namespace management guide](namespace-management.md) for details.
+See the [NetworkPolicy-style guide](networkpolicy-style.md) for a complete example and the supported subset.
+
+## Enforcement field
+
+`SegmentationIntent` has an optional `spec.enforcement` field that requests a namespace enforcement mode. Accepted values are `idle`, `visibility_only`, and `full`.
+
+```yaml
+spec:
+  allow:
+    - from: { app: checkout, env: prod }
+      ports:
+        - { port: 8443, protocol: TCP }
+  enforcement: full
+```
+
+Setting this field does not unilaterally switch enforcement — it participates in the strictest-wins calculation described below.
+
+## Enforcement is separate from rules
+
+Writing a `SegmentationIntent` compiles allow-rules and can provision them to the PCE, but **non-allowed traffic is only blocked when the namespace's effective enforcement mode is `full`**. In `visibility_only` mode the rules are computed and provisioned but traffic flows freely — nothing is blocked.
+
+### Effective enforcement: strictest-wins
+
+The namespace's **effective enforcement** is the strictest of:
+
+1. The admin baseline — the `enforcementMode` set by the matching `ClusterProfile` namespace rule.
+2. The `spec.enforcement` value on every `SegmentationIntent` and `SegmentationPolicy` in the namespace.
+
+Strictness order: `idle` < `visibility_only` < `full`. The winning value is applied to the namespace's Container Workload Profile (CWP) and is reported on each CR's status:
+
+- `status.effectiveEnforcement` — the resolved enforcement mode currently applied to the namespace's CWP.
+- `status.enforcementSetBy` — names the CR that provided the winning value, or `admin` if the admin baseline was strictest.
+
+For example, if the admin baseline is `visibility_only` and one `SegmentationIntent` requests `full`, the effective enforcement is `full`, set by that intent.
+
+!!! warning "Rules and enforcement are independent"
+    A `SegmentationIntent` does not need to set `spec.enforcement` to affect rules. Setting `spec.enforcement: full` does not guarantee traffic is blocked — the effective enforcement also depends on other policy CRs and the admin baseline. Always check `status.effectiveEnforcement` to see what is actually applied.
 
 !!! warning "Rules without `full` enforcement do not block traffic"
-    If your namespace is in `visibility_only` mode, provisioning a `SegmentationIntent` has no enforcement effect. Switch the namespace to `full` enforcement via the `ClusterProfile` or the namespace annotation when you are ready to enforce.
+    If your namespace's effective enforcement is `visibility_only` or `idle`, provisioning a `SegmentationIntent` has no blocking effect. The rules exist in the PCE but non-allowed traffic flows freely. Set `spec.enforcement: full` on a policy CR, or update the admin baseline in `ClusterProfile`, to enable blocking.
+
+See the [Namespace management guide](namespace-management.md) for the admin baseline and per-namespace annotation overrides.
 
 ## Example
 
@@ -118,6 +156,22 @@ payments-ingress   True    True          12
 - `PROVISIONED` — `True` when the ruleset has been provisioned to the PCE; `False` when pending.
 - `AFFECTED` — the count of workloads affected by the last provisioning operation (`status.workloadsAffected`).
 
+For enforcement status, use `kubectl describe`:
+
+```bash
+kubectl describe segmentationintent payments-ingress -n payments
+```
+
+The status includes:
+
+```
+Effective Enforcement:  full
+Enforcement Set By:     payments-ingress
+```
+
+- `effectiveEnforcement` — the namespace's resolved enforcement mode currently applied to the CWP.
+- `enforcementSetBy` — names the CR that determined the effective enforcement, or `admin` if the admin baseline was strictest.
+
 For full condition details:
 
 ```bash
@@ -156,6 +210,7 @@ kubectl delete segmentationintent payments-ingress -n payments
 
 ## Next steps
 
-- See the [SegmentationIntent reference](../reference/segmentationintent.md) for full field documentation.
-- See the [Namespace management guide](namespace-management.md) to set enforcement mode on your namespace.
+- See the [SegmentationIntent reference](../reference/segmentationintent.md) for full field documentation, including the `enforcement` field and effective enforcement status fields.
+- See the [NetworkPolicy-style guide](networkpolicy-style.md) to use the `SegmentationPolicy` front-end if you prefer the NetworkPolicy shape.
+- See the [Namespace management guide](namespace-management.md) to set the admin enforcement baseline for your namespace.
 - See [ClusterProfile](../reference/clusterprofile.md) for `provisioningMode` options.

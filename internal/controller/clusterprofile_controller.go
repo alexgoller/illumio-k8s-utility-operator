@@ -45,6 +45,8 @@ type ClusterProfileReconciler struct {
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=microsegment.io,resources=segmentationintents,verbs=get;list;watch
+// +kubebuilder:rbac:groups=microsegment.io,resources=segmentationpolicies,verbs=get;list;watch
 
 func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var cp microv1.ClusterProfile
@@ -248,12 +250,17 @@ func (r *ClusterProfileReconciler) onboardFail(ctx context.Context, cp *microv1.
 }
 
 func (r *ClusterProfileReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	enqueueAllCPs := handler.EnqueueRequestsFromMapFunc(r.clusterProfilesForNamespace)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&microv1.ClusterProfile{}).
 		Watches(&corev1.Namespace{},
 			handler.EnqueueRequestsFromMapFunc(r.clusterProfilesForNamespace),
 			builder.WithPredicates(predicate.Or(predicate.LabelChangedPredicate{}, predicate.AnnotationChangedPredicate{})),
 		).
+		Watches(&microv1.SegmentationIntent{}, enqueueAllCPs,
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(&microv1.SegmentationPolicy{}, enqueueAllCPs,
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
 }
 
@@ -299,6 +306,10 @@ func (r *ClusterProfileReconciler) reconcileNamespaceCWPs(ctx context.Context, c
 		desired := ComputeDesiredCWP(nsObj.Name, nsObj.Labels, nsObj.Annotations, cp.Spec.NamespaceRules, cp.Spec.SystemNamespaces)
 		if desired.Managed {
 			managed++
+			// Raise enforcement to the strictest requested by any policy CR in this namespace.
+			if raised, _, eerr := EffectiveEnforcement(ctx, r.Client, nsObj.Name, desired.EnforcementMode); eerr == nil {
+				desired.EnforcementMode = raised
+			}
 		}
 		cwp, ok := byNS[nsObj.Name]
 		if !ok {

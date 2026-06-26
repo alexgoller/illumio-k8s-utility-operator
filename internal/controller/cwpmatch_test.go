@@ -13,6 +13,7 @@ const (
 	testLabelValueProd     = "prod"
 	testLabelValueCheckout = "checkout"
 	testEnforcementVisOnly = "visibility_only"
+	testEnforcementFull    = "full"
 	testNamespaceTeamA     = "team-a"
 	testNamespacePayments  = "payments"
 	testNSLabelPartOf      = "app.kubernetes.io/part-of"
@@ -27,7 +28,7 @@ func TestComputeDesiredCWP(t *testing.T) {
 			Match:           microv1.NamespaceMatch{NamePattern: testNamespacePayments},
 			Managed:         true,
 			AssignLabels:    map[string]microv1.LabelAssignment{testLabelKeyEnv: {Value: testLabelValueProd}, testLabelKeyApp: {FromNamespaceLabel: testNSLabelPartOf}},
-			EnforcementMode: "full",
+			EnforcementMode: testEnforcementFull,
 		},
 		{Match: microv1.NamespaceMatch{NamePattern: "*"}, Managed: false},
 	}
@@ -48,7 +49,7 @@ func TestComputeDesiredCWP(t *testing.T) {
 			name:   "user rule wins over system + resolves fromNamespaceLabel",
 			nsName: testNamespacePayments,
 			labels: map[string]string{testNSLabelPartOf: testLabelValueCheckout},
-			want:   DesiredCWP{Managed: true, Labels: map[string]string{testLabelKeyEnv: testLabelValueProd, testLabelKeyApp: testLabelValueCheckout}, EnforcementMode: "full"},
+			want:   DesiredCWP{Managed: true, Labels: map[string]string{testLabelKeyEnv: testLabelValueProd, testLabelKeyApp: testLabelValueCheckout}, EnforcementMode: testEnforcementFull},
 		},
 		{
 			name:   "non-system, catch-all unmanaged",

@@ -30,6 +30,12 @@ type SegmentationIntentSpec struct {
 	// Allow is the set of permitted inbound flows to this namespace's app.
 	// +kubebuilder:validation:MinItems=1
 	Allow []IntentAllow `json:"allow"`
+	// Enforcement requests a namespace enforcement mode. The operator applies
+	// the strictest mode requested across all policy CRs in the namespace (on
+	// top of the admin baseline). One of idle, visibility_only, full.
+	// +kubebuilder:validation:Enum=idle;visibility_only;full
+	// +optional
+	Enforcement string `json:"enforcement,omitempty"`
 }
 
 // SegmentationIntentStatus is the observed state.
@@ -41,6 +47,12 @@ type SegmentationIntentStatus struct {
 	// WorkloadsAffected is the count from the last provisioning.
 	// +optional
 	WorkloadsAffected int `json:"workloadsAffected,omitempty"`
+	// EffectiveEnforcement is the namespace's resolved enforcement mode.
+	// +optional
+	EffectiveEnforcement string `json:"effectiveEnforcement,omitempty"`
+	// EnforcementSetBy names what set the effective enforcement (a CR name or "admin").
+	// +optional
+	EnforcementSetBy string `json:"enforcementSetBy,omitempty"`
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }

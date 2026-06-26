@@ -102,7 +102,9 @@ See the [Namespace management guide](guides/namespace-management.md) for the ful
 
 ## 5. Write segmentation policy
 
-Once a namespace is managed by the `ClusterProfile`, app teams can declare which consumers are allowed to reach their application using a `SegmentationIntent`:
+Once a namespace is managed by the `ClusterProfile`, app teams can declare which consumers are allowed to reach their application. There are two equivalent front-ends — choose the one that fits your team's mental model.
+
+**Intent style** (`SegmentationIntent`) — a flat allow-list:
 
 ```yaml
 apiVersion: microsegment.io/v1alpha1
@@ -120,13 +122,37 @@ spec:
         - { port: 5432, protocol: TCP }
 ```
 
+**NetworkPolicy style** (`SegmentationPolicy`) — familiar if you already use Kubernetes `NetworkPolicy`:
+
+```yaml
+apiVersion: microsegment.io/v1alpha1
+kind: SegmentationPolicy
+metadata:
+  name: payments-ingress
+  namespace: payments
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: checkout
+              env: prod
+      ports:
+        - port: 8443
+          protocol: TCP
+```
+
+Both compile to the same Illumio ruleset via the same backend. Consumer labels (`from` entries) must already exist in the PCE — Kubelink creates them from running workloads. Rules only **block** non-allowed traffic when the namespace's effective enforcement mode is `full`.
+
 ```bash
 kubectl apply -f payments-ingress.yaml
-kubectl get segintent -n payments
+kubectl get segintent -n payments   # or: kubectl get segpol -n payments
 # NAME               READY   PROVISIONED   AFFECTED
 # payments-ingress   True    True          12
 ```
 
-The operator compiles the intent into one Illumio ruleset scoped to the `payments` namespace's app and provisions it according to `ClusterProfile.spec.provisioningMode`. Consumer labels in `from` must already exist in the PCE (Kubelink creates them from running workloads). Rules only **block** non-allowed traffic when the namespace's enforcement mode is `full`.
-
 See the [Segmentation policy guide](guides/segmentation-policy.md) for compilation details, provisioning modes, and enforcement notes.
+See the [NetworkPolicy-style guide](guides/networkpolicy-style.md) for the `SegmentationPolicy` front-end, including the supported subset and rejection rules.

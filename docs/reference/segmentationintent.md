@@ -13,6 +13,7 @@ Short name: `segintent`. Category: `illumio`.
 | `allow[].ports` | []IntentPort | no | Ports the consumer may reach. When omitted, all ports are allowed. |
 | `allow[].ports[].port` | integer | yes | TCP or UDP port number. |
 | `allow[].ports[].protocol` | string | no | `TCP` or `UDP`. Defaults to `TCP`. |
+| `enforcement` | string | no | Requests a namespace enforcement mode. One of `idle`, `visibility_only`, `full`. The namespace's effective enforcement is the strictest of the admin baseline (`ClusterProfile` namespace rule) and all policy CRs (`SegmentationIntent` and `SegmentationPolicy`) in the namespace. Setting this field does not unilaterally change the namespace's CWP — it participates in the strictest-wins calculation. See [Effective enforcement](#effective-enforcement). |
 
 ## Annotation
 
@@ -26,7 +27,20 @@ Short name: `segintent`. Category: `illumio`.
 |-------|------|-------------|
 | `conditions` | []Condition | Standard Kubernetes conditions list. See below. |
 | `workloadsAffected` | integer | Count of PCE workloads affected by the last provisioning operation. Displayed as the `Affected` print column. |
+| `effectiveEnforcement` | string | The namespace's resolved enforcement mode (`idle`, `visibility_only`, or `full`) after applying the strictest-wins algorithm across the admin baseline and all policy CRs in the namespace. |
+| `enforcementSetBy` | string | Names the CR (or `admin`) that determined the effective enforcement. `admin` means the `ClusterProfile` admin baseline was strictest. |
 | `observedGeneration` | integer | Generation of the spec that produced the current status. |
+
+## Effective enforcement
+
+The `enforcement` spec field participates in a per-namespace strictest-wins resolution. The namespace's effective enforcement is the strictest of:
+
+1. The admin baseline — `enforcementMode` from the matching `ClusterProfile` namespace rule.
+2. `spec.enforcement` on every `SegmentationIntent` and `SegmentationPolicy` in the namespace.
+
+Strictness order: `idle` < `visibility_only` < `full`. The winning value is applied to the namespace's Container Workload Profile (CWP). `status.effectiveEnforcement` reflects the value currently applied; `status.enforcementSetBy` names the source.
+
+**Rules and enforcement are independent.** Rules determine what traffic is allowed. Enforcement determines whether non-allowed traffic is blocked — only `full` enforcement blocks. `visibility_only` allows all traffic while recording flows. `idle` allows all traffic without recording.
 
 ### The `Ready` condition
 
@@ -74,3 +88,5 @@ spec:
 ```
 
 See the [Segmentation policy guide](../guides/segmentation-policy.md) for compilation details, provisioning mode walkthroughs, and enforcement notes.
+See the [NetworkPolicy-style guide](../guides/networkpolicy-style.md) if you prefer the `SegmentationPolicy` NetworkPolicy-shaped front-end.
+See the [SegmentationPolicy reference](segmentationpolicy.md) for the NetworkPolicy-style CRD field documentation.

@@ -36,6 +36,7 @@ rules:
   - clusterprofiles
   - pceconnections
   - segmentationintents
+  - segmentationpolicies
   verbs:
   - create
   - delete
@@ -50,6 +51,7 @@ rules:
   - clusterprofiles/status
   - pceconnections/status
   - segmentationintents/status
+  - segmentationpolicies/status
   verbs:
   - get
   - patch
@@ -58,5 +60,6 @@ rules:
   - microsegment.io
   resources:
   - segmentationintents/finalizers
+  - segmentationpolicies/finalizers
   verbs:
   - update
