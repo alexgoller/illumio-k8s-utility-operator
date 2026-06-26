@@ -16,7 +16,7 @@ func TestCompilePolicy_SupportedSubset(t *testing.T) {
 		PolicyTypes: []string{testPolicyTypeIngress},
 		Ingress: []microv1.IngressRule{{
 			From:  []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyApp: testLabelValueCheckout, testLabelKeyEnv: testLabelValueProd}}}},
-			Ports: []microv1.NetworkPolicyPort{{Port: 8443, Protocol: "TCP"}},
+			Ports: []microv1.NetworkPolicyPort{{Port: 8443, Protocol: siProtoTCP}},
 		}},
 	}
 	allows, err := CompilePolicy(spec)
@@ -46,6 +46,56 @@ func TestCompilePolicy_RejectsUnsupported(t *testing.T) {
 				t.Fatalf("rejection error must be descriptive")
 			}
 		})
+	}
+}
+
+func TestCompilePolicy_MultiPeerOr_SameKey(t *testing.T) {
+	spec := microv1.SegmentationPolicySpec{
+		Ingress: []microv1.IngressRule{{
+			From: []microv1.NetworkPolicyPeer{
+				{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyApp: "a"}}},
+				{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyApp: "b"}}},
+			},
+			Ports: []microv1.NetworkPolicyPort{{Port: 8080, Protocol: siProtoTCP}},
+		}},
+	}
+	allows, err := CompilePolicy(spec)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(allows) != 2 {
+		t.Fatalf("expected 2 allows (one per peer), got %d: %+v", len(allows), allows)
+	}
+	if allows[0].From[testLabelKeyApp] != "a" {
+		t.Errorf("allows[0].From[app] = %q, want %q", allows[0].From[testLabelKeyApp], "a")
+	}
+	if allows[1].From[testLabelKeyApp] != "b" {
+		t.Errorf("allows[1].From[app] = %q, want %q", allows[1].From[testLabelKeyApp], "b")
+	}
+}
+
+func TestCompilePolicy_MultiPeerOr_DistinctKeys(t *testing.T) {
+	spec := microv1.SegmentationPolicySpec{
+		Ingress: []microv1.IngressRule{{
+			From: []microv1.NetworkPolicyPeer{
+				{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyApp: "api"}}},
+				{NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"tier": "web"}}},
+			},
+			Ports: []microv1.NetworkPolicyPort{{Port: 443, Protocol: siProtoTCP}},
+		}},
+	}
+	allows, err := CompilePolicy(spec)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(allows) != 2 {
+		t.Fatalf("expected 2 allows (one per peer), got %d: %+v", len(allows), allows)
+	}
+	if allows[0].From[testLabelKeyApp] != "api" {
+		t.Errorf("allows[0].From[app] = %q, want %q", allows[0].From[testLabelKeyApp], "api")
+	}
+	if allows[1].From["tier"] != "web" {
+		t.Errorf("allows[1].From[tier] = %q, want %q", allows[1].From["tier"], "web")
 	}
 }
 

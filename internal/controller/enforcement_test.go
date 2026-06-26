@@ -85,7 +85,7 @@ var _ = Describe("Enforcement-strictest resolution", func() {
 			Spec: microv1.SegmentationIntentSpec{
 				Enforcement: testEnforcementFull,
 				Allow: []microv1.IntentAllow{
-					{From: map[string]string{testLabelKeyApp: testLabelValueCheckout}, Ports: []microv1.IntentPort{{Port: 8443, Protocol: "TCP"}}},
+					{From: map[string]string{testLabelKeyApp: testLabelValueCheckout}, Ports: []microv1.IntentPort{{Port: 8443, Protocol: siProtoTCP}}},
 				},
 			},
 		}

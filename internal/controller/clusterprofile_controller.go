@@ -257,8 +257,10 @@ func (r *ClusterProfileReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.clusterProfilesForNamespace),
 			builder.WithPredicates(predicate.Or(predicate.LabelChangedPredicate{}, predicate.AnnotationChangedPredicate{})),
 		).
-		Watches(&microv1.SegmentationIntent{}, enqueueAllCPs).
-		Watches(&microv1.SegmentationPolicy{}, enqueueAllCPs).
+		Watches(&microv1.SegmentationIntent{}, enqueueAllCPs,
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(&microv1.SegmentationPolicy{}, enqueueAllCPs,
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
 }
 

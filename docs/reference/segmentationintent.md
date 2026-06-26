@@ -33,7 +33,7 @@ Short name: `segintent`. Category: `illumio`.
 
 ## Effective enforcement
 
-The `enforcement` spec field participates in a per-namespace strictest-wins resolution. The namespace's effective enforcement is the maximum of:
+The `enforcement` spec field participates in a per-namespace strictest-wins resolution. The namespace's effective enforcement is the strictest of:
 
 1. The admin baseline — `enforcementMode` from the matching `ClusterProfile` namespace rule.
 2. `spec.enforcement` on every `SegmentationIntent` and `SegmentationPolicy` in the namespace.

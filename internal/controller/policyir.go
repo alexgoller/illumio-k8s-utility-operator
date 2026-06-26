@@ -105,6 +105,8 @@ func CompileIntent(allows []microv1.IntentAllow) []CompiledAllow {
 
 // CompilePolicy lowers a SegmentationPolicy (supported NetworkPolicy subset) to
 // CompiledAllow, returning a descriptive error for any unsupported construct.
+// Each peer in a from list is emitted as a separate CompiledAllow so that
+// NetworkPolicy OR semantics are preserved (peers are not merged/ANDed).
 func CompilePolicy(spec microv1.SegmentationPolicySpec) ([]CompiledAllow, error) {
 	for _, t := range spec.PolicyTypes {
 		if t != policyTypeIngress {
@@ -114,13 +116,20 @@ func CompilePolicy(spec microv1.SegmentationPolicySpec) ([]CompiledAllow, error)
 	if len(spec.PodSelector.MatchLabels) > 0 || len(spec.PodSelector.MatchExpressions) > 0 {
 		return nil, fmt.Errorf("spec.podSelector must be empty: the policy applies to the whole namespace's app")
 	}
-	out := make([]CompiledAllow, 0, len(spec.Ingress))
+	out := make([]CompiledAllow, 0)
 	for i, ing := range spec.Ingress {
 		if len(ing.From) == 0 {
 			return nil, fmt.Errorf("ingress[%d].from must list at least one peer (allow-all is not supported)", i)
 		}
-		from := map[string]string{}
+		ports := make([]pce.IngressService, 0, len(ing.Ports))
+		for _, p := range ing.Ports {
+			ports = append(ports, pce.IngressService{Proto: protoNumber(p.Protocol), Port: p.Port})
+		}
 		for j, peer := range ing.From {
+			if peer.PodSelector == nil && peer.NamespaceSelector == nil {
+				return nil, fmt.Errorf("ingress[%d].from[%d]: a podSelector or namespaceSelector is required (ipBlock is not supported)", i, j)
+			}
+			from := map[string]string{}
 			for _, sel := range []*metav1.LabelSelector{peer.PodSelector, peer.NamespaceSelector} {
 				if sel == nil {
 					continue
@@ -130,18 +139,11 @@ func CompilePolicy(spec microv1.SegmentationPolicySpec) ([]CompiledAllow, error)
 				}
 				maps.Copy(from, sel.MatchLabels)
 			}
-			if peer.PodSelector == nil && peer.NamespaceSelector == nil {
-				return nil, fmt.Errorf("ingress[%d].from[%d]: a podSelector or namespaceSelector is required (ipBlock is not supported)", i, j)
+			if len(from) == 0 {
+				return nil, fmt.Errorf("ingress[%d].from[%d]: no matchLabels found", i, j)
 			}
+			out = append(out, CompiledAllow{From: from, Ports: ports})
 		}
-		if len(from) == 0 {
-			return nil, fmt.Errorf("ingress[%d].from: no matchLabels found", i)
-		}
-		ports := make([]pce.IngressService, 0, len(ing.Ports))
-		for _, p := range ing.Ports {
-			ports = append(ports, pce.IngressService{Proto: protoNumber(p.Protocol), Port: p.Port})
-		}
-		out = append(out, CompiledAllow{From: from, Ports: ports})
 	}
 	return out, nil
 }
