@@ -93,6 +93,16 @@ spec:
                   type: object
                 minItems: 1
                 type: array
+              enforcement:
+                description: |-
+                  Enforcement requests a namespace enforcement mode. The operator applies
+                  the strictest mode requested across all policy CRs in the namespace (on
+                  top of the admin baseline). One of idle, visibility_only, full.
+                enum:
+                - idle
+                - visibility_only
+                - full
+                type: string
             required:
             - allow
             type: object
@@ -158,6 +168,14 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              effectiveEnforcement:
+                description: EffectiveEnforcement is the namespace's resolved enforcement
+                  mode.
+                type: string
+              enforcementSetBy:
+                description: EnforcementSetBy names what set the effective enforcement
+                  (a CR name or "admin").
+                type: string
               observedGeneration:
                 format: int64
                 type: integer
