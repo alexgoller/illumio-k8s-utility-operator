@@ -140,12 +140,6 @@ serviceAccount:
   # labels: {}
 
 ## Custom Resource Definitions
-##
-crd:
-  # Install CRDs with the chart
-  enabled: true
-  # Keep CRDs when uninstalling
-  keep: true
 
 ## Controller metrics endpoint.
 ## Enable to expose /metrics endpoint

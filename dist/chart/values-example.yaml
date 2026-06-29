@@ -1,0 +1,37 @@
+# Sample values for the illumio-k8s-utility-operator Helm chart.
+#   helm install illumio-operator \
+#     oci://ghcr.io/alexgoller/charts/illumio-k8s-utility-operator --version 0.1.2 \
+#     -n illumio-operator --create-namespace -f values-example.yaml
+#
+# CRDs are installed automatically from the chart's crds/ directory (use
+# `helm install --skip-crds` to skip them).
+
+# --- Illumio PCE connection (required) ---
+pce:
+  url: "mypce.example.com:8443"   # host:port (use 443 for SaaS)
+  orgId: 3
+  apiKey: "api_1234567890abcdef"  # or set existingSecret below and omit apiKey/apiSecret
+  apiSecret: "your-api-secret"
+  # existingSecret: "my-pce-credentials"   # a Secret (in this namespace) with keys api_key / api_secret
+  connectionName: default          # name of the PCEConnection the chart creates
+
+# --- Optional: onboard this cluster to the PCE in the same install ---
+onboarding:
+  enabled: false                   # flip to true to create a ClusterProfile
+  name: this-cluster               # ClusterProfile metadata.name (cluster-scoped -> unique per cluster)
+  containerClusterName: ""         # required when enabled, e.g. "ocp-prod-01"
+  credentialsOutputSecret: illumio-cluster-creds
+  nodePairingProfile:
+    # existingName: "my-existing-pairing-profile"   # reuse an existing PCE pairing profile instead of creating one
+    labels:                        # Illumio labels applied to nodes paired via this profile
+      role: node
+      env: prod
+    enforcementMode: idle          # idle | visibility_only | full
+
+# --- Operator deployment (defaults are fine; shown for reference) ---
+manager:
+  replicas: 1
+  image:
+    repository: ghcr.io/alexgoller/illumio-k8s-utility-operator
+    # tag: ""                      # defaults to the chart appVersion
+    pullPolicy: IfNotPresent
