@@ -4,6 +4,8 @@
 resources:
 - bases/microsegment.io_pceconnections.yaml
 - bases/microsegment.io_clusterprofiles.yaml
+- bases/microsegment.io_segmentationintents.yaml
+- bases/microsegment.io_segmentationpolicies.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
