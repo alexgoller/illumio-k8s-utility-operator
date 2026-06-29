@@ -92,9 +92,11 @@ func TestEnsureLabel_DistinctLabelsGetDistinctReferences(t *testing.T) {
 	})
 
 	// All four labels share one owner (the same CR UID), exactly as the
-	// namespace-CWP path does.
+	// namespace-CWP path does. Two share a key with different values
+	// (zone=test vs zone=k8s-ag) — the realistic namespaceRules vs
+	// systemNamespaces case that first triggered the 406.
 	owner := Owner{DataSet: testExternalDataSet, Reference: testExternalDataRef}
-	pairs := [][2]string{{"app", "illumio"}, {"env", "test"}, {"app", "system"}, {"env", "k8s-ag"}}
+	pairs := [][2]string{{"zone", "test"}, {"zone", "k8s-ag"}, {"tier", "node"}, {"region", "dc1"}}
 	for _, p := range pairs {
 		if _, err := c.EnsureLabel(context.Background(), p[0], p[1], owner); err != nil {
 			t.Fatalf("EnsureLabel(%s=%s) error: %v", p[0], p[1], err)
