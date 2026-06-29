@@ -14,7 +14,7 @@ The operator's Helm chart is published to **GitHub Container Registry** as an OC
 ### Install the operator and connect to a PCE
 
 ```bash
-helm install illumio-operator oci://ghcr.io/alexgoller/charts/illumio-k8s-utility-operator --version 0.1.1 \
+helm install illumio-operator oci://ghcr.io/alexgoller/charts/illumio-k8s-utility-operator --version 0.1.2 \
   --namespace illumio-operator \
   --create-namespace \
   --set pce.url=mypce.example.com:8443 \
@@ -30,7 +30,7 @@ This creates the `illumio-operator` namespace, installs all four CRDs (PCEConnec
 Add `--set onboarding.enabled=true` and supply a Container Cluster name:
 
 ```bash
-helm install illumio-operator oci://ghcr.io/alexgoller/charts/illumio-k8s-utility-operator --version 0.1.1 \
+helm install illumio-operator oci://ghcr.io/alexgoller/charts/illumio-k8s-utility-operator --version 0.1.2 \
   --namespace illumio-operator \
   --create-namespace \
   --set pce.url=mypce.example.com:8443 \
@@ -48,7 +48,7 @@ The operator will create the PCE Container Cluster, generate a node Pairing Prof
 If your credentials are already managed by an external secret manager (e.g., Vault, External Secrets Operator), point the chart at the existing Secret instead of supplying raw values:
 
 ```bash
-helm install illumio-operator oci://ghcr.io/alexgoller/charts/illumio-k8s-utility-operator --version 0.1.1 \
+helm install illumio-operator oci://ghcr.io/alexgoller/charts/illumio-k8s-utility-operator --version 0.1.2 \
   --namespace illumio-operator \
   --create-namespace \
   --set pce.url=mypce.example.com:8443 \
@@ -57,6 +57,17 @@ helm install illumio-operator oci://ghcr.io/alexgoller/charts/illumio-k8s-utilit
 ```
 
 The Secret must exist in the release namespace and contain the keys `api_key` and `api_secret`.
+
+### Using a values file
+
+A ready-to-edit example lives at `dist/chart/values-example.yaml` (and is bundled inside the chart). Fill in your PCE details and pass it with `-f`:
+
+```bash
+helm install illumio-operator \
+  oci://ghcr.io/alexgoller/charts/illumio-k8s-utility-operator --version 0.1.2 \
+  -n illumio-operator --create-namespace \
+  -f values-example.yaml
+```
 
 ### Key Helm values
 
@@ -107,7 +118,7 @@ make deploy IMG=<your-registry>/illumio-k8s-utility-operator:dev
 helm uninstall illumio-operator --namespace illumio-operator
 ```
 
-Note: CRDs are kept by default (`crd.keep: true`). To also remove the CRDs:
+Note: `helm uninstall` does **not** remove the CRDs (Helm never deletes resources from a chart's `crds/` directory). To also remove the CRDs (and any custom resources using them):
 
 ```bash
 kubectl delete crd clusterprofiles.microsegment.io pceconnections.microsegment.io segmentationintents.microsegment.io segmentationpolicies.microsegment.io

@@ -1,40 +1,37 @@
-{{- if .Values.crd.enabled }}
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    {{- if .Values.crd.keep }}
-    "helm.sh/resource-policy": keep
-    {{- end }}
     controller-gen.kubebuilder.io/version: v0.21.0
-  name: clusterprofiles.microsegment.io
+  name: pceconnections.microsegment.io
 spec:
   group: microsegment.io
   names:
     categories:
     - illumio
-    kind: ClusterProfile
-    listKind: ClusterProfileList
-    plural: clusterprofiles
+    kind: PCEConnection
+    listKind: PCEConnectionList
+    plural: pceconnections
     shortNames:
-    - cprof
-    singular: clusterprofile
+    - pceconn
+    singular: pceconnection
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.onboarding.containerClusterName
-      name: Cluster
+    - jsonPath: .spec.pceUrl
+      name: PCE
       type: string
-    - jsonPath: .status.containerClusterID
-      name: ClusterID
-      type: string
-    - jsonPath: .status.conditions[?(@.type=="Onboarded")].status
-      name: Onboarded
+    - jsonPath: .spec.orgId
+      name: Org
+      type: integer
+    - jsonPath: .status.conditions[?(@.type=="Connected")].status
+      name: Connected
       type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ClusterProfile onboards a Kubernetes cluster to an Illumio PCE.
+        description: PCEConnection is the Schema for the pceconnections API
         properties:
           apiVersion:
             description: |-
@@ -54,81 +51,41 @@ spec:
           metadata:
             type: object
           spec:
-            description: ClusterProfileSpec is the desired onboarding state for this
-              cluster.
+            description: spec defines the desired state of PCEConnection
             properties:
-              onboarding:
-                description: Onboarding configures PCE cluster onboarding.
-                properties:
-                  containerClusterName:
-                    description: |-
-                      ContainerClusterName is the name of the PCE Container Cluster object to
-                      ensure exists for this cluster.
-                    type: string
-                  credentialsOutputSecret:
-                    description: |-
-                      CredentialsOutputSecret is the name of the Secret (in the operator's
-                      namespace) the operator writes the agent credentials into:
-                      pce_url, cluster_id, cluster_token, cluster_code.
-                    type: string
-                  nodePairingProfile:
-                    description: |-
-                      NodePairingProfile configures the pairing profile the C-VEN uses to pair
-                      the cluster's nodes.
-                    properties:
-                      enforcementMode:
-                        default: idle
-                        description: |-
-                          EnforcementMode for a created pairing profile. One of idle,
-                          visibility_only, full. Defaults to idle.
-                        enum:
-                        - idle
-                        - visibility_only
-                        - full
-                        type: string
-                      existingName:
-                        description: |-
-                          ExistingName: if set, use this existing PCE pairing profile (by name)
-                          instead of creating one. Labels/EnforcementMode are ignored in that case.
-                        type: string
-                      labels:
-                        additionalProperties:
-                          type: string
-                        description: |-
-                          Labels to apply to nodes paired with this profile, as Illumio
-                          label-key -> value (e.g. {"role": "node", "env": "prod"}). The operator
-                          resolves each to an Illumio label href (create-if-missing).
-                        type: object
-                    type: object
-                required:
-                - containerClusterName
-                - credentialsOutputSecret
-                type: object
-              pceConnectionRef:
-                description: PCEConnectionRef references the PCEConnection to use.
+              credentialsSecretRef:
+                description: CredentialsSecretRef references the Secret with api_key
+                  / api_secret.
                 properties:
                   name:
+                    description: 'Name of the Secret (keys: api_key, api_secret).'
+                    type: string
+                  namespace:
+                    description: Namespace of the Secret. Defaults to the operator's
+                      namespace if empty.
                     type: string
                 required:
                 - name
                 type: object
-              provisioningMode:
-                default: manual
+              externalDataSet:
                 description: |-
-                  ProvisioningMode is the default policy provisioning mode for resources in
-                  this cluster. One of: auto, manual, draft-only. Consumed by later
-                  policy reconciliation; defaults to manual.
-                enum:
-                - auto
-                - manual
-                - draft-only
+                  ExternalDataSet is the ownership tag stamped on PCE objects this
+                  operator creates. Defaults to "illumio-operator" if empty.
+                type: string
+              orgId:
+                description: OrgID is the PCE organization id.
+                type: integer
+              pceUrl:
+                description: PCEURL is the PCE host:port (443 for SaaS, 8443 typical
+                  on-prem).
                 type: string
             required:
-            - onboarding
-            - pceConnectionRef
+            - credentialsSecretRef
+            - orgId
+            - pceUrl
             type: object
           status:
-            description: ClusterProfileStatus is the observed onboarding state.
+            description: status defines the observed state of PCEConnection
             properties:
               conditions:
                 items:
@@ -189,21 +146,14 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              containerClusterHref:
-                description: ContainerClusterHref is the href of the PCE Container
-                  Cluster object.
-                type: string
-              containerClusterID:
-                description: ContainerClusterID is the cluster UUID (last segment
-                  of the href).
-                type: string
               observedGeneration:
                 format: int64
                 type: integer
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
     subresources:
       status: {}
-{{- end }}

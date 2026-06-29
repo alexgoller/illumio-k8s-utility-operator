@@ -1287,7 +1287,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: ghcr.io/alexgoller/illumio-k8s-utility-operator:0.1.1
+        image: ghcr.io/alexgoller/illumio-k8s-utility-operator:0.1.2
         livenessProbe:
           httpGet:
             path: /healthz
