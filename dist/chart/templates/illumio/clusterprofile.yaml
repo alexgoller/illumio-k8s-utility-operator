@@ -18,4 +18,23 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       enforcementMode: {{ .Values.onboarding.nodePairingProfile.enforcementMode | default "idle" | quote }}
+  {{- with .Values.systemNamespaces }}
+  systemNamespaces:
+    manage: {{ .manage | default false }}
+    {{- with .patterns }}
+    patterns:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .labels }}
+    labels:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .enforcementMode }}
+    enforcementMode: {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- with .Values.namespaceRules }}
+  namespaceRules:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- end }}

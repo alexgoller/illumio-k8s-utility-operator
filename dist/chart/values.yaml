@@ -193,3 +193,34 @@ onboarding:
     labels: {}          # e.g. { role: node, env: prod }
     enforcementMode: idle
 
+# --- Day-2 namespace (CWP) management ---
+# Written into the ClusterProfile spec; only rendered when onboarding.enabled is true.
+
+# systemNamespaces manages the cluster's Kubernetes/OpenShift infrastructure
+# namespaces. The patterns below are the tunable default set — edit them per
+# distribution instead of relying on any built-in list.
+systemNamespaces:
+  # Turn on management of the namespaces matching the patterns below.
+  manage: false
+  # Glob patterns (Go path.Match). The bare "openshift" project is NOT matched
+  # by "openshift-*", so it is listed explicitly. "kube-*" covers kube-system,
+  # kube-public and kube-node-lease.
+  patterns:
+    - openshift
+    - "openshift-*"
+    - "kube-*"
+    - default
+  # Illumio labels applied to the matched system-namespace CWPs.
+  labels: {}            # e.g. { app: openshift, role: infra, env: prod }
+  # One of idle | visibility_only | full. A managed CWP can never be idle, so
+  # idle is raised to visibility_only by the operator.
+  enforcementMode: visibility_only
+
+# namespaceRules is an ordered list of CWP rules for application namespaces,
+# written verbatim into the ClusterProfile spec. See docs/guides/namespace-management.md.
+namespaceRules: []
+  # - match: { namePattern: "team-*" }
+  #   managed: true
+  #   assignLabels: { app: { fromNamespaceLabel: app.kubernetes.io/name }, env: { value: prod } }
+  #   enforcementMode: visibility_only
+
