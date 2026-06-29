@@ -58,6 +58,17 @@ helm install illumio-operator oci://ghcr.io/alexgoller/charts/illumio-k8s-utilit
 
 The Secret must exist in the release namespace and contain the keys `api_key` and `api_secret`.
 
+### Using a values file
+
+A ready-to-edit example lives at `dist/chart/values-example.yaml` (and is bundled inside the chart). Fill in your PCE details and pass it with `-f`:
+
+```bash
+helm install illumio-operator \
+  oci://ghcr.io/alexgoller/charts/illumio-k8s-utility-operator --version 0.1.1 \
+  -n illumio-operator --create-namespace \
+  -f values-example.yaml
+```
+
 ### Key Helm values
 
 | Value | Default | Description |
