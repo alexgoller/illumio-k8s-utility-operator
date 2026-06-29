@@ -45,6 +45,7 @@ type ClusterProfileReconciler struct {
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=microsegment.io,resources=segmentationintents,verbs=get;list;watch
 // +kubebuilder:rbac:groups=microsegment.io,resources=segmentationpolicies,verbs=get;list;watch
 
