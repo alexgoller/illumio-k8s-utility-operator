@@ -145,10 +145,15 @@ type ClusterProfileStatus struct {
 // Condition types and reasons for ClusterProfile.
 const (
 	ConditionOnboarded = "Onboarded"
+	// ConditionNamespacesReconciled is True when every managed namespace's CWP
+	// was applied to the PCE, and False when one or more namespaces failed.
+	ConditionNamespacesReconciled = "NamespacesReconciled"
 
 	ReasonOnboarded             = "Onboarded"
 	ReasonPCEConnectionNotReady = "PCEConnectionNotReady"
 	ReasonOnboardFailed         = "OnboardFailed"
+	ReasonReconciled            = "Reconciled"
+	ReasonNamespaceErrors       = "NamespaceReconcileErrors"
 )
 
 // Namespace annotation keys for per-namespace CWP overrides.

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -162,16 +163,32 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	// Reconcile per-namespace CWPs now that the cluster is onboarded.
+	// Reconcile per-namespace CWPs now that the cluster is onboarded. A single
+	// namespace's PCE failure must not freeze the whole status, so persist what we
+	// managed regardless and only advance observedGeneration on a clean pass.
 	managed, cwpErr := r.reconcileNamespaceCWPs(ctx, &cp, pclient, owner)
-	if cwpErr != nil {
-		return ctrl.Result{}, cwpErr
-	}
 	cp.Status.ManagedNamespaces = managed
-
 	meta.SetStatusCondition(&cp.Status.Conditions, metav1.Condition{
 		Type: microv1.ConditionOnboarded, Status: metav1.ConditionTrue,
 		Reason: microv1.ReasonOnboarded, Message: "cluster onboarded; credentials published",
+	})
+
+	if cwpErr != nil {
+		// Partial failure: record it and keep observedGeneration behind so the
+		// spec is retried, but still persist the namespaces we did manage.
+		meta.SetStatusCondition(&cp.Status.Conditions, metav1.Condition{
+			Type: microv1.ConditionNamespacesReconciled, Status: metav1.ConditionFalse,
+			Reason: microv1.ReasonNamespaceErrors, Message: cwpErr.Error(),
+		})
+		if err := r.Status().Update(ctx, &cp); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, cwpErr
+	}
+
+	meta.SetStatusCondition(&cp.Status.Conditions, metav1.Condition{
+		Type: microv1.ConditionNamespacesReconciled, Status: metav1.ConditionTrue,
+		Reason: microv1.ReasonReconciled, Message: fmt.Sprintf("%d namespace(s) managed", managed),
 	})
 	cp.Status.ObservedGeneration = cp.Generation
 	if err := r.Status().Update(ctx, &cp); err != nil {
@@ -298,7 +315,10 @@ func (r *ClusterProfileReconciler) clusterProfilesForNamespace(ctx context.Conte
 }
 
 // reconcileNamespaceCWPs evaluates every namespace against the profile's rules
-// and updates each namespace's CWP in the PCE. Returns the managed count.
+// and updates each namespace's CWP in the PCE. It returns the managed count and
+// the aggregated per-namespace errors (nil = every namespace applied cleanly). A
+// single namespace's PCE failure does not abort the loop: the remaining
+// namespaces are still reconciled so one bad namespace cannot freeze the rest.
 func (r *ClusterProfileReconciler) reconcileNamespaceCWPs(ctx context.Context, cp *microv1.ClusterProfile, pclient OnboardingClient, owner pce.Owner) (int, error) {
 	if cp.Status.ContainerClusterID == "" {
 		return 0, nil
@@ -320,6 +340,7 @@ func (r *ClusterProfileReconciler) reconcileNamespaceCWPs(ctx context.Context, c
 
 	labelHref := map[string]string{} // "key|value" -> href cache
 	managed := 0
+	var errs []error
 	for i := range nsList.Items {
 		nsObj := &nsList.Items[i]
 		desired := ComputeDesiredCWP(nsObj.Name, nsObj.Labels, nsObj.Annotations, cp.Spec.NamespaceRules, cp.Spec.SystemNamespaces)
@@ -337,20 +358,22 @@ func (r *ClusterProfileReconciler) reconcileNamespaceCWPs(ctx context.Context, c
 		}
 		update, changed, lerr := r.buildCWPUpdate(ctx, pclient, owner, cwp, desired, labelHref)
 		if lerr != nil {
-			return managed, lerr
+			errs = append(errs, fmt.Errorf("namespace %s: %w", nsObj.Name, lerr))
+			continue
 		}
 		if !changed {
 			continue
 		}
 		if err := pclient.UpdateContainerWorkloadProfile(ctx, cwp.Href, update); err != nil {
-			return managed, err
+			errs = append(errs, fmt.Errorf("namespace %s: %w", nsObj.Name, err))
+			continue
 		}
 		if r.Recorder != nil {
 			r.Recorder.Eventf(nsObj, nil, corev1.EventTypeNormal, "CWPConfigured", "Configure",
 				"managed=%v enforcement=%s", desired.Managed, desired.EnforcementMode)
 		}
 	}
-	return managed, nil
+	return managed, errors.Join(errs...)
 }
 
 // buildCWPUpdate resolves desired labels to Illumio hrefs and diffs against the
