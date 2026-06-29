@@ -13,6 +13,21 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - secrets
   verbs:
   - create
@@ -26,6 +41,8 @@ rules:
   resources:
   - clusterprofiles
   - pceconnections
+  - segmentationintents
+  - segmentationpolicies
   verbs:
   - create
   - delete
@@ -39,7 +56,16 @@ rules:
   resources:
   - clusterprofiles/status
   - pceconnections/status
+  - segmentationintents/status
+  - segmentationpolicies/status
   verbs:
   - get
   - patch
+  - update
+- apiGroups:
+  - microsegment.io
+  resources:
+  - segmentationintents/finalizers
+  - segmentationpolicies/finalizers
+  verbs:
   - update
