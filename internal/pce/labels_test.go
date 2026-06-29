@@ -57,9 +57,53 @@ func TestEnsureLabel_CreatesWithOwnershipWhenMissing(t *testing.T) {
 	if l.Href != "/orgs/7/labels/99" {
 		t.Errorf("Href = %q, want /orgs/7/labels/99", l.Href)
 	}
-	if posted.ExternalDataSet != testExternalDataSet || posted.ExternalDataReference != testExternalDataRef {
-		t.Errorf("ownership = %q/%q, want %s/%s",
-			posted.ExternalDataSet, posted.ExternalDataReference, testExternalDataSet, testExternalDataRef)
+	// The label is stamped with the operator data set, but its
+	// external_data_reference is the label's own key=value, NOT the owner's
+	// CR-level reference (which is shared across all of a profile's objects).
+	if posted.ExternalDataSet != testExternalDataSet {
+		t.Errorf("ExternalDataSet = %q, want %s", posted.ExternalDataSet, testExternalDataSet)
+	}
+	if posted.ExternalDataReference != "role=control" {
+		t.Errorf("ExternalDataReference = %q, want role=control", posted.ExternalDataReference)
+	}
+}
+
+// TestEnsureLabel_DistinctLabelsGetDistinctReferences is a regression test for
+// the PCE 406 external_reference_not_unique bug: a ClusterProfile creates
+// several labels, all sharing owner.Reference (the CR UID). The PCE requires
+// external_data_reference to be unique within the data set, so reusing the CR
+// UID makes every creation after the first fail. Each label must instead carry
+// a reference unique to itself.
+func TestEnsureLabel_DistinctLabelsGetDistinctReferences(t *testing.T) {
+	refs := map[string]struct{}{}
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			_, _ = w.Write([]byte(`[]`)) // not found -> force create
+			return
+		}
+		var posted Label
+		_ = json.NewDecoder(r.Body).Decode(&posted)
+		if _, dup := refs[posted.ExternalDataReference]; dup {
+			t.Errorf("duplicate external_data_reference %q (PCE would 406)", posted.ExternalDataReference)
+		}
+		refs[posted.ExternalDataReference] = struct{}{}
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"href":"/orgs/7/labels/1","key":"k","value":"v"}`))
+	})
+
+	// All four labels share one owner (the same CR UID), exactly as the
+	// namespace-CWP path does. Two share a key with different values
+	// (zone=test vs zone=k8s-ag) — the realistic namespaceRules vs
+	// systemNamespaces case that first triggered the 406.
+	owner := Owner{DataSet: testExternalDataSet, Reference: testExternalDataRef}
+	pairs := [][2]string{{"zone", "test"}, {"zone", "k8s-ag"}, {"tier", "node"}, {"region", "dc1"}}
+	for _, p := range pairs {
+		if _, err := c.EnsureLabel(context.Background(), p[0], p[1], owner); err != nil {
+			t.Fatalf("EnsureLabel(%s=%s) error: %v", p[0], p[1], err)
+		}
+	}
+	if len(refs) != len(pairs) {
+		t.Errorf("created %d distinct references, want %d", len(refs), len(pairs))
 	}
 }
 
