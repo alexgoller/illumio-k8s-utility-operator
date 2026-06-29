@@ -57,16 +57,18 @@ func TestComputeDesiredCWP(t *testing.T) {
 			want:   DesiredCWP{Managed: false, Labels: map[string]string{}, EnforcementMode: ""},
 		},
 		{
-			name:   "annotation overrides managed + enforcement + label",
+			// Explicit idle on a managed namespace is invalid in the PCE, so it is
+			// floored to visibility_only (the annotation still overrides managed + label).
+			name:   "annotation managed + explicit idle floors to visibility_only",
 			nsName: testNamespaceTeamA,
 			annos:  map[string]string{microv1.AnnotationManaged: "true", microv1.AnnotationEnforcement: enforcementIdle, microv1.AnnotationLabelPrefix + testLabelKeyEnv: "dev"},
-			want:   DesiredCWP{Managed: true, Labels: map[string]string{testLabelKeyEnv: "dev"}, EnforcementMode: enforcementIdle},
+			want:   DesiredCWP{Managed: true, Labels: map[string]string{testLabelKeyEnv: "dev"}, EnforcementMode: testEnforcementVisOnly},
 		},
 		{
-			name:   "managed with no enforcement defaults to idle",
+			name:   "managed with no enforcement defaults to visibility_only",
 			nsName: testNamespaceTeamA,
 			annos:  map[string]string{microv1.AnnotationManaged: "true"},
-			want:   DesiredCWP{Managed: true, Labels: map[string]string{}, EnforcementMode: enforcementIdle},
+			want:   DesiredCWP{Managed: true, Labels: map[string]string{}, EnforcementMode: testEnforcementVisOnly},
 		},
 	}
 
@@ -83,6 +85,42 @@ func TestComputeDesiredCWP(t *testing.T) {
 				if got.Labels[k] != v {
 					t.Fatalf("label %s got %q want %q", k, got.Labels[k], v)
 				}
+			}
+		})
+	}
+}
+
+// TestComputeDesiredCWP_ManagedIdleFloorsToVisibilityOnly is a regression test
+// for the PCE 406 container_workload_profile_invalid_managed_idle: a managed CWP
+// must never be idle. systemNamespaces (and user rules) that request idle while
+// managed must be floored to visibility_only. A managed CWP is never emitted with
+// idle enforcement.
+func TestComputeDesiredCWP_ManagedIdleFloorsToVisibilityOnly(t *testing.T) {
+	cases := []struct {
+		name  string
+		rules []microv1.NamespaceRule
+		sys   microv1.SystemNamespacesSpec
+		ns    string
+	}{
+		{
+			name: "system namespace managed + idle",
+			sys:  microv1.SystemNamespacesSpec{Manage: true, EnforcementMode: enforcementIdle},
+			ns:   "kube-system",
+		},
+		{
+			name:  "user rule managed + idle",
+			rules: []microv1.NamespaceRule{{Match: microv1.NamespaceMatch{NamePattern: "illumio-*"}, Managed: true, EnforcementMode: enforcementIdle}},
+			ns:    "illumio-system",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ComputeDesiredCWP(tc.ns, nil, nil, tc.rules, tc.sys)
+			if !got.Managed {
+				t.Fatalf("expected managed, got %+v", got)
+			}
+			if got.EnforcementMode != testEnforcementVisOnly {
+				t.Fatalf("managed CWP must never be idle: got enforcement %q, want %s", got.EnforcementMode, testEnforcementVisOnly)
 			}
 		})
 	}
