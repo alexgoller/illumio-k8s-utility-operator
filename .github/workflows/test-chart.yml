@@ -80,3 +80,23 @@ jobs:
       - name: Check Helm release status
         run: |
           make helm-status
+
+      - name: Assert the controller has no RBAC / watch errors
+        # The Deployment goes Ready even when the ClusterRole is missing rules
+        # (the manager only logs the failures), so --wait alone cannot catch
+        # RBAC drift. Scrape the logs and fail on "is forbidden" / "Failed to
+        # watch" — this guards the manager-role.yaml <-> config/rbac/role.yaml
+        # sync that the v0.1.2 chart shipped broken.
+        run: |
+          NS=illumio-k8s-utility-operator-system
+          kubectl -n "$NS" wait --for=condition=Available deploy \
+            -l control-plane=controller-manager --timeout=120s
+          # Give the controllers a moment to start their watches and surface errors.
+          sleep 25
+          LOGS=$(kubectl -n "$NS" logs -l control-plane=controller-manager --tail=-1 --prefix)
+          echo "$LOGS"
+          if echo "$LOGS" | grep -qiE 'is forbidden|Failed to watch'; then
+            echo "::error::controller logged RBAC/watch errors — ClusterRole is missing permissions"
+            echo "$LOGS" | grep -iE 'is forbidden|Failed to watch'
+            exit 1
+          fi
