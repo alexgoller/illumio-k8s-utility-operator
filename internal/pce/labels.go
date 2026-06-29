@@ -51,7 +51,16 @@ func (c *Client) CreateLabel(ctx context.Context, l Label) (*Label, error) {
 }
 
 // EnsureLabel returns the existing label for key/value, or creates it stamped
-// with the given ownership tags.
+// with the operator's data set.
+//
+// The external_data_reference is derived from the label's own key/value rather
+// than from owner.Reference. Labels are shared, find-or-create resources, and a
+// single ClusterProfile creates several of them (one per assigned label across
+// its namespace rules). owner.Reference is the same value for every object a
+// profile owns (the CR UID), so reusing it here makes the PCE reject the second
+// and later label creations with 406 external_reference_not_unique. The label's
+// key=value is unique within the operator's data set, which is exactly what the
+// reference must be.
 func (c *Client) EnsureLabel(ctx context.Context, key, value string, owner Owner) (*Label, error) {
 	existing, err := c.FindLabel(ctx, key, value)
 	if err == nil {
@@ -64,6 +73,6 @@ func (c *Client) EnsureLabel(ctx context.Context, key, value string, owner Owner
 		Key:                   key,
 		Value:                 value,
 		ExternalDataSet:       owner.DataSet,
-		ExternalDataReference: owner.Reference,
+		ExternalDataReference: key + "=" + value,
 	})
 }
