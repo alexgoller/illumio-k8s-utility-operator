@@ -9,8 +9,14 @@ import (
 )
 
 const (
-	// enforcementIdle is the default enforcement mode for managed namespaces.
+	// enforcementIdle is invalid for a managed Container Workload Profile: the
+	// PCE rejects managed+idle (container_workload_profile_invalid_managed_idle).
+	// "managed" means managed by Illumio; idle is meaningless on pods, so a
+	// managed namespace floors to enforcementVisibilityOnly.
 	enforcementIdle = "idle"
+	// enforcementVisibilityOnly is the minimum (and default) enforcement for a
+	// managed namespace: workloads are managed and traffic is logged, not blocked.
+	enforcementVisibilityOnly = "visibility_only"
 )
 
 // DesiredCWP is the computed desired Container Workload Profile config for a namespace.
@@ -52,9 +58,11 @@ func ComputeDesiredCWP(name string, nsLabels, nsAnnotations map[string]string, r
 	// 3. Annotation overrides.
 	applyAnnotationOverrides(&d, nsAnnotations)
 
-	// 4. Default enforcement for managed namespaces.
-	if d.Managed && d.EnforcementMode == "" {
-		d.EnforcementMode = enforcementIdle
+	// 4. A managed namespace is managed by Illumio, and the PCE rejects a managed
+	// CWP with idle enforcement (container_workload_profile_invalid_managed_idle).
+	// Floor an unset or idle mode to visibility_only (logs traffic, does not block).
+	if d.Managed && (d.EnforcementMode == "" || d.EnforcementMode == enforcementIdle) {
+		d.EnforcementMode = enforcementVisibilityOnly
 	}
 	return d
 }
