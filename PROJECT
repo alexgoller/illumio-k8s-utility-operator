@@ -31,4 +31,22 @@ resources:
   kind: ClusterProfile
   path: github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: io
+  group: microsegment
+  kind: SegmentationIntent
+  path: github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: io
+  group: microsegment
+  kind: SegmentationPolicy
+  path: github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1
+  version: v1alpha1
 version: "3"
