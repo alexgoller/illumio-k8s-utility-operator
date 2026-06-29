@@ -22,7 +22,7 @@ The desired configuration for a namespace is resolved in three layers, applied i
 2. **`systemNamespaces` config** — when `systemNamespaces.manage` is `true`, namespaces whose name matches any of the system patterns receive the `systemNamespaces` configuration. This **overrides any matching `namespaceRule`** for those namespaces.
 3. **`namespaceRules` (first match)** — for all other namespaces, rules are evaluated in order; the first rule whose `match` criteria are satisfied governs the namespace. A namespace that matches no rule receives no CWP update.
 
-A managed namespace with no `enforcementMode` set (neither from a rule nor from an annotation) defaults to `idle`.
+A managed namespace with no `enforcementMode` set (neither from a rule nor from an annotation) defaults to `visibility_only`. A managed Container Workload Profile can never be `idle` — the PCE rejects that combination — so an `idle` mode on a managed namespace is also raised to `visibility_only`.
 
 ## System namespaces
 
@@ -38,6 +38,25 @@ When `systemNamespaces.patterns` is empty, the following default patterns apply:
 - `kube-node-lease`
 
 You can supply a custom `patterns` list to override these defaults.
+
+### Configuring via Helm
+
+When the chart renders the `ClusterProfile` (`onboarding.enabled: true`), the system-namespace set is tunable from `values.yaml` — no rebuild required. The shipped defaults cover OpenShift and Kubernetes infrastructure (the bare `openshift` project is listed explicitly because it is not matched by `openshift-*`):
+
+```yaml
+systemNamespaces:
+  manage: true                       # off by default; turn on to manage them
+  enforcementMode: visibility_only
+  labels: { app: openshift, role: infra }
+  patterns:
+    - openshift
+    - "openshift-*"
+    - "kube-*"                       # kube-system, kube-public, kube-node-lease
+    - default
+namespaceRules: []                   # optional, written verbatim into the spec
+```
+
+These values are written into the chart-managed `ClusterProfile` spec. If you manage your own `ClusterProfile` directly (not via the chart), set `systemNamespaces` in that resource instead.
 
 ## Namespace rules
 
