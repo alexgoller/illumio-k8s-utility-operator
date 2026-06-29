@@ -80,7 +80,18 @@ jobs:
           V: ${{ steps.ver.outputs.version }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${GITHUB_REF_NAME}" \
-            "/tmp/chart/illumio-k8s-utility-operator-${V}.tgz" \
-            dist/install.yaml \
-            --clobber
+          # Create the release if the tag doesn't have one yet, otherwise
+          # upload/clobber assets onto the existing release. `gh release upload`
+          # alone fails when no GitHub Release object exists for the tag.
+          if ! gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release create "${GITHUB_REF_NAME}" \
+              "/tmp/chart/illumio-k8s-utility-operator-${V}.tgz" \
+              dist/install.yaml \
+              --title "${GITHUB_REF_NAME}" \
+              --generate-notes
+          else
+            gh release upload "${GITHUB_REF_NAME}" \
+              "/tmp/chart/illumio-k8s-utility-operator-${V}.tgz" \
+              dist/install.yaml \
+              --clobber
+          fi
