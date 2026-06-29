@@ -1,5 +1,8 @@
-# Build the manager binary
-FROM golang:1.26 AS builder
+# Build the manager binary.
+# Pin the builder to the BUILD platform so Go cross-compiles for TARGETARCH
+# (fast) instead of running the whole toolchain emulated under QEMU when
+# building multi-arch images. The build below already honors GOARCH.
+FROM --platform=$BUILDPLATFORM golang:1.26 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
