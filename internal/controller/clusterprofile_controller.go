@@ -81,9 +81,10 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				fmt.Sprintf("container cluster %q already exists in the PCE; its one-time token cannot be recovered. Delete it or supply credentials manually.", cp.Spec.Onboarding.ContainerClusterName),
 				onboardRequeueTerminal)
 		}
-		created, err := pclient.CreateContainerCluster(ctx, cp.Spec.Onboarding.ContainerClusterName, "Managed by illumio-k8s-utility-operator", owner)
+		created, err := pclient.CreateContainerCluster(ctx, cp.Spec.Onboarding.ContainerClusterName, "Managed by illumio-k8s-utility-operator")
 		if err != nil {
-			return ctrl.Result{}, err
+			return r.onboardError(ctx, &cp,
+				fmt.Sprintf("failed to create PCE container cluster %q: %v", cp.Spec.Onboarding.ContainerClusterName, err), err)
 		}
 		cp.Status.ContainerClusterHref = created.Href
 		cp.Status.ContainerClusterID = pce.ContainerClusterUUID(created.Href)
@@ -247,6 +248,23 @@ func (r *ClusterProfileReconciler) onboardFail(ctx context.Context, cp *microv1.
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{RequeueAfter: requeue}, nil
+}
+
+// onboardError records a failed PCE call on the Onboarded condition (so the
+// failure is visible in `kubectl get clusterprofile` instead of only the logs)
+// and returns the underlying error so controller-runtime applies its normal
+// backoff-and-retry. Use this for PCE write failures that are expected to clear
+// on their own (rate limits, transient 5xx) or that need an operator's
+// attention (validation errors).
+func (r *ClusterProfileReconciler) onboardError(ctx context.Context, cp *microv1.ClusterProfile, msg string, cause error) (ctrl.Result, error) {
+	meta.SetStatusCondition(&cp.Status.Conditions, metav1.Condition{
+		Type: microv1.ConditionOnboarded, Status: metav1.ConditionFalse, Reason: microv1.ReasonOnboardFailed, Message: msg,
+	})
+	cp.Status.ObservedGeneration = cp.Generation
+	if err := r.Status().Update(ctx, cp); err != nil {
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, cause
 }
 
 func (r *ClusterProfileReconciler) SetupWithManager(mgr ctrl.Manager) error {
