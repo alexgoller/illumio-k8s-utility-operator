@@ -70,8 +70,12 @@ jobs:
 #          helm install prometheus-crds prometheus-community/prometheus-operator-crds
 
       - name: Deploy manager via Helm
+        # Supply dummy PCE values so the required pce.url renders. This install
+        # on a fresh kind cluster is the regression guard for the v0.1.1 CRD
+        # ordering bug: the chart renders a PCEConnection CR, which only applies
+        # if the CRDs in crds/ are registered first.
         run: |
-          make helm-deploy
+          make helm-deploy HELM_EXTRA_ARGS='--set pce.url=dummy.pce.example:8443 --set pce.orgId=1 --set pce.apiKey=dummy --set pce.apiSecret=dummy'
 
       - name: Check Helm release status
         run: |
