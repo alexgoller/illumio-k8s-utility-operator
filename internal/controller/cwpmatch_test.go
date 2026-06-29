@@ -12,6 +12,7 @@ const (
 	testLabelKeyApp        = "app"
 	testLabelValueProd     = "prod"
 	testLabelValueCheckout = "checkout"
+	testLabelValueControl  = "control"
 	testEnforcementVisOnly = "visibility_only"
 	testEnforcementFull    = "full"
 	testNamespaceTeamA     = "team-a"
@@ -21,7 +22,7 @@ const (
 
 func TestComputeDesiredCWP(t *testing.T) {
 	sys := microv1.SystemNamespacesSpec{
-		Manage: true, Labels: map[string]string{testLabelKeyRole: "control"}, EnforcementMode: testEnforcementVisOnly,
+		Manage: true, Labels: map[string]string{testLabelKeyRole: testLabelValueControl}, EnforcementMode: testEnforcementVisOnly,
 	}
 	rules := []microv1.NamespaceRule{
 		{
@@ -43,7 +44,14 @@ func TestComputeDesiredCWP(t *testing.T) {
 		{
 			name:   "system namespace gets system defaults",
 			nsName: "openshift-monitoring",
-			want:   DesiredCWP{Managed: true, Labels: map[string]string{testLabelKeyRole: "control"}, EnforcementMode: testEnforcementVisOnly},
+			want:   DesiredCWP{Managed: true, Labels: map[string]string{testLabelKeyRole: testLabelValueControl}, EnforcementMode: testEnforcementVisOnly},
+		},
+		{
+			// The bare "openshift" project is a default system namespace but is not
+			// matched by "openshift-*"; it must be caught by the explicit pattern.
+			name:   "bare openshift project matches system defaults",
+			nsName: "openshift",
+			want:   DesiredCWP{Managed: true, Labels: map[string]string{testLabelKeyRole: testLabelValueControl}, EnforcementMode: testEnforcementVisOnly},
 		},
 		{
 			name:   "user rule wins over system + resolves fromNamespaceLabel",

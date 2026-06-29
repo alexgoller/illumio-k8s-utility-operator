@@ -478,7 +478,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `manage` _boolean_ | Manage turns on management of system namespaces. |  | Optional: \{\} <br /> |
-| `patterns` _string array_ | Patterns of system namespace name globs. Defaults (when empty) to:<br />openshift-*, kube-*, default. |  | Optional: \{\} <br /> |
+| `patterns` _string array_ | Patterns of system namespace name globs. Defaults (when empty) to:<br />openshift, openshift-*, kube-*, default. (The bare "openshift" project is<br />a default OpenShift namespace and is not matched by "openshift-*".) |  | Optional: \{\} <br /> |
 | `labels` _object (keys:string, values:string)_ | Labels assigned to system-namespace CWPs. |  | Optional: \{\} <br /> |
 | `enforcementMode` _string_ | EnforcementMode for system namespaces. Defaults to idle. |  | Enum: [idle visibility_only full] <br />Optional: \{\} <br /> |
 

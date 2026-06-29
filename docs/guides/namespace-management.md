@@ -22,7 +22,7 @@ The desired configuration for a namespace is resolved in three layers, applied i
 2. **`systemNamespaces` config** — when `systemNamespaces.manage` is `true`, namespaces whose name matches any of the system patterns receive the `systemNamespaces` configuration. This **overrides any matching `namespaceRule`** for those namespaces.
 3. **`namespaceRules` (first match)** — for all other namespaces, rules are evaluated in order; the first rule whose `match` criteria are satisfied governs the namespace. A namespace that matches no rule receives no CWP update.
 
-A managed namespace with no `enforcementMode` set (neither from a rule nor from an annotation) defaults to `idle`.
+A managed namespace with no `enforcementMode` set (neither from a rule nor from an annotation) defaults to `visibility_only`. A managed Container Workload Profile can never be `idle` — the PCE rejects that combination — so an `idle` mode on a managed namespace is also raised to `visibility_only`.
 
 ## System namespaces
 
@@ -30,12 +30,10 @@ The `systemNamespaces` stanza is a convenience for managing Kubernetes and OpenS
 
 When `systemNamespaces.patterns` is empty, the following default patterns apply:
 
-- `openshift-*`
-- `kube-*`
+- `openshift` — the bare OpenShift default project (not matched by `openshift-*`)
+- `openshift-*` — e.g. `openshift-monitoring`, `openshift-ingress`, `openshift-dns`, `openshift-apiserver`
+- `kube-*` — covers `kube-system`, `kube-public`, `kube-node-lease`
 - `default`
-- `kube-system`
-- `kube-public`
-- `kube-node-lease`
 
 You can supply a custom `patterns` list to override these defaults.
 
@@ -89,7 +87,7 @@ spec:
     manage: true
     labels: { role: control, env: prod }
     enforcementMode: visibility_only
-    # patterns default to openshift-*, kube-*, default, kube-system, kube-public, kube-node-lease
+    # patterns default to: openshift, openshift-*, kube-* (covers kube-system/public/node-lease), default
   namespaceRules:
     - match: { labels: { "microsegment.io/managed": "true" } }
       managed: true

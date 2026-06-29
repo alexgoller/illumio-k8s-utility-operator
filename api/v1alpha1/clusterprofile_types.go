@@ -72,7 +72,8 @@ type SystemNamespacesSpec struct {
 	// +optional
 	Manage bool `json:"manage,omitempty"`
 	// Patterns of system namespace name globs. Defaults (when empty) to:
-	// openshift-*, kube-*, default.
+	// openshift, openshift-*, kube-*, default. (The bare "openshift" project is
+	// a default OpenShift namespace and is not matched by "openshift-*".)
 	// +optional
 	Patterns []string `json:"patterns,omitempty"`
 	// Labels assigned to system-namespace CWPs.

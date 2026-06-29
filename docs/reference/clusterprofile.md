@@ -16,7 +16,7 @@ Short name: `cprof`. Category: `illumio`.
 | `onboarding.nodePairingProfile.enforcementMode` | string | no | Enforcement mode for a newly created Pairing Profile. One of `idle`, `visibility_only`, `full`. Defaults to `idle`. |
 | `provisioningMode` | string | no | Default policy provisioning mode for resources in this cluster. One of `auto`, `manual`, `draft-only`. Defaults to `manual`. Reserved for future policy reconciliation. |
 | `systemNamespaces.manage` | boolean | no | When `true`, namespaces matching the system patterns are configured by the `systemNamespaces` block. Takes precedence over any matching `namespaceRule`. Defaults to `false`. |
-| `systemNamespaces.patterns` | []string | no | Glob patterns that identify system namespaces. Defaults when empty to: `openshift-*`, `kube-*`, `default`, `kube-system`, `kube-public`, `kube-node-lease`. |
+| `systemNamespaces.patterns` | []string | no | Glob patterns that identify system namespaces. Defaults when empty to: `openshift`, `openshift-*`, `kube-*` (covers `kube-system`, `kube-public`, `kube-node-lease`), `default`. |
 | `systemNamespaces.labels` | map[string]string | no | Illumio label key/value pairs assigned to system-namespace CWPs. |
 | `systemNamespaces.enforcementMode` | string | no | Enforcement mode for system namespaces. One of `idle`, `visibility_only`, `full`. Defaults to `idle`. |
 | `namespaceRules[].match.namePattern` | string | no | Glob (Go `path.Match` syntax) matched against the namespace name. Empty matches any name. |

@@ -27,9 +27,12 @@ type DesiredCWP struct {
 }
 
 // defaultSystemPatterns is the built-in list of system namespace globs.
-// kube-* covers kube-system, kube-public, and kube-node-lease.
+// kube-* covers kube-system, kube-public, and kube-node-lease. The bare
+// "openshift" project is a highly-privileged OpenShift default project and is
+// NOT matched by "openshift-*" (path.Match requires the literal "openshift-"
+// prefix), so it is listed explicitly.
 var defaultSystemPatterns = []string{
-	"openshift-*", "kube-*", "default",
+	"openshift", "openshift-*", "kube-*", "default",
 }
 
 // ComputeDesiredCWP resolves the desired CWP for a namespace. Precedence:

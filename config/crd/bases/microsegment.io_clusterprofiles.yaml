@@ -201,7 +201,8 @@ spec:
                   patterns:
                     description: |-
                       Patterns of system namespace name globs. Defaults (when empty) to:
-                      openshift-*, kube-*, default.
+                      openshift, openshift-*, kube-*, default. (The bare "openshift" project is
+                      a default OpenShift namespace and is not matched by "openshift-*".)
                     items:
                       type: string
                     type: array
