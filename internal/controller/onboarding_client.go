@@ -10,7 +10,7 @@ import (
 // controller needs. The real *pce.Client satisfies it.
 type OnboardingClient interface {
 	FindContainerClusterByName(ctx context.Context, name string) (*pce.ContainerCluster, error)
-	CreateContainerCluster(ctx context.Context, name, description string, owner pce.Owner) (*pce.ContainerCluster, error)
+	CreateContainerCluster(ctx context.Context, name, description string) (*pce.ContainerCluster, error)
 	FindPairingProfileByName(ctx context.Context, name string) (*pce.PairingProfile, error)
 	CreatePairingProfile(ctx context.Context, pp pce.PairingProfile) (*pce.PairingProfile, error)
 	GeneratePairingKey(ctx context.Context, profileHref string) (string, error)

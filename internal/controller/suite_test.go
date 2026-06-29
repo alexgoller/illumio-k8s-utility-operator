@@ -169,7 +169,7 @@ type fakeOnboardingClient struct{}
 func (fakeOnboardingClient) FindContainerClusterByName(context.Context, string) (*pce.ContainerCluster, error) {
 	return nil, nil // not found → controller creates
 }
-func (fakeOnboardingClient) CreateContainerCluster(_ context.Context, name, _ string, _ pce.Owner) (*pce.ContainerCluster, error) {
+func (fakeOnboardingClient) CreateContainerCluster(_ context.Context, name, _ string) (*pce.ContainerCluster, error) {
 	return &pce.ContainerCluster{Href: "/orgs/1/container_clusters/uuid-ob", Name: name, ContainerClusterToken: "tok-ob"}, nil
 }
 func (fakeOnboardingClient) FindPairingProfileByName(context.Context, string) (*pce.PairingProfile, error) {
