@@ -333,6 +333,11 @@ func resolveAllows(ctx context.Context, allows []CompiledAllow, pclient PolicyCl
 	out := make([]ResolvedAllow, 0, len(allows))
 	var deferred, created []string
 	for _, a := range allows {
+		// All-Workloads consumer (ams): no labels to resolve.
+		if a.AllWorkloads {
+			out = append(out, ResolvedAllow{AllWorkloads: true, IntraScope: a.IntraScope, Ports: a.Ports})
+			continue
+		}
 		consumerHrefs := make([]string, 0, len(a.From))
 		skippedAny := false
 		for key, value := range a.From {
@@ -368,7 +373,7 @@ func resolveAllows(ctx context.Context, allows []CompiledAllow, pclient PolicyCl
 		if skippedAny && len(consumerHrefs) == 0 {
 			continue
 		}
-		out = append(out, ResolvedAllow{ConsumerHrefs: consumerHrefs, Ports: a.Ports})
+		out = append(out, ResolvedAllow{ConsumerHrefs: consumerHrefs, IntraScope: a.IntraScope, Ports: a.Ports})
 	}
 	return out, deferred, created, "", "", true, nil
 }

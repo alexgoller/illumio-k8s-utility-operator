@@ -49,6 +49,32 @@ func TestBuildRules_OneRulePerAllow(t *testing.T) {
 	}
 }
 
+func TestBuildRules_IntraScopeAndAllWorkloads(t *testing.T) {
+	rules := BuildRules([]ResolvedAllow{
+		// any-any intra-namespace: consumer = ams, intra-scope.
+		{AllWorkloads: true, IntraScope: true},
+		// role-based intra-scope: label consumer, intra-scope.
+		{ConsumerHrefs: []string{"/orgs/1/labels/15"}, IntraScope: true},
+		// cross-app extra-scope: label consumer, unscoped.
+		{ConsumerHrefs: []string{"/orgs/1/labels/16"}},
+	})
+	if len(rules) != 3 {
+		t.Fatalf("rules = %d, want 3", len(rules))
+	}
+	// any-any: ams consumer, intra-scope (unscoped_consumers=false).
+	if len(rules[0].Consumers) != 1 || rules[0].Consumers[0].Actors != pce.ActorAllWorkloads || rules[0].UnscopedConsumers {
+		t.Errorf("any-any rule = %+v", rules[0])
+	}
+	// role intra: label consumer, intra-scope.
+	if rules[1].Consumers[0].Label == nil || rules[1].UnscopedConsumers {
+		t.Errorf("role-intra rule = %+v", rules[1])
+	}
+	// cross-app: label consumer, extra-scope.
+	if rules[2].Consumers[0].Label == nil || !rules[2].UnscopedConsumers {
+		t.Errorf("cross-app rule = %+v", rules[2])
+	}
+}
+
 func TestProtoNumber(t *testing.T) {
 	if protoNumber("TCP") != 6 || protoNumber("UDP") != 17 || protoNumber("") != 6 {
 		t.Errorf("protoNumber wrong")

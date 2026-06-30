@@ -21,9 +21,13 @@ const (
 	enforcementFull = "full"
 )
 
-// ResolvedAllow is an IntentAllow after consumer labels are resolved to hrefs.
+// ResolvedAllow is a CompiledAllow after consumer labels are resolved to hrefs.
+// AllWorkloads means the consumer is "All Workloads" (ams) — no labels to resolve.
+// IntraScope means the consumer is within the namespace's scope (unscoped_consumers=false).
 type ResolvedAllow struct {
 	ConsumerHrefs []string
+	AllWorkloads  bool
+	IntraScope    bool
 	Ports         []pce.IngressService
 }
 
@@ -57,10 +61,15 @@ func BuildRules(allows []ResolvedAllow) []pce.SecRule {
 	providers := []pce.Actor{pce.AllWorkloadsActor()}
 	rules := make([]pce.SecRule, 0, len(allows))
 	for _, a := range allows {
-		consumers := make([]pce.Actor, 0, len(a.ConsumerHrefs))
-		for _, h := range a.ConsumerHrefs {
-			href := h
-			consumers = append(consumers, pce.Actor{Label: &pce.LabelRef{Href: href}})
+		var consumers []pce.Actor
+		if a.AllWorkloads {
+			consumers = []pce.Actor{pce.AllWorkloadsActor()}
+		} else {
+			consumers = make([]pce.Actor, 0, len(a.ConsumerHrefs))
+			for _, h := range a.ConsumerHrefs {
+				href := h
+				consumers = append(consumers, pce.Actor{Label: &pce.LabelRef{Href: href}})
+			}
 		}
 		rules = append(rules, pce.SecRule{
 			Enabled:           true,
@@ -68,7 +77,7 @@ func BuildRules(allows []ResolvedAllow) []pce.SecRule {
 			Providers:         providers,
 			Consumers:         consumers,
 			IngressServices:   a.Ports,
-			UnscopedConsumers: true,
+			UnscopedConsumers: !a.IntraScope,
 		})
 	}
 	return rules
@@ -82,11 +91,15 @@ func protoNumber(protocol string) int {
 	return 6
 }
 
-// CompiledAllow is a front-end-agnostic allow entry: consumer labels (key->value)
-// and proto-resolved ports.
+// CompiledAllow is a front-end-agnostic allow entry. The consumer is either a
+// label set (From) or All Workloads (AllWorkloads). IntraScope marks the consumer
+// as within the namespace's scope (intra-scope rule, unscoped_consumers=false);
+// otherwise it is extra-scope (cross-app).
 type CompiledAllow struct {
-	From  map[string]string
-	Ports []pce.IngressService
+	From         map[string]string
+	AllWorkloads bool
+	IntraScope   bool
+	Ports        []pce.IngressService
 }
 
 // CompileIntent lowers a SegmentationIntent's allow list to CompiledAllow.
