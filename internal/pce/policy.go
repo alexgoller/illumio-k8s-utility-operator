@@ -10,10 +10,20 @@ type RuleSetScope struct {
 	Label LabelRef `json:"label"`
 }
 
-// Actor is a rule provider/consumer: {"label":{"href":...}}.
+// Actor is a rule provider/consumer: either a label {"label":{"href":...}} or
+// All Workloads {"actors":"ams"}.
 type Actor struct {
-	Label *LabelRef `json:"label,omitempty"`
+	Label  *LabelRef `json:"label,omitempty"`
+	Actors string    `json:"actors,omitempty"`
 }
+
+// ActorAllWorkloads is the "actors" value for All Managed Systems (all workloads).
+// Its meaning is scope-relative: as a provider or intra-scope consumer it means
+// "all workloads in scope"; as an extra-scope consumer it means all workloads org-wide.
+const ActorAllWorkloads = "ams"
+
+// AllWorkloadsActor returns an actor matching All Workloads.
+func AllWorkloadsActor() Actor { return Actor{Actors: ActorAllWorkloads} }
 
 // IngressService is an inline port/proto (no Service object needed).
 type IngressService struct {
