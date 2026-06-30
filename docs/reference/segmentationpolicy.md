@@ -8,46 +8,59 @@ Short name: `segpol`. Category: `illumio`.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `podSelector` | LabelSelector | no | Must be empty (`{}`). The provider is always the namespace's own app (derived from the namespace's Illumio `app` label). A non-empty `podSelector` is rejected. |
+| `podSelector` | LabelSelector | no | Narrows the protected provider to a sub-set of this namespace's app. `matchLabels` identifies a specific workload group (e.g. `{role: backend}`). An empty `podSelector: {}` means the whole namespace app. `matchExpressions` is not supported and causes rejection. |
 | `policyTypes` | []string | no | Must be `["Ingress"]` if specified. Egress is not supported and causes rejection. Defaults to `["Ingress"]` when omitted. |
 | `ingress` | []IngressRule | yes | List of ingress rules. Each rule allows traffic from the listed peers on the listed ports. |
-| `ingress[].from` | []NetworkPolicyPeer | yes | Consumer peers. At least one peer is required per rule. Each peer must have a `podSelector` or `namespaceSelector` (or both). An empty `from` list is rejected. |
-| `ingress[].from[].podSelector` | LabelSelector | no | Selects consumers by their Illumio labels using `matchLabels`. `matchExpressions` is not supported and causes rejection. |
-| `ingress[].from[].podSelector.matchLabels` | map[string]string | no | Illumio label key/value pairs for the consumer (e.g. `{app: checkout, env: prod}`). All key/value pairs must already exist in the PCE. |
-| `ingress[].from[].namespaceSelector` | LabelSelector | no | Selects consumers by the Illumio labels of their namespace using `matchLabels`. `matchExpressions` is not supported and causes rejection. |
-| `ingress[].from[].namespaceSelector.matchLabels` | map[string]string | no | Illumio label key/value pairs for the consumer's namespace. |
-| `ingress[].ports` | []NetworkPolicyPort | no | Ports the consumer may reach. When omitted, all ports are allowed. |
-| `ingress[].ports[].port` | integer | yes | TCP or UDP port number. |
+| `ingress[].from` | []NetworkPolicyPeer | yes | Consumer peers. At least one peer is required per rule. Each peer must have exactly one of `podSelector` or `namespaceSelector` — setting both on the same peer is rejected. An empty `from` list is rejected. |
+| `ingress[].from[].podSelector` | LabelSelector | no | Intra-scope (same-namespace) consumer selector. `matchLabels` narrows by Illumio labels (e.g. `{role: frontend}`). An empty `podSelector: {}` means all workloads in this namespace (intra-scope any-any). `matchExpressions` is not supported and causes rejection. |
+| `ingress[].from[].namespaceSelector` | LabelSelector | no | Extra-scope (cross-app) consumer selector. `matchLabels` identifies another app by its Illumio labels (e.g. `{app: checkout, env: prod}`). `matchExpressions` is not supported and causes rejection. |
+| `ingress[].ports` | []NetworkPolicyPort | no | Ports the consumer may reach. When omitted, all ports are allowed (compiled as "All Services"). |
+| `ingress[].ports[].port` | integer | yes (in port) | TCP or UDP port number. |
 | `ingress[].ports[].protocol` | string | no | `TCP` or `UDP`. Defaults to `TCP`. |
-| `enforcement` | string | no | Requests a namespace enforcement mode. One of `idle`, `visibility_only`, `full`. The namespace's effective enforcement is the strictest of the admin baseline and all policy CRs in the namespace. See [Effective enforcement](#effective-enforcement). |
+| `enforcement` | string | no | Requests a namespace enforcement mode. One of `idle`, `visibility_only`, `full`. Participates in the strictest-wins calculation — does not unilaterally switch enforcement. See [Effective enforcement](#effective-enforcement). |
 
-## Rejection rules
+### How selectors map to Illumio concepts
 
-The following configurations are rejected immediately (before any PCE call), setting `Ready=False` with reason `Rejected`:
+| Peer selector | Illumio scope | Equivalent SegmentationIntent field |
+|---------------|---------------|-------------------------------------|
+| `podSelector: {}` | Intra-scope, All Workloads | `allowIntraNamespace: true` |
+| `podSelector: {matchLabels: {role: frontend}}` | Intra-scope, narrowed by role | `allow[].fromIntraNamespace: {role: frontend}` |
+| `namespaceSelector: {matchLabels: {app: checkout}}` | Extra-scope (another app) | `allow[].from: {app: checkout}` |
+| top-level `podSelector: {matchLabels: {role: backend}}` | Provider narrowing | `spec.provider: {role: backend}` |
+
+### Rejection rules
+
+The operator rejects (sets `Ready=False`, reason `Rejected`) a policy that violates any of these rules:
 
 | Condition | Rejection message |
 |-----------|-------------------|
 | `policyTypes` includes `Egress` | `Egress policyType is not supported` |
-| `podSelector` has any `matchLabels` or `matchExpressions` | `podSelector must be empty` |
+| `podSelector` has `matchExpressions` | `matchExpressions are not supported in podSelector` |
+| A `from` peer has both `podSelector` and `namespaceSelector` | `from[N]: podSelector and namespaceSelector cannot both be set` |
+| A `from` peer has neither `podSelector` nor `namespaceSelector` | `from[N] must have podSelector or namespaceSelector` |
 | Any `from` peer uses `matchExpressions` | `matchExpressions are not supported in from[N].podSelector` (or `namespaceSelector`) |
-| Any `from` peer has neither `podSelector` nor `namespaceSelector` | `from[N] must have podSelector or namespaceSelector` |
 | An `ingress` rule has an empty `from` list | `ingress[N].from must not be empty` |
-| A consumer label key/value does not exist in the PCE | `label not found in PCE: <key>=<value>` |
+| A consumer label key/value does not exist in the PCE (strict mode) | `label not found in PCE: <key>=<value>` |
 
-## Annotation
+## Annotations
 
 | Annotation | Value | Effect |
 |------------|-------|--------|
-| `microsegment.io/provision` | `approved` | When `ClusterProfile.spec.provisioningMode` is `manual`, the operator waits for this annotation before provisioning the compiled draft. Behavior is identical to `SegmentationIntent`. |
+| `microsegment.io/provision` | `approved` | When `ClusterProfile.spec.provisioningMode` is `manual`, the operator waits for this annotation before provisioning the compiled draft. Behavior is identical to `SegmentationIntent`. Set with `kubectl annotate segpol <name> microsegment.io/provision=approved -n <ns>`. Remove with `kubectl annotate segpol <name> microsegment.io/provision- -n <ns>`. |
+| `microsegment.io/unknown-label-mode` | `strict`, `skip`, or `create` | Per-CR override for how unresolvable consumer labels are handled. Overrides the namespace annotation and `ClusterProfile.spec.unknownLabelMode`. Provider (`podSelector`) labels are always resolved strictly. |
 
 ## Status
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `conditions` | []Condition | Standard Kubernetes conditions list. See below. |
+| `conditions` | []Condition | Standard Kubernetes conditions. See below. |
 | `workloadsAffected` | integer | Count of PCE workloads affected by the last provisioning operation. |
-| `effectiveEnforcement` | string | The namespace's resolved enforcement mode (`idle`, `visibility_only`, or `full`) after applying the strictest-wins algorithm across the admin baseline and all policy CRs in the namespace. |
-| `enforcementSetBy` | string | Names the CR (or `admin`) that determined the effective enforcement. |
+| `effectiveEnforcement` | string | The namespace's resolved enforcement mode (`idle`, `visibility_only`, or `full`) after applying the strictest-wins algorithm. Shown as the `ENFORCEMENT` print column. |
+| `enforcementSetBy` | string | Names the CR (or `admin`) that determined the effective enforcement. `admin` means the `ClusterProfile` admin baseline was strictest. |
+| `unknownLabelMode` | string | The effective unknown-label mode used when this CR was compiled (`strict`, `skip`, or `create`). |
+| `unknownLabelModeSetBy` | string | Source of the resolved mode: `cr`, `namespace`, `clusterprofile`, or `default`. |
+| `deferredLabels` | []string | In `skip` mode, the `key=value` consumer labels that were not found in the PCE and were omitted from the compiled rules. Retried on every reconcile. |
+| `createdLabels` | []string | In `create` mode, the `key=value` labels that were minted in the PCE while compiling this CR. |
 | `observedGeneration` | integer | Generation of the spec that produced the current status. |
 
 ### The `Ready` condition
@@ -55,8 +68,8 @@ The following configurations are rejected immediately (before any PCE call), set
 | Reason | Status | Meaning |
 |--------|--------|---------|
 | `Compiled` | `True` | All consumer labels resolved; the Illumio ruleset has been written. |
-| `Rejected` | `False` | The spec violates the supported subset, or one or more consumer labels do not exist in the PCE. The `message` field gives the specific cause. Not retried until the spec changes. |
-| `ClusterProfileNotReady` | `False` | No `ClusterProfile` manages this namespace, or the `ClusterProfile` has not finished reconciling. The controller will retry. |
+| `Rejected` | `False` | The spec violates the supported subset, or one or more consumer labels do not exist in the PCE (strict mode). The `message` field gives the specific cause. Not retried until the spec changes. |
+| `ClusterProfileNotReady` | `False` | No `ClusterProfile` manages this namespace, or the `ClusterProfile` has not finished reconciling. The controller retries automatically. |
 
 ### The `Provisioned` condition
 
@@ -86,7 +99,9 @@ Strictness order: `idle` < `visibility_only` < `full`. The winning value is appl
 | `PROVISIONED` | `status.conditions[type=="Provisioned"].status` |
 | `ENFORCEMENT` | `status.effectiveEnforcement` |
 
-## Example
+## Examples
+
+### Cross-app ingress (extra-scope, namespaceSelector)
 
 ```yaml
 apiVersion: microsegment.io/v1alpha1
@@ -95,12 +110,11 @@ metadata:
   name: payments-ingress
   namespace: payments
 spec:
-  podSelector: {}
   policyTypes:
     - Ingress
   ingress:
     - from:
-        - podSelector:
+        - namespaceSelector:
             matchLabels:
               app: checkout
               env: prod
@@ -108,20 +122,86 @@ spec:
         - port: 8443
           protocol: TCP
     - from:
-        - podSelector:
-            matchLabels:
-              app: ledger
-              env: prod
-      ports:
-        - port: 5432
-          protocol: TCP
-    - from:
         - namespaceSelector:
             matchLabels:
               team: platform
-      # no ports — allows all ports from workloads in platform namespaces
+      # no ports — allows all ports from workloads in platform namespaces (All Services)
   enforcement: visibility_only
+```
+
+Verify:
+
+```bash
+kubectl get segpol -n payments
+# NAME               READY   PROVISIONED   ENFORCEMENT
+# payments-ingress   True    True          visibility_only
+```
+
+### Allow any-any within the namespace (intra-scope shortcut)
+
+```yaml
+apiVersion: microsegment.io/v1alpha1
+kind: SegmentationPolicy
+metadata:
+  name: myapp-internal
+  namespace: myapp
+spec:
+  ingress:
+    - from:
+        - podSelector: {}   # all pods in this namespace — intra-scope any-any
+```
+
+### Service-to-service within a namespace (intra-scope, narrowed)
+
+```yaml
+apiVersion: microsegment.io/v1alpha1
+kind: SegmentationPolicy
+metadata:
+  name: backend-access
+  namespace: payments
+spec:
+  podSelector:                           # narrow the provider to role=backend
+    matchLabels:
+      role: backend
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              role: frontend             # frontend → backend, intra-scope
+      ports:
+        - port: 8443
+          protocol: TCP
+```
+
+### Tolerate not-yet-existing consumer labels (skip mode)
+
+```yaml
+apiVersion: microsegment.io/v1alpha1
+kind: SegmentationPolicy
+metadata:
+  name: payments-ingress
+  namespace: payments
+  annotations:
+    microsegment.io/unknown-label-mode: skip   # omit unknown consumers; retry each reconcile
+spec:
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app: future-service
+              env: prod
+      ports:
+        - port: 8443
+          protocol: TCP
+```
+
+Verify deferred labels:
+
+```bash
+kubectl get segpol payments-ingress -n payments -o jsonpath='{.status.deferredLabels}'
+# ["app=future-service"]
 ```
 
 See the [NetworkPolicy-style guide](../guides/networkpolicy-style.md) for compilation details, rejection examples, and enforcement behavior.
 See the [Segmentation policy guide](../guides/segmentation-policy.md) for the intent-style alternative.
+See the [SegmentationIntent reference](segmentationintent.md) for the intent-style CRD field documentation.
