@@ -112,6 +112,13 @@ type ClusterProfileSpec struct {
 	// +kubebuilder:default=manual
 	// +optional
 	ProvisioningMode string `json:"provisioningMode,omitempty"`
+	// UnknownLabelMode is the default policy when a referenced Illumio label is
+	// not yet in the PCE: strict (reject), skip (omit the actor/rule and report),
+	// or create (mint role/app/env/loc labels). Overridable per-namespace and
+	// per-CR via the microsegment.io/unknown-label-mode annotation. Defaults to strict.
+	// +kubebuilder:validation:Enum=strict;skip;create
+	// +optional
+	UnknownLabelMode string `json:"unknownLabelMode,omitempty"`
 	// SystemNamespaces manages OpenShift/Kubernetes system namespaces out of the box.
 	// +optional
 	SystemNamespaces SystemNamespacesSpec `json:"systemNamespaces,omitempty"`
