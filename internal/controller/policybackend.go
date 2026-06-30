@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	microv1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
 	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
@@ -195,6 +196,9 @@ func ReconcilePolicy(
 		if perr != nil {
 			return BackendResult{}, perr
 		}
+		log.FromContext(ctx).Info("provisioned policy ruleset",
+			"namespace", namespace, "cr", crName, "ruleSet", rsHref,
+			"version", res.Version, "workloadsAffected", res.WorkloadsAffected)
 		return BackendResult{
 			Ready: readyCond,
 			Provisioned: &Condition{
