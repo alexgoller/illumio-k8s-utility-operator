@@ -14,12 +14,20 @@ type IntentPort struct {
 	Protocol string `json:"protocol,omitempty"`
 }
 
-// IntentAllow allows a consumer (referenced by existing Illumio labels) to
-// reach this namespace's app on the given ports.
+// IntentAllow allows a consumer to reach this namespace's app on the given ports.
+// The consumer is EITHER From (a cross-app consumer, extra-scope) OR
+// FromIntraNamespace (a consumer within this namespace, intra-scope) — set one.
 type IntentAllow struct {
-	// From is the consumer's Illumio labels (key -> value), e.g.
+	// From is a cross-app consumer's Illumio labels (key -> value), e.g.
 	// {"app":"checkout","env":"prod"}. They must already exist in the PCE.
-	From map[string]string `json:"from"`
+	// This is an extra-scope source (it may live in any app).
+	// +optional
+	From map[string]string `json:"from,omitempty"`
+	// FromIntraNamespace is a consumer WITHIN this namespace's scope, narrowed by
+	// Illumio labels (typically {"role":"frontend"}). This is an intra-scope source
+	// (same app), so the scope is not repeated. Empty map = all workloads in scope.
+	// +optional
+	FromIntraNamespace map[string]string `json:"fromIntraNamespace,omitempty"`
 	// Ports the consumer may reach. Empty means all ports.
 	// +optional
 	Ports []IntentPort `json:"ports,omitempty"`
@@ -28,8 +36,13 @@ type IntentAllow struct {
 // SegmentationIntentSpec is an app team's allow-list for their namespace's app.
 type SegmentationIntentSpec struct {
 	// Allow is the set of permitted inbound flows to this namespace's app.
-	// +kubebuilder:validation:MinItems=1
-	Allow []IntentAllow `json:"allow"`
+	// +optional
+	Allow []IntentAllow `json:"allow,omitempty"`
+	// AllowIntraNamespace is a shortcut: when true, allow all workloads in this
+	// namespace to reach each other on all ports (an intra-scope allow-all). Combine
+	// with Allow for finer cross-app rules, or use alone for "allow any-any here".
+	// +optional
+	AllowIntraNamespace bool `json:"allowIntraNamespace,omitempty"`
 	// Enforcement requests a namespace enforcement mode. The operator applies
 	// the strictest mode requested across all policy CRs in the namespace (on
 	// top of the admin baseline). One of idle, visibility_only, full.

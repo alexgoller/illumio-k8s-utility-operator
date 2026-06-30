@@ -8,6 +8,7 @@ import (
 
 const (
 	testLabelHref14 = "/orgs/1/labels/14"
+	testLabelHref15 = "/orgs/1/labels/15"
 )
 
 func TestBuildRuleSet_ScopesToProviderAndStampsOwner(t *testing.T) {
@@ -26,7 +27,7 @@ func TestBuildRuleSet_ScopesToProviderAndStampsOwner(t *testing.T) {
 func TestBuildRules_OneRulePerAllow(t *testing.T) {
 	rules := BuildRules(
 		[]ResolvedAllow{
-			{ConsumerHrefs: []string{"/orgs/1/labels/15"}, Ports: []pce.IngressService{{Proto: 6, Port: 8443}}},
+			{ConsumerHrefs: []string{testLabelHref15}, Ports: []pce.IngressService{{Proto: 6, Port: 8443}}},
 			{ConsumerHrefs: []string{"/orgs/1/labels/16"}, Ports: []pce.IngressService{{Proto: 6, Port: 5432}}},
 		},
 	)
@@ -38,7 +39,7 @@ func TestBuildRules_OneRulePerAllow(t *testing.T) {
 	if len(r.Providers) != 1 || r.Providers[0].Actors != pce.ActorAllWorkloads || r.Providers[0].Label != nil {
 		t.Errorf("provider actor = %+v, want ams", r.Providers)
 	}
-	if r.Consumers[0].Label.Href != "/orgs/1/labels/15" {
+	if r.Consumers[0].Label.Href != testLabelHref15 {
 		t.Errorf("consumer actor = %+v", r.Consumers)
 	}
 	if r.ResolveLabelsAs.Providers[0] != resolveWorkloads || !r.UnscopedConsumers {
@@ -54,7 +55,7 @@ func TestBuildRules_IntraScopeAndAllWorkloads(t *testing.T) {
 		// any-any intra-namespace: consumer = ams, intra-scope.
 		{AllWorkloads: true, IntraScope: true},
 		// role-based intra-scope: label consumer, intra-scope.
-		{ConsumerHrefs: []string{"/orgs/1/labels/15"}, IntraScope: true},
+		{ConsumerHrefs: []string{testLabelHref15}, IntraScope: true},
 		// cross-app extra-scope: label consumer, unscoped.
 		{ConsumerHrefs: []string{"/orgs/1/labels/16"}},
 	})
