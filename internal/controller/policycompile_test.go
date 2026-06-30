@@ -33,10 +33,10 @@ func TestCompilePolicy_SupportedSubset(t *testing.T) {
 
 func TestCompilePolicy_RejectsUnsupported(t *testing.T) {
 	cases := map[string]microv1.SegmentationPolicySpec{
-		"egress policyType":     {PolicyTypes: []string{testPolicyTypeIngress, "Egress"}, Ingress: []microv1.IngressRule{{From: []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyApp: "x"}}}}}}},
-		"non-empty podSelector": {PodSelector: metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyRole: "db"}}, Ingress: []microv1.IngressRule{{From: []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyApp: "x"}}}}}}},
-		"matchExpressions":      {Ingress: []microv1.IngressRule{{From: []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{Key: testLabelKeyApp, Operator: metav1.LabelSelectorOpExists}}}}}}}},
-		"empty from":            {Ingress: []microv1.IngressRule{{From: nil}}},
+		"egress policyType":            {PolicyTypes: []string{testPolicyTypeIngress, "Egress"}, Ingress: []microv1.IngressRule{{From: []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyApp: "x"}}}}}}},
+		"podSelector matchExpressions": {PodSelector: metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{Key: testLabelKeyRole, Operator: metav1.LabelSelectorOpExists}}}, Ingress: []microv1.IngressRule{{From: []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyApp: "x"}}}}}}},
+		"matchExpressions":             {Ingress: []microv1.IngressRule{{From: []microv1.NetworkPolicyPeer{{PodSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{Key: testLabelKeyApp, Operator: metav1.LabelSelectorOpExists}}}}}}}},
+		"empty from":                   {Ingress: []microv1.IngressRule{{From: nil}}},
 	}
 	for name, spec := range cases {
 		t.Run(name, func(t *testing.T) {

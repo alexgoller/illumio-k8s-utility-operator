@@ -26,6 +26,7 @@ func TestBuildRuleSet_ScopesToProviderAndStampsOwner(t *testing.T) {
 
 func TestBuildRules_OneRulePerAllow(t *testing.T) {
 	rules := BuildRules(
+		nil,
 		"",
 		[]ResolvedAllow{
 			{ConsumerHrefs: []string{testLabelHref15}, Ports: []pce.IngressService{{Proto: 6, Port: 8443}}},
@@ -53,7 +54,7 @@ func TestBuildRules_OneRulePerAllow(t *testing.T) {
 
 func TestBuildRules_IntraScopeAndAllWorkloads(t *testing.T) {
 	const allSvc = "/orgs/1/sec_policy/draft/services/all"
-	rules := BuildRules(allSvc, []ResolvedAllow{
+	rules := BuildRules(nil, allSvc, []ResolvedAllow{
 		// any-any intra-namespace: consumer = ams, intra-scope.
 		{AllWorkloads: true, IntraScope: true},
 		// role-based intra-scope: label consumer, intra-scope.
@@ -79,6 +80,19 @@ func TestBuildRules_IntraScopeAndAllWorkloads(t *testing.T) {
 	// cross-app: label consumer, extra-scope.
 	if rules[2].Consumers[0].Label == nil || !rules[2].UnscopedConsumers {
 		t.Errorf("cross-app rule = %+v", rules[2])
+	}
+}
+
+func TestBuildRules_ProviderNarrowing(t *testing.T) {
+	// No narrow hrefs → provider is ams (whole app).
+	wide := BuildRules(nil, "", []ResolvedAllow{{ConsumerHrefs: []string{testLabelHref15}, Ports: []pce.IngressService{{Proto: 6, Port: 80}}}})
+	if wide[0].Providers[0].Actors != pce.ActorAllWorkloads {
+		t.Errorf("no narrowing should be ams provider: %+v", wide[0].Providers)
+	}
+	// Narrow hrefs → provider is the label(s), not ams.
+	narrow := BuildRules([]string{"/orgs/1/labels/backend"}, "", []ResolvedAllow{{ConsumerHrefs: []string{testLabelHref15}, Ports: []pce.IngressService{{Proto: 6, Port: 80}}}})
+	if len(narrow[0].Providers) != 1 || narrow[0].Providers[0].Label == nil || narrow[0].Providers[0].Label.Href != "/orgs/1/labels/backend" {
+		t.Errorf("narrowed provider should be the label: %+v", narrow[0].Providers)
 	}
 }
 

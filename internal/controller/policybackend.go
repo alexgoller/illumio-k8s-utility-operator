@@ -86,6 +86,7 @@ func ReconcilePolicy(
 	namespace, crName string,
 	uid types.UID,
 	annotations map[string]string,
+	providerLabels map[string]string,
 	allows []CompiledAllow,
 ) (BackendResult, error) {
 	cp, cfg, eds, ready, transientErr := resolveClusterProfile(ctx, k8s, namespace)
@@ -153,7 +154,27 @@ func ReconcilePolicy(
 		}, nil
 	}
 
-	rsHref, err := reconcileRuleSet(ctx, pclient, crName, namespace, owner, providerHrefs, resolved)
+	// Resolve the optional provider narrowing labels (strict: the targeted service
+	// must already exist in the PCE). Empty = the whole namespace app (ams in scope).
+	var narrowHrefs []string
+	for key, value := range providerLabels {
+		lbl, lerr := pclient.FindLabel(ctx, key, value)
+		if lerr != nil {
+			if errors.Is(lerr, pce.ErrLabelNotFound) {
+				return BackendResult{
+					Ready: &Condition{Status: metav1.ConditionFalse, Reason: microv1.ReasonRejected,
+						Message: fmt.Sprintf("provider label %s=%s not in the PCE", key, value)},
+					Requeue:               siRequeueHealthy,
+					UnknownLabelMode:      mode,
+					UnknownLabelModeSetBy: modeSetBy,
+				}, nil
+			}
+			return BackendResult{}, lerr
+		}
+		narrowHrefs = append(narrowHrefs, lbl.Href)
+	}
+
+	rsHref, err := reconcileRuleSet(ctx, pclient, crName, namespace, owner, providerHrefs, narrowHrefs, resolved)
 	if err != nil {
 		return BackendResult{}, err
 	}
@@ -380,14 +401,14 @@ func resolveAllows(ctx context.Context, allows []CompiledAllow, pclient PolicyCl
 
 // reconcileRuleSet ensures the owned ruleset exists and its rules match desired
 // (replace-all). Returns the ruleset href.
-func reconcileRuleSet(ctx context.Context, pclient PolicyClient, crName, namespace string, owner pce.Owner, providerHrefs []string, resolved []ResolvedAllow) (string, error) {
+func reconcileRuleSet(ctx context.Context, pclient PolicyClient, crName, namespace string, owner pce.Owner, scopeHrefs, narrowHrefs []string, resolved []ResolvedAllow) (string, error) {
 	existing, err := pclient.FindRuleSetByOwner(ctx, owner)
 	if err != nil {
 		return "", err
 	}
 	var rsHref string
 	if existing == nil {
-		created, cerr := pclient.CreateRuleSet(ctx, BuildRuleSet(namespace, crName, providerHrefs, owner))
+		created, cerr := pclient.CreateRuleSet(ctx, BuildRuleSet(namespace, crName, scopeHrefs, owner))
 		if cerr != nil {
 			return "", cerr
 		}
@@ -424,7 +445,7 @@ func reconcileRuleSet(ctx context.Context, pclient PolicyClient, crName, namespa
 			break
 		}
 	}
-	for _, rule := range BuildRules(allServicesHref, resolved) {
+	for _, rule := range BuildRules(narrowHrefs, allServicesHref, resolved) {
 		if _, cerr := pclient.CreateRule(ctx, rsHref, rule); cerr != nil {
 			return "", cerr
 		}
