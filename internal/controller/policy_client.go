@@ -10,6 +10,7 @@ import (
 // controller needs. The real *pce.Client satisfies it.
 type PolicyClient interface {
 	FindLabel(ctx context.Context, key, value string) (*pce.Label, error)
+	EnsureLabel(ctx context.Context, key, value string, owner pce.Owner) (*pce.Label, error)
 	FindRuleSetByOwner(ctx context.Context, owner pce.Owner) (*pce.RuleSet, error)
 	CreateRuleSet(ctx context.Context, rs pce.RuleSet) (*pce.RuleSet, error)
 	DeleteRuleSet(ctx context.Context, href string) error

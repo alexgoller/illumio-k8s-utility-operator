@@ -206,6 +206,17 @@ spec:
                       type: string
                     type: array
                 type: object
+              unknownLabelMode:
+                description: |-
+                  UnknownLabelMode is the default policy when a referenced Illumio label is
+                  not yet in the PCE: strict (reject), skip (omit the actor/rule and report),
+                  or create (mint role/app/env/loc labels). Overridable per-namespace and
+                  per-CR via the microsegment.io/unknown-label-mode annotation. Defaults to strict.
+                enum:
+                - strict
+                - skip
+                - create
+                type: string
             required:
             - onboarding
             - pceConnectionRef

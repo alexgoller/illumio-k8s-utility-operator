@@ -204,15 +204,21 @@ func (fakeOnboardingClient) UpdateContainerWorkloadProfile(_ context.Context, hr
 	return nil
 }
 
+// labelValDoesNotExist is the magic label value the fake treats as unknown in the PCE.
+const labelValDoesNotExist = "does-not-exist"
+
 // fakePolicyClient is a test double for PolicyClient used by the
 // SegmentationIntent controller tests.
 type fakePolicyClient struct{}
 
 func (fakePolicyClient) FindLabel(_ context.Context, key, value string) (*pce.Label, error) {
-	if value == "does-not-exist" {
+	if value == labelValDoesNotExist {
 		return nil, pce.ErrLabelNotFound
 	}
 	return &pce.Label{Href: "/orgs/1/labels/" + key + "-" + value, Key: key, Value: value}, nil
+}
+func (fakePolicyClient) EnsureLabel(_ context.Context, key, value string, _ pce.Owner) (*pce.Label, error) {
+	return &pce.Label{Href: "/orgs/1/labels/created-" + key + "-" + value, Key: key, Value: value}, nil
 }
 func (fakePolicyClient) FindRuleSetByOwner(_ context.Context, owner pce.Owner) (*pce.RuleSet, error) {
 	deleteRuleSetMu.Lock()

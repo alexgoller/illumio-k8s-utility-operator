@@ -34,12 +34,16 @@ type Condition struct {
 
 // BackendResult holds the outcome of ReconcilePolicy.
 type BackendResult struct {
-	Ready                *Condition
-	Provisioned          *Condition
-	WorkloadsAffected    int
-	Requeue              time.Duration
-	EffectiveEnforcement string
-	EnforcementSetBy     string
+	Ready                 *Condition
+	Provisioned           *Condition
+	WorkloadsAffected     int
+	Requeue               time.Duration
+	EffectiveEnforcement  string
+	EnforcementSetBy      string
+	UnknownLabelMode      string
+	UnknownLabelModeSetBy string
+	DeferredLabels        []string
+	CreatedLabels         []string
 }
 
 // applyBackendResult writes the Ready and Provisioned conditions from res onto
@@ -101,13 +105,18 @@ func ReconcilePolicy(
 
 	// Compute the effective enforcement for the namespace (admin baseline + policy CRs).
 	var effEnforcement, enfSetBy string
+	var nsAnnotations map[string]string
 	{
 		var nsObj corev1.Namespace
 		if err := k8s.Get(ctx, types.NamespacedName{Name: namespace}, &nsObj); err == nil {
+			nsAnnotations = nsObj.Annotations
 			baseline := ComputeDesiredCWP(namespace, nsObj.Labels, nsObj.Annotations, cp.Spec.NamespaceRules, cp.Spec.SystemNamespaces).EnforcementMode
 			effEnforcement, enfSetBy, _ = EffectiveEnforcement(ctx, k8s, namespace, baseline)
 		}
 	}
+
+	// Resolve the unknown-label mode (CR annotation > namespace annotation > ClusterProfile default).
+	mode, modeSetBy := microv1.ResolveUnknownLabelMode(cp.Spec.UnknownLabelMode, nsAnnotations, annotations)
 
 	pclient := factory(cfg)
 	owner := pce.Owner{DataSet: eds, Reference: string(uid)}
@@ -127,7 +136,7 @@ func ReconcilePolicy(
 		}, nil
 	}
 
-	resolved, reason, msg, ok, err := resolveAllows(ctx, allows, pclient)
+	resolved, deferred, created, reason, msg, ok, err := resolveAllows(ctx, allows, pclient, mode, owner)
 	if err != nil {
 		return BackendResult{}, err
 	}
@@ -138,7 +147,9 @@ func ReconcilePolicy(
 				Reason:  reason,
 				Message: msg,
 			},
-			Requeue: siRequeueHealthy,
+			Requeue:               siRequeueHealthy,
+			UnknownLabelMode:      mode,
+			UnknownLabelModeSetBy: modeSetBy,
 		}, nil
 	}
 
@@ -170,10 +181,14 @@ func ReconcilePolicy(
 				Reason:  microv1.ReasonProvisioned,
 				Message: fmt.Sprintf("provisioned; %d workloads affected", res.WorkloadsAffected),
 			},
-			WorkloadsAffected:    res.WorkloadsAffected,
-			Requeue:              siRequeueHealthy,
-			EffectiveEnforcement: effEnforcement,
-			EnforcementSetBy:     enfSetBy,
+			WorkloadsAffected:     res.WorkloadsAffected,
+			Requeue:               siRequeueHealthy,
+			EffectiveEnforcement:  effEnforcement,
+			EnforcementSetBy:      enfSetBy,
+			UnknownLabelMode:      mode,
+			UnknownLabelModeSetBy: modeSetBy,
+			DeferredLabels:        deferred,
+			CreatedLabels:         created,
 		}, nil
 	}
 
@@ -190,9 +205,13 @@ func ReconcilePolicy(
 			Reason:  microv1.ReasonProvisionPending,
 			Message: pendingMsg,
 		},
-		Requeue:              siRequeueHealthy,
-		EffectiveEnforcement: effEnforcement,
-		EnforcementSetBy:     enfSetBy,
+		Requeue:               siRequeueHealthy,
+		EffectiveEnforcement:  effEnforcement,
+		EnforcementSetBy:      enfSetBy,
+		UnknownLabelMode:      mode,
+		UnknownLabelModeSetBy: modeSetBy,
+		DeferredLabels:        deferred,
+		CreatedLabels:         created,
 	}, nil
 }
 
@@ -307,25 +326,51 @@ func resolveProvider(ctx context.Context, k8s client.Client, nsName string, cp *
 	return hrefs, "", "", true, nil
 }
 
-// resolveAllows resolves consumer labels in each CompiledAllow to existing PCE
-// hrefs (never creates). Returns the resolved list or a rejection reason.
-func resolveAllows(ctx context.Context, allows []CompiledAllow, pclient PolicyClient) ([]ResolvedAllow, string, string, bool, error) {
+// resolveAllows resolves consumer labels per the unknown-label mode. Returns the
+// resolved allows, the "key=value" labels deferred (skip) or created (create),
+// and a rejection (ok=false) for strict-mode unknowns or create of a non-standard key.
+func resolveAllows(ctx context.Context, allows []CompiledAllow, pclient PolicyClient, mode string, owner pce.Owner) ([]ResolvedAllow, []string, []string, string, string, bool, error) {
 	out := make([]ResolvedAllow, 0, len(allows))
+	var deferred, created []string
 	for _, a := range allows {
 		consumerHrefs := make([]string, 0, len(a.From))
+		skippedAny := false
 		for key, value := range a.From {
 			lbl, err := pclient.FindLabel(ctx, key, value)
-			if err != nil {
-				if errors.Is(err, pce.ErrLabelNotFound) {
-					return nil, microv1.ReasonRejected, fmt.Sprintf("no Illumio label %s=%s in the PCE", key, value), false, nil
-				}
-				return nil, "", "", false, err
+			if err == nil {
+				consumerHrefs = append(consumerHrefs, lbl.Href)
+				continue
 			}
-			consumerHrefs = append(consumerHrefs, lbl.Href)
+			if !errors.Is(err, pce.ErrLabelNotFound) {
+				return nil, nil, nil, "", "", false, err
+			}
+			kv := key + "=" + value
+			switch mode {
+			case microv1.UnknownLabelSkip:
+				deferred = append(deferred, kv)
+				skippedAny = true
+			case microv1.UnknownLabelCreate:
+				if !autoCreatableKey(key) {
+					return nil, nil, nil, microv1.ReasonRejected,
+						fmt.Sprintf("cannot auto-create label with non-standard key %q (create mode allows role/app/env/loc only); pre-create %s in the PCE", key, kv), false, nil
+				}
+				lbl, cerr := pclient.EnsureLabel(ctx, key, value, owner)
+				if cerr != nil {
+					return nil, nil, nil, "", "", false, cerr
+				}
+				consumerHrefs = append(consumerHrefs, lbl.Href)
+				created = append(created, kv)
+			default: // strict
+				return nil, nil, nil, microv1.ReasonRejected, fmt.Sprintf("no Illumio label %s in the PCE", kv), false, nil
+			}
+		}
+		// In skip mode, drop an allow whose consumers were all unresolved.
+		if skippedAny && len(consumerHrefs) == 0 {
+			continue
 		}
 		out = append(out, ResolvedAllow{ConsumerHrefs: consumerHrefs, Ports: a.Ports})
 	}
-	return out, "", "", true, nil
+	return out, deferred, created, "", "", true, nil
 }
 
 // reconcileRuleSet ensures the owned ruleset exists and its rules match desired

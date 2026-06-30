@@ -86,7 +86,7 @@ func TestReconcileNamespaceCWPs_OneFailureDoesNotBlockOthers(t *testing.T) {
 			NamespaceRules: []microv1.NamespaceRule{{
 				Match:           microv1.NamespaceMatch{NamePattern: "ns-*"},
 				Managed:         true,
-				AssignLabels:    map[string]microv1.LabelAssignment{"env": {Value: "test"}},
+				AssignLabels:    map[string]microv1.LabelAssignment{microv1.LabelKeyEnv: {Value: "test"}},
 				EnforcementMode: testEnforcementVisOnly,
 			}},
 		},
