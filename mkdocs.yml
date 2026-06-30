@@ -43,6 +43,7 @@ nav:
   - Guides:
       - Onboarding: guides/onboarding.md
       - Namespace management: guides/namespace-management.md
+      - Labeling & the LabelMap: guides/labelmap-and-the-operator.md
       - Segmentation policy: guides/segmentation-policy.md
       - NetworkPolicy-style: guides/networkpolicy-style.md
   - API Reference:
