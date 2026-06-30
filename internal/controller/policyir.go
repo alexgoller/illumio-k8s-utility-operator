@@ -48,14 +48,13 @@ func BuildRuleSet(namespace, crName string, providerHrefs []string, owner pce.Ow
 	}
 }
 
-// BuildRules builds one rule per allow entry: providers = the namespace's app
-// labels; consumers = the allow's resolved labels; inline ports; pod resolution.
-func BuildRules(providerHrefs []string, allows []ResolvedAllow) []pce.SecRule {
-	providers := make([]pce.Actor, 0, len(providerHrefs))
-	for _, h := range providerHrefs {
-		href := h
-		providers = append(providers, pce.Actor{Label: &pce.LabelRef{Href: href}})
-	}
+// BuildRules builds one rule per allow entry. Providers are "All Workloads in
+// scope": the ruleset scope (set by BuildRuleSet) already constrains them to the
+// namespace's labels, so the scope is not repeated in the provider actor.
+// Consumers are the allow's resolved labels and are extra-scope (cross-app) today;
+// intra-scope consumer selection lands with Track 4.
+func BuildRules(allows []ResolvedAllow) []pce.SecRule {
+	providers := []pce.Actor{pce.AllWorkloadsActor()}
 	rules := make([]pce.SecRule, 0, len(allows))
 	for _, a := range allows {
 		consumers := make([]pce.Actor, 0, len(a.ConsumerHrefs))

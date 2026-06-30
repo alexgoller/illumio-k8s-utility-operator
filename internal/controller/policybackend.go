@@ -403,7 +403,7 @@ func reconcileRuleSet(ctx context.Context, pclient PolicyClient, crName, namespa
 			}
 		}
 	}
-	for _, rule := range BuildRules(providerHrefs, resolved) {
+	for _, rule := range BuildRules(resolved) {
 		if _, cerr := pclient.CreateRule(ctx, rsHref, rule); cerr != nil {
 			return "", cerr
 		}
