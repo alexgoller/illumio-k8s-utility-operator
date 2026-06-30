@@ -1,74 +1,137 @@
-# illumio-k8s-utility-operator
-// TODO(user): Add simple overview of use/purpose
+# Illumio Kubernetes Utility Operator
 
-## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+**Manage Illumio segmentation for Kubernetes and OpenShift the GitOps way — onboard clusters, label workloads, and author micro-segmentation policy as native Kubernetes resources.**
 
-## Getting Started
+[![Release](https://img.shields.io/github/v/release/alexgoller/illumio-k8s-utility-operator?sort=semver)](https://github.com/alexgoller/illumio-k8s-utility-operator/releases)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
-### Prerequisites
-- go version v1.26.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
+---
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+## What it does
 
-```sh
-make docker-build docker-push IMG=<some-registry>/illumio-k8s-utility-operator:tag
+The Illumio K8s Utility Operator connects a Kubernetes or OpenShift cluster to an Illumio **PCE** and lets platform and application teams drive Illumio from the cluster instead of clicking through the PCE console:
+
+- **🔌 Connect** — register one or more PCEs with a single `PCEConnection` resource and store credentials in a Kubernetes Secret (or reuse one from Vault / External Secrets).
+- **🚀 Onboard** — create the PCE **Container Cluster**, node **Pairing Profile**, and pairing key automatically from a `ClusterProfile`.
+- **🏷️ Label** — apply Illumio labels to namespaces and workloads (Container Workload Profiles) from declarative namespace rules, with safe handling for system namespaces.
+- **🛡️ Segment** — author micro-segmentation policy as `SegmentationIntent` (allow-list style) or `SegmentationPolicy` (Kubernetes `NetworkPolicy` style). Both compile to the **same Illumio ruleset backend**.
+- **🚦 Enforce & provision** — control enforcement (`idle` → `visibility_only` → `full`) per namespace and provision rulesets automatically or behind a manual approval gate.
+
+Everything is a Kubernetes custom resource, so it lives in Git, flows through your CI/CD, and reconciles continuously.
+
+## Who it's for
+
+| Audience | Why it helps |
+|---|---|
+| **Platform / cluster teams** | One operator onboards the cluster and keeps Illumio labels in sync with namespaces — no per-app PCE work. |
+| **Application teams** | Express "who can talk to my service" in YAML next to the app, in a model they already know (`NetworkPolicy`) or a simple allow-list. |
+| **Illumio PS & consultants** | Repeatable, auditable, GitOps-friendly onboarding and policy authoring for customer clusters — drop in a chart, set PCE creds, and the cluster appears in the PCE with labels and rulesets driven from source control. |
+
+## How it works
+
+```
+   ┌────────────────────┐         ┌──────────────────────────────────────┐
+   │  Your Git repo /    │ apply   │  Kubernetes / OpenShift cluster       │
+   │  CI-CD pipeline      │────────▶│                                       │
+   └────────────────────┘         │   ┌──────────────────────────────┐    │
+                                   │   │  Illumio K8s Utility Operator │    │
+   PCEConnection ─────────────────┼──▶│                              │    │
+   ClusterProfile  (onboard+label)│   │  reconciles CRs ──────────────┼────┼──┐
+   SegmentationIntent / Policy ───┼──▶│                              │    │  │ REST
+                                   │   └──────────────────────────────┘    │  │ (API key)
+                                   └──────────────────────────────────────┘  │
+                                                                              ▼
+                                            ┌───────────────────────────────────────┐
+                                            │  Illumio PCE                            │
+                                            │  Container Cluster · Pairing Profile ·  │
+                                            │  Labels / CWPs · Rulesets · Enforcement │
+                                            └───────────────────────────────────────┘
 ```
 
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
+You declare intent in Kubernetes; the operator translates it into Container Clusters, labels, and rulesets in the PCE and keeps them reconciled.
 
-**Install the CRDs into the cluster:**
+## The four custom resources
 
-```sh
-make install
+| CRD | Short name | Scope | What it does |
+|-----|-----------|-------|--------------|
+| `PCEConnection` | `pceconn` | Cluster | Holds the PCE URL, org ID, and a reference to the credentials Secret. The connection every other resource uses. |
+| `ClusterProfile` | `clusterprofile` | Cluster | Onboards the cluster to the PCE and defines namespace **label rules**, system-namespace handling, the **enforcement baseline**, and the **provisioning mode**. |
+| `SegmentationIntent` | `segintent` | Namespaced | Illumio-native **allow-list** policy for the namespace it lives in. |
+| `SegmentationPolicy` | `segpol` | Namespaced | The same policy expressed in Kubernetes **`NetworkPolicy`** shape (`ingress` / `from` / `ports`). |
+
+`SegmentationIntent` and `SegmentationPolicy` compile to the same backend and have identical capabilities — pick whichever matches your team's mental model.
+
+---
+
+## Quickstart
+
+### Requirements
+
+- A Kubernetes or OpenShift cluster (`kubectl` configured).
+- **Helm 3** (recommended install path).
+- An Illumio **PCE (24.5+)** with an API key/secret and your **org ID**.
+
+### 1. Install the operator and connect to your PCE
+
+The operator and its Helm chart are published to GitHub Container Registry:
+
+- Chart: `oci://ghcr.io/alexgoller/charts/illumio-k8s-utility-operator`
+- Image: `ghcr.io/alexgoller/illumio-k8s-utility-operator`
+
+```bash
+helm install illumio-operator \
+  oci://ghcr.io/alexgoller/charts/illumio-k8s-utility-operator --version 0.1.17 \
+  --namespace illumio-operator --create-namespace \
+  --set pce.url=mypce.example.com:8443 \
+  --set pce.orgId=3 \
+  --set pce.apiKey=api_1234567890abcdef \
+  --set pce.apiSecret=your-api-secret
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
+This installs the CRDs, deploys the operator, and creates a `PCEConnection` named `default`. Already manage secrets elsewhere? Use `--set pce.existingSecret=my-pce-credentials` (a Secret with keys `api_key` / `api_secret`) instead of the raw values.
 
-```sh
-make deploy IMG=<some-registry>/illumio-k8s-utility-operator:tag
+### 2. Onboard the cluster
+
+Add onboarding to the same install (or a `helm upgrade`) to create the PCE Container Cluster and pairing key:
+
+```bash
+helm upgrade illumio-operator \
+  oci://ghcr.io/alexgoller/charts/illumio-k8s-utility-operator --version 0.1.17 \
+  --namespace illumio-operator --reuse-values \
+  --set onboarding.enabled=true \
+  --set onboarding.containerClusterName=ocp-prod-01
 ```
 
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
+The operator creates the Container Cluster, generates a node Pairing Profile and pairing key, and writes the credentials to a Secret (`illumio-cluster-creds`) in the `illumio-operator` namespace. See the [Onboarding guide](docs/guides/onboarding.md) for status fields and how to consume the pairing key.
 
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
+### 3. Write your first policy
 
-```sh
-kubectl apply -k config/samples/
+Allow everything inside a namespace to talk to itself:
+
+```yaml
+apiVersion: microsegment.io/v1alpha1
+kind: SegmentationIntent
+metadata:
+  name: myapp-internal
+  namespace: myapp
+spec:
+  allowIntraNamespace: true
 ```
 
->**NOTE**: Ensure that the samples has default values to test it out.
-
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
-
-```sh
-kubectl delete -k config/samples/
+```bash
+kubectl apply -f myapp-internal.yaml
+kubectl get segintent -n myapp
+# NAME             READY   PROVISIONED   AFFECTED
+# myapp-internal   True    True          8
 ```
 
-**Delete the APIs(CRDs) from the cluster:**
+> Installing from source instead? Use `./dist/chart` in place of the OCI ref, or `make install && make deploy IMG=...`. Full options (values file, existing secrets, OpenShift notes) are in the [Installation guide](docs/installation.md).
 
-```sh
-make uninstall
-```
-
-**UnDeploy the controller from the cluster:**
-
-```sh
-make undeploy
-```
+---
 
 ## Policy
 
-The operator lets app teams express Illumio segmentation policy as Kubernetes custom resources, eliminating the need to write rulesets in the PCE console by hand. Two CRDs are available — choose the one that fits your team's mental model.
+The operator lets app teams express Illumio segmentation as Kubernetes custom resources, eliminating the need to write rulesets in the PCE console by hand. Two CRDs are available — choose the one that fits your team's mental model.
 
 ### CRDs at a glance
 
@@ -241,78 +304,72 @@ kubectl get segintent payments-ingress -n payments -o jsonpath='{.status.deferre
 # ["app=future-service"]
 ```
 
-### Further reading
+---
 
-- [Policy concepts guide](docs/guides/policy-concepts.md) — mental model, intra/extra-scope, rules vs enforcement, provisioning, unknown labels, and all how-tos in one place. Start here if you are new to Illumio.
-- [Segmentation policy guide](docs/guides/segmentation-policy.md) — compilation, provisioning modes, and enforcement details for `SegmentationIntent`.
-- [NetworkPolicy-style guide](docs/guides/networkpolicy-style.md) — `SegmentationPolicy` in depth, selector mapping, and rejection rules.
-- [SegmentationIntent reference](docs/reference/segmentationintent.md) — complete field and status documentation.
-- [SegmentationPolicy reference](docs/reference/segmentationpolicy.md) — complete field and status documentation.
+## Documentation
 
-## Project Distribution
+| Start here | |
+|---|---|
+| [Getting started](docs/getting-started.md) | End-to-end first run: connect, onboard, label, segment. |
+| [Installation](docs/installation.md) | All Helm options, existing-secret, values file, source build. |
+| [Concepts](docs/concepts.md) | The Illumio + Kubernetes model the operator implements. |
 
-Following the options to release and provide this solution to the users.
+| Guides | |
+|---|---|
+| [Onboarding](docs/guides/onboarding.md) | Container Cluster, Pairing Profile, reading the pairing key. |
+| [Namespace management](docs/guides/namespace-management.md) | Label rules, system namespaces, Container Workload Profiles. |
+| [Policy concepts](docs/guides/policy-concepts.md) | Scope, rules vs enforcement, provisioning, unknown labels — **start here for policy**. |
+| [Segmentation policy](docs/guides/segmentation-policy.md) | `SegmentationIntent` compilation and provisioning modes. |
+| [NetworkPolicy-style](docs/guides/networkpolicy-style.md) | `SegmentationPolicy` selector mapping in depth. |
+| [LabelMap & the operator](docs/guides/labelmap-and-the-operator.md) | Coexisting with Illumio's per-workload LabelMap. |
 
-### By providing a bundle with all YAML files
+| Reference | |
+|---|---|
+| [PCEConnection](docs/reference/pceconnection.md) · [ClusterProfile](docs/reference/clusterprofile.md) · [SegmentationIntent](docs/reference/segmentationintent.md) · [SegmentationPolicy](docs/reference/segmentationpolicy.md) | Full field and status documentation. |
 
-1. Build the installer for the image built and published in the registry:
+## Compatibility
 
-```sh
-make build-installer IMG=<some-registry>/illumio-k8s-utility-operator:tag
-```
+| Component | Supported |
+|---|---|
+| Illumio PCE | 24.5+ (on-prem or SaaS) |
+| Kubernetes | 1.25+ |
+| OpenShift | 4.x |
+| Helm | 3.x |
 
-**NOTE:** The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without its
-dependencies.
+## Status & roadmap
 
-2. Using the installer
+The operator is in active development (`v0.1.x`, API group `microsegment.io/v1alpha1`). Shipped and live-verified against a real PCE today:
 
-Users can just run 'kubectl apply -f <URL for YAML BUNDLE>' to install
-the project, i.e.:
+- ✅ PCE connection and credential management
+- ✅ Cluster onboarding (Container Cluster + Pairing Profile + key)
+- ✅ Namespace / Container Workload Profile labeling, incl. helm-tunable system namespaces
+- ✅ `SegmentationIntent` and `SegmentationPolicy` → Illumio rulesets (intra-/extra-scope)
+- ✅ Per-namespace enforcement and auto/manual/draft provisioning
+- ✅ Configurable unknown-label handling (`strict` / `skip` / `create`)
+- ✅ LabelMap overlap detection (warns when Illumio's LabelMap labels the same dimension)
 
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/illumio-k8s-utility-operator/<tag or branch>/dist/install.yaml
-```
+On the roadmap:
 
-### By providing a Helm Chart
+- 🚧 **Deny / override-deny rules** (Track 2 — design complete, pending PCE Core 25.x deny-rules verification)
+- 🚧 **Egress policy** (Track 6 — designed)
+- 🚧 **Selective enforcement** (Track 3 — designed)
 
-1. Build the chart using the optional helm plugin
-
-```sh
-kubebuilder edit --plugins=helm/v2-alpha
-```
-
-2. See that a chart was generated under 'dist/chart', and users
-can obtain this solution from there.
-
-**NOTE:** If you change the project, you need to update the Helm Chart
-using the same command above to sync the latest changes. Furthermore,
-if you create webhooks, you need to use the above command with
-the '--force' flag and manually ensure that any custom configuration
-previously added to 'dist/chart/values.yaml' or 'dist/chart/manager/manager.yaml'
-is manually re-applied afterwards.
+See `docs/superpowers/specs/` for the design notes and roadmap.
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
 
-**NOTE:** Run `make help` for more information on all potential `make` targets
+Issues and pull requests are welcome. For local development:
 
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+```bash
+make test        # unit + envtest suite
+make lint        # golangci-lint
+make manifests generate   # regenerate CRDs/code after API changes
+```
+
+Run `make help` for all targets. The project is built with [Kubebuilder](https://book.kubebuilder.io/introduction.html).
 
 ## License
 
-Copyright 2026.
+Copyright 2026. Licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
