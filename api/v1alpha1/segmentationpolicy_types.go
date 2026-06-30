@@ -56,6 +56,18 @@ type SegmentationPolicyStatus struct {
 	EffectiveEnforcement string `json:"effectiveEnforcement,omitempty"`
 	// +optional
 	EnforcementSetBy string `json:"enforcementSetBy,omitempty"`
+	// UnknownLabelMode is the effective mode used to resolve referenced labels.
+	// +optional
+	UnknownLabelMode string `json:"unknownLabelMode,omitempty"`
+	// UnknownLabelModeSetBy names where the mode came from (cr|namespace|clusterprofile|default).
+	// +optional
+	UnknownLabelModeSetBy string `json:"unknownLabelModeSetBy,omitempty"`
+	// DeferredLabels are key=value consumer labels skipped because they do not yet exist (skip mode).
+	// +optional
+	DeferredLabels []string `json:"deferredLabels,omitempty"`
+	// CreatedLabels are key=value labels minted while resolving (create mode).
+	// +optional
+	CreatedLabels []string `json:"createdLabels,omitempty"`
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }

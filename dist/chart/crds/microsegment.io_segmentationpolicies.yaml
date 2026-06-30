@@ -310,6 +310,18 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              createdLabels:
+                description: CreatedLabels are key=value labels minted while resolving
+                  (create mode).
+                items:
+                  type: string
+                type: array
+              deferredLabels:
+                description: DeferredLabels are key=value consumer labels skipped
+                  because they do not yet exist (skip mode).
+                items:
+                  type: string
+                type: array
               effectiveEnforcement:
                 type: string
               enforcementSetBy:
@@ -317,6 +329,14 @@ spec:
               observedGeneration:
                 format: int64
                 type: integer
+              unknownLabelMode:
+                description: UnknownLabelMode is the effective mode used to resolve
+                  referenced labels.
+                type: string
+              unknownLabelModeSetBy:
+                description: UnknownLabelModeSetBy names where the mode came from
+                  (cr|namespace|clusterprofile|default).
+                type: string
               workloadsAffected:
                 type: integer
             type: object
