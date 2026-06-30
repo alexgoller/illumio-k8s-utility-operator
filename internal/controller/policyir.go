@@ -17,6 +17,10 @@ const (
 	policyTypeIngress = "Ingress"
 	// enforcementFull is the strictest enforcement mode.
 	enforcementFull = "full"
+	// protoAllServices (-1) is Illumio's "All Services": every protocol and port.
+	// A rule with no explicit ports uses this so ingress_services is a valid,
+	// non-null array (the PCE rejects a null ingress_services).
+	protoAllServices = -1
 )
 
 // ResolvedAllow is a CompiledAllow after consumer labels are resolved to hrefs.
@@ -69,12 +73,17 @@ func BuildRules(allows []ResolvedAllow) []pce.SecRule {
 				consumers = append(consumers, pce.Actor{Label: &pce.LabelRef{Href: href}})
 			}
 		}
+		// No explicit ports = All Services (proto -1). Must be a non-null array.
+		ingress := a.Ports
+		if len(ingress) == 0 {
+			ingress = []pce.IngressService{{Proto: protoAllServices}}
+		}
 		rules = append(rules, pce.SecRule{
 			Enabled:           true,
 			ResolveLabelsAs:   pce.ResolveLabelsAs{Providers: []string{resolveWorkloads}, Consumers: []string{resolveWorkloads}},
 			Providers:         providers,
 			Consumers:         consumers,
-			IngressServices:   a.Ports,
+			IngressServices:   ingress,
 			UnscopedConsumers: !a.IntraScope,
 		})
 	}
