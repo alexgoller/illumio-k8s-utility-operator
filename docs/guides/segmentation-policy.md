@@ -14,9 +14,45 @@ Before writing any intent, understand the two hard constraints:
 
 **The provider is always your namespace's own app.** The operator derives the provider from the namespace's Illumio `app` label (set by the `ClusterProfile` namespace rules). You cannot name another namespace's app as the provider; attempting to do so results in `Ready=False`.
 
-**Consumer labels must already exist in the PCE.** The `from` map references Illumio labels that Kubelink creates from real running workloads. If any label key/value combination in `from` does not exist in the PCE, the entire intent is `Rejected` (status `Ready=False`, reason `Rejected`). The operator never creates labels; it only resolves them.
+**Consumer labels must already exist in the PCE — unless you opt into another mode.** The `from` map references Illumio labels that Kubelink creates from real running workloads. By default (**`strict`**), if any `key=value` in `from` does not exist in the PCE the entire intent is `Rejected` (`Ready=False`, reason `Rejected`). This is a deliberate guardrail, not a statement that the intent is wrong — see [Unknown-label handling](#unknown-label-handling) to relax it.
 
 **The namespace must be managed.** The namespace must be enrolled by a `ClusterProfile` namespace rule (Plan 3 / [Namespace management](namespace-management.md)). If no `ClusterProfile` covers the namespace, the intent is rejected with reason `ClusterProfileNotReady`.
+
+## Unknown-label handling
+
+An Illumio label can exist as an object with **zero** workloads carrying it — the PCE simply
+computes no policy for it until a matching workload appears. So referencing a label that does not
+exist *yet* is not necessarily wrong. The behaviour is configurable via **`unknownLabelMode`**:
+
+| Mode | When a referenced `from` label is unknown |
+|---|---|
+| **`strict`** (default) | Reject the whole CR (`Ready=False`, reason `Rejected`). |
+| **`skip`** | Compile the rules whose labels *do* resolve, **omit** the unknown consumer, and keep the CR `Ready=True`. The omitted `key=value` is listed in `status.deferredLabels` and re-tried every reconcile, so the rule appears once the label exists. **No labels are created.** |
+| **`create`** | **Mint** the missing label in the PCE (then use it). Only the standard Illumio keys **`role`, `app`, `env`, `loc`** may be auto-created — a non-standard key is still a rejection, so a typo'd *key* can't spawn a junk dimension. Created `key=value` pairs are listed in `status.createdLabels`. |
+
+### Where to set it (most-specific wins)
+
+1. `ClusterProfile.spec.unknownLabelMode` — the fleet default (defaults to `strict`).
+2. Namespace annotation `microsegment.io/unknown-label-mode: <mode>` — overrides the default for a namespace.
+3. CR annotation `microsegment.io/unknown-label-mode: <mode>` on the `SegmentationIntent` / `SegmentationPolicy` — most specific.
+
+Resolution order is **CR → namespace → ClusterProfile default → `strict`**. The resolved value and
+its source are reported in `status.unknownLabelMode` and `status.unknownLabelModeSetBy`
+(`cr` | `namespace` | `clusterprofile` | `default`).
+
+```yaml
+apiVersion: microsegment.io/v1alpha1
+kind: SegmentationIntent
+metadata:
+  name: payments-ingress
+  namespace: payments
+  annotations:
+    microsegment.io/unknown-label-mode: skip   # this CR tolerates not-yet-existing consumer labels
+spec:
+  allow:
+    - from: { app: future-service, env: prod }  # will be deferred until the workload exists
+      ports: [{ port: 8443, protocol: TCP }]
+```
 
 ## NetworkPolicy-style alternative
 
