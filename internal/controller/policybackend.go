@@ -408,7 +408,23 @@ func reconcileRuleSet(ctx context.Context, pclient PolicyClient, crName, namespa
 			}
 		}
 	}
-	for _, rule := range BuildRules(resolved) {
+	// Any rule with no explicit ports references the built-in "All Services" service
+	// (it has no valid inline form), so resolve its href once if needed.
+	var allServicesHref string
+	for _, a := range resolved {
+		if len(a.Ports) == 0 {
+			svc, serr := pclient.FindServiceByName(ctx, pce.AllServicesName)
+			if serr != nil {
+				return "", serr
+			}
+			if svc == nil {
+				return "", fmt.Errorf("PCE service %q not found (required for all-ports rules)", pce.AllServicesName)
+			}
+			allServicesHref = svc.Href
+			break
+		}
+	}
+	for _, rule := range BuildRules(allServicesHref, resolved) {
 		if _, cerr := pclient.CreateRule(ctx, rsHref, rule); cerr != nil {
 			return "", cerr
 		}

@@ -26,6 +26,7 @@ func TestBuildRuleSet_ScopesToProviderAndStampsOwner(t *testing.T) {
 
 func TestBuildRules_OneRulePerAllow(t *testing.T) {
 	rules := BuildRules(
+		"",
 		[]ResolvedAllow{
 			{ConsumerHrefs: []string{testLabelHref15}, Ports: []pce.IngressService{{Proto: 6, Port: 8443}}},
 			{ConsumerHrefs: []string{"/orgs/1/labels/16"}, Ports: []pce.IngressService{{Proto: 6, Port: 5432}}},
@@ -51,7 +52,8 @@ func TestBuildRules_OneRulePerAllow(t *testing.T) {
 }
 
 func TestBuildRules_IntraScopeAndAllWorkloads(t *testing.T) {
-	rules := BuildRules([]ResolvedAllow{
+	const allSvc = "/orgs/1/sec_policy/draft/services/all"
+	rules := BuildRules(allSvc, []ResolvedAllow{
 		// any-any intra-namespace: consumer = ams, intra-scope.
 		{AllWorkloads: true, IntraScope: true},
 		// role-based intra-scope: label consumer, intra-scope.
@@ -66,9 +68,9 @@ func TestBuildRules_IntraScopeAndAllWorkloads(t *testing.T) {
 	if len(rules[0].Consumers) != 1 || rules[0].Consumers[0].Actors != pce.ActorAllWorkloads || rules[0].UnscopedConsumers {
 		t.Errorf("any-any rule = %+v", rules[0])
 	}
-	// no explicit ports → All Services (proto -1), never a null array.
-	if len(rules[0].IngressServices) != 1 || rules[0].IngressServices[0].Proto != -1 {
-		t.Errorf("all-ports rule should emit All Services (proto -1): %+v", rules[0].IngressServices)
+	// no explicit ports → All Services referenced by href, never null/inline.
+	if len(rules[0].IngressServices) != 1 || rules[0].IngressServices[0].Href != allSvc || rules[0].IngressServices[0].Proto != 0 {
+		t.Errorf("all-ports rule should reference All Services by href: %+v", rules[0].IngressServices)
 	}
 	// role intra: label consumer, intra-scope.
 	if rules[1].Consumers[0].Label == nil || rules[1].UnscopedConsumers {
