@@ -25,10 +25,36 @@ const ActorAllWorkloads = "ams"
 // AllWorkloadsActor returns an actor matching All Workloads.
 func AllWorkloadsActor() Actor { return Actor{Actors: ActorAllWorkloads} }
 
-// IngressService is an inline port/proto (no Service object needed).
+// IngressService is either an inline port/proto OR a reference to a Service object
+// by href (used for "All Services", which has no valid inline form).
 type IngressService struct {
-	Proto int `json:"proto"`
-	Port  int `json:"port,omitempty"`
+	Proto int    `json:"proto,omitempty"`
+	Port  int    `json:"port,omitempty"`
+	Href  string `json:"href,omitempty"`
+}
+
+// Service is an Illumio service object (we only need its href + name to find
+// the built-in "All Services").
+type Service struct {
+	Href string `json:"href"`
+	Name string `json:"name"`
+}
+
+// AllServicesName is the built-in service that matches every protocol/port.
+const AllServicesName = "All Services"
+
+// FindServiceByName returns the draft service with the exact name, or nil if absent.
+func (c *Client) FindServiceByName(ctx context.Context, name string) (*Service, error) {
+	var services []Service
+	if err := c.do(ctx, http.MethodGet, c.orgPath(secPolicyDraft+"/services"), nil, &services); err != nil {
+		return nil, err
+	}
+	for i := range services {
+		if services[i].Name == name {
+			return &services[i], nil
+		}
+	}
+	return nil, nil
 }
 
 // ResolveLabelsAs controls how provider/consumer labels resolve. Use

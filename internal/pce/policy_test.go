@@ -165,3 +165,21 @@ func TestAllWorkloadsActor_MarshalsToAms(t *testing.T) {
 		t.Fatalf("label actor = %s", lb)
 	}
 }
+
+func TestFindServiceByName_ExactMatch(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`[{"href":"/orgs/7/sec_policy/draft/services/1","name":"All Services"},{"href":"/orgs/7/sec_policy/draft/services/2","name":"HTTPS"}]`))
+	})
+	svc, err := c.FindServiceByName(context.Background(), AllServicesName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if svc == nil || svc.Href != "/orgs/7/sec_policy/draft/services/1" {
+		t.Fatalf("svc = %+v", svc)
+	}
+	// A name with no match returns (nil, nil).
+	missing, err := c.FindServiceByName(context.Background(), "nope")
+	if err != nil || missing != nil {
+		t.Fatalf("missing = %+v err=%v", missing, err)
+	}
+}
