@@ -2,6 +2,9 @@
 
 This guide explains how app teams use `SegmentationIntent` to declare which consumers may reach their application, and how the operator compiles and provisions those declarations into Illumio rulesets.
 
+!!! tip "New to Illumio policy?"
+    Start with the [Policy concepts guide](policy-concepts.md) for the mental model, intra/extra-scope explained, enforcement modes, and provisioning — then come back here for `SegmentationIntent`-specific details.
+
 ## Mental model
 
 A `SegmentationIntent` is an **allow-list for inbound traffic to your namespace's app**. You declare: "allow these consumers (identified by their Illumio labels) to reach my pods on these ports." The operator compiles each intent into one Illumio ruleset that is scoped to your namespace and owned by that CR — nobody else can modify it.

@@ -7,18 +7,20 @@ If you are already familiar with Kubernetes `NetworkPolicy`, `SegmentationPolicy
 
 ## How selectors map to Illumio labels
 
-The critical difference from standard Kubernetes `NetworkPolicy` is that **selectors map to Illumio labels, not to pod labels**. The operator does not do pod-level selection. Instead:
+The critical difference from standard Kubernetes `NetworkPolicy` is that **selectors map to Illumio labels, not to pod labels**. The operator does not do pod-level selection. The selector *position* also decides scope (see [Policy concepts → intra-scope vs extra-scope](policy-concepts.md#3-intra-scope-vs-extra-scope-consumers)):
 
-- `podSelector.matchLabels` — the key/value pairs are looked up in the PCE as Illumio label key/value pairs. These identify the **consumer workload** by its Illumio labels (for example `{app: checkout, env: prod}`).
-- `namespaceSelector.matchLabels` — similarly resolved against the PCE's label vocabulary for the consumer's namespace.
+- **Top-level `spec.podSelector`** → narrows the **provider** (who is protected). `matchLabels` targets a specific service in this namespace's app (e.g. `{role: backend}`); an empty `{}` = the whole namespace app.
+- A `from` peer's **`podSelector`** → an **intra-scope** consumer (a workload *within this namespace*). `matchLabels` narrows by Illumio labels (e.g. `{role: frontend}`); an empty `{}` = all pods in this namespace.
+- A `from` peer's **`namespaceSelector`** → an **extra-scope** consumer (a workload in *another app*, e.g. `{app: checkout, env: prod}`).
+- A peer must set **exactly one** of `podSelector` or `namespaceSelector` — setting both is rejected.
 
-Only `matchLabels` is supported. `matchExpressions` is not supported and causes an immediate rejection (see [Rejection rules](#rejection-rules) below). Consumer labels must already exist in the PCE (Kubelink creates them from real running workloads); the operator never creates labels.
+Only `matchLabels` is supported. `matchExpressions` is not supported and causes an immediate rejection (see [Rejection rules](#rejection-rules) below). Consumer labels must already exist in the PCE — unless you opt into a tolerant [`unknownLabelMode`](policy-concepts.md#7-unknown-labels). Provider labels are always resolved strictly.
 
 ## Guardrails
 
 The same guardrails that apply to `SegmentationIntent` apply here:
 
-**The provider is always your namespace's own app.** The operator derives the provider from the namespace's Illumio `app` label (set by the `ClusterProfile` namespace rules). A `SegmentationPolicy` protects the namespace it lives in. You cannot write a policy that protects another namespace.
+**You can only protect your own namespace.** A `SegmentationPolicy` protects the namespace it lives in (its Illumio `app`, set by the `ClusterProfile`). You cannot write a policy that protects another namespace. You *can* narrow the protected provider to a specific service within your namespace via the top-level `spec.podSelector` (matchLabels); leaving it empty protects the whole app.
 
 **Consumer labels must already exist in the PCE.** If any label key/value pair in a `from` peer does not exist in the PCE, the entire policy is `Rejected`.
 
@@ -38,7 +40,7 @@ metadata:
   name: payments-ingress
   namespace: payments
 spec:
-  podSelector: {}          # must be empty — protects all pods in the namespace
+  podSelector: {}          # empty = protect the whole namespace app (use matchLabels to narrow to a service)
   policyTypes:
     - Ingress              # must be ["Ingress"] — egress is not supported
   ingress:
@@ -85,9 +87,9 @@ The operator validates the spec before making any PCE call. Policies that violat
 | What you wrote | Reason rejected |
 |----------------|-----------------|
 | `policyTypes: [Egress]` or `policyTypes: [Ingress, Egress]` | Egress policy is not supported. |
-| `podSelector` with any `matchLabels` or `matchExpressions` | The provider is always the namespace's own app — a non-empty pod selector is not allowed. |
-| `matchExpressions` in any `from` peer's `podSelector` or `namespaceSelector` | Only `matchLabels` is supported; label expressions cannot be translated to PCE label lookups. |
-| A `from` peer with neither `podSelector` nor `namespaceSelector` (an `ipBlock`-style peer) | IP block peers are not supported. Every peer must have at least one label selector. |
+| `matchExpressions` in the top-level `podSelector` or any `from` peer | Only `matchLabels` is supported; label expressions cannot be translated to PCE label lookups. |
+| A `from` peer that sets **both** `podSelector` and `namespaceSelector` | A peer is either intra-scope (`podSelector`) or extra-scope (`namespaceSelector`), not both. |
+| A `from` peer with neither `podSelector` nor `namespaceSelector` (an `ipBlock`-style peer) | IP block peers are not supported. Every peer must have exactly one label selector. |
 | An `ingress` rule with an empty `from` list | Each ingress rule must have at least one peer. |
 
 Example of a rejected status:
@@ -134,8 +136,9 @@ EnforcementSetBy:     payments-ingress
 | `matchExpressions` | Not supported (rejected) | N/A (flat map only) |
 | Ports | `ingress[].ports[].{port, protocol}` | `allow[].ports[].{port, protocol}` |
 | Enforcement field | `spec.enforcement` | `spec.enforcement` |
+| Provider narrowing | top-level `spec.podSelector.matchLabels` | `spec.provider` |
+| Intra vs extra-scope | `podSelector` peer (intra) / `namespaceSelector` peer (extra) | `fromIntraNamespace` (intra) / `from` (extra) |
 | Backend | Shared Illumio ruleset backend | Same |
-| Guardrails | Provider locked to namespace app | Same |
 
 If you prefer the intent shape, see the [Segmentation policy guide](segmentation-policy.md).
 
