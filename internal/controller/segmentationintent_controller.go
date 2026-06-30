@@ -3,6 +3,8 @@ package controller
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -56,7 +58,17 @@ func (r *SegmentationIntentReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 	}
 
-	allows := CompileIntent(si.Spec.Allow)
+	allows, cerr := CompileIntent(si.Spec)
+	if cerr != nil {
+		meta.SetStatusCondition(&si.Status.Conditions, metav1.Condition{
+			Type:    microv1.ConditionReady,
+			Status:  metav1.ConditionFalse,
+			Reason:  microv1.ReasonRejected,
+			Message: cerr.Error(),
+		})
+		si.Status.ObservedGeneration = si.Generation
+		return ctrl.Result{}, r.Status().Update(ctx, &si)
+	}
 
 	res, err := ReconcilePolicy(ctx, r.Client, r.NewPolicyClient, si.Namespace, si.Name, si.UID, si.Annotations, allows)
 	if err != nil {

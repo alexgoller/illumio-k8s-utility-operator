@@ -60,15 +60,25 @@ spec:
                   app.
                 items:
                   description: |-
-                    IntentAllow allows a consumer (referenced by existing Illumio labels) to
-                    reach this namespace's app on the given ports.
+                    IntentAllow allows a consumer to reach this namespace's app on the given ports.
+                    The consumer is EITHER From (a cross-app consumer, extra-scope) OR
+                    FromIntraNamespace (a consumer within this namespace, intra-scope) — set one.
                   properties:
                     from:
                       additionalProperties:
                         type: string
                       description: |-
-                        From is the consumer's Illumio labels (key -> value), e.g.
+                        From is a cross-app consumer's Illumio labels (key -> value), e.g.
                         {"app":"checkout","env":"prod"}. They must already exist in the PCE.
+                        This is an extra-scope source (it may live in any app).
+                      type: object
+                    fromIntraNamespace:
+                      additionalProperties:
+                        type: string
+                      description: |-
+                        FromIntraNamespace is a consumer WITHIN this namespace's scope, narrowed by
+                        Illumio labels (typically {"role":"frontend"}). This is an intra-scope source
+                        (same app), so the scope is not repeated. Empty map = all workloads in scope.
                       type: object
                     ports:
                       description: Ports the consumer may reach. Empty means all ports.
@@ -88,11 +98,14 @@ spec:
                         - port
                         type: object
                       type: array
-                  required:
-                  - from
                   type: object
-                minItems: 1
                 type: array
+              allowIntraNamespace:
+                description: |-
+                  AllowIntraNamespace is a shortcut: when true, allow all workloads in this
+                  namespace to reach each other on all ports (an intra-scope allow-all). Combine
+                  with Allow for finer cross-app rules, or use alone for "allow any-any here".
+                type: boolean
               enforcement:
                 description: |-
                   Enforcement requests a namespace enforcement mode. The operator applies
@@ -103,8 +116,6 @@ spec:
                 - visibility_only
                 - full
                 type: string
-            required:
-            - allow
             type: object
           status:
             description: SegmentationIntentStatus is the observed state.

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"maps"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	microv1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
 	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
 )
@@ -21,9 +19,13 @@ const (
 	enforcementFull = "full"
 )
 
-// ResolvedAllow is an IntentAllow after consumer labels are resolved to hrefs.
+// ResolvedAllow is a CompiledAllow after consumer labels are resolved to hrefs.
+// AllWorkloads means the consumer is "All Workloads" (ams) — no labels to resolve.
+// IntraScope means the consumer is within the namespace's scope (unscoped_consumers=false).
 type ResolvedAllow struct {
 	ConsumerHrefs []string
+	AllWorkloads  bool
+	IntraScope    bool
 	Ports         []pce.IngressService
 }
 
@@ -57,10 +59,15 @@ func BuildRules(allows []ResolvedAllow) []pce.SecRule {
 	providers := []pce.Actor{pce.AllWorkloadsActor()}
 	rules := make([]pce.SecRule, 0, len(allows))
 	for _, a := range allows {
-		consumers := make([]pce.Actor, 0, len(a.ConsumerHrefs))
-		for _, h := range a.ConsumerHrefs {
-			href := h
-			consumers = append(consumers, pce.Actor{Label: &pce.LabelRef{Href: href}})
+		var consumers []pce.Actor
+		if a.AllWorkloads {
+			consumers = []pce.Actor{pce.AllWorkloadsActor()}
+		} else {
+			consumers = make([]pce.Actor, 0, len(a.ConsumerHrefs))
+			for _, h := range a.ConsumerHrefs {
+				href := h
+				consumers = append(consumers, pce.Actor{Label: &pce.LabelRef{Href: href}})
+			}
 		}
 		rules = append(rules, pce.SecRule{
 			Enabled:           true,
@@ -68,7 +75,7 @@ func BuildRules(allows []ResolvedAllow) []pce.SecRule {
 			Providers:         providers,
 			Consumers:         consumers,
 			IngressServices:   a.Ports,
-			UnscopedConsumers: true,
+			UnscopedConsumers: !a.IntraScope,
 		})
 	}
 	return rules
@@ -82,24 +89,45 @@ func protoNumber(protocol string) int {
 	return 6
 }
 
-// CompiledAllow is a front-end-agnostic allow entry: consumer labels (key->value)
-// and proto-resolved ports.
+// CompiledAllow is a front-end-agnostic allow entry. The consumer is either a
+// label set (From) or All Workloads (AllWorkloads). IntraScope marks the consumer
+// as within the namespace's scope (intra-scope rule, unscoped_consumers=false);
+// otherwise it is extra-scope (cross-app).
 type CompiledAllow struct {
-	From  map[string]string
-	Ports []pce.IngressService
+	From         map[string]string
+	AllWorkloads bool
+	IntraScope   bool
+	Ports        []pce.IngressService
 }
 
-// CompileIntent lowers a SegmentationIntent's allow list to CompiledAllow.
-func CompileIntent(allows []microv1.IntentAllow) []CompiledAllow {
-	out := make([]CompiledAllow, 0, len(allows))
-	for _, a := range allows {
+// CompileIntent lowers a SegmentationIntent spec to CompiledAllow. spec.allowIntraNamespace
+// is the any-any-in-namespace shortcut (intra-scope, all workloads). Each allow sets exactly
+// one of From (cross-app, extra-scope) or FromIntraNamespace (same-namespace, intra-scope).
+func CompileIntent(spec microv1.SegmentationIntentSpec) ([]CompiledAllow, error) {
+	out := make([]CompiledAllow, 0, len(spec.Allow)+1)
+	if spec.AllowIntraNamespace {
+		out = append(out, CompiledAllow{AllWorkloads: true, IntraScope: true})
+	}
+	for i, a := range spec.Allow {
+		hasFrom := len(a.From) > 0
+		hasIntra := len(a.FromIntraNamespace) > 0
+		if hasFrom == hasIntra { // both set, or neither
+			return nil, fmt.Errorf("allow[%d]: set exactly one of from (cross-app) or fromIntraNamespace (same-namespace)", i)
+		}
 		ports := make([]pce.IngressService, 0, len(a.Ports))
 		for _, p := range a.Ports {
 			ports = append(ports, pce.IngressService{Proto: protoNumber(p.Protocol), Port: p.Port})
 		}
-		out = append(out, CompiledAllow{From: a.From, Ports: ports})
+		if hasFrom {
+			out = append(out, CompiledAllow{From: a.From, Ports: ports})
+		} else {
+			out = append(out, CompiledAllow{From: a.FromIntraNamespace, IntraScope: true, Ports: ports})
+		}
 	}
-	return out
+	if len(out) == 0 {
+		return nil, fmt.Errorf("intent is empty: set spec.allow or spec.allowIntraNamespace")
+	}
+	return out, nil
 }
 
 // CompilePolicy lowers a SegmentationPolicy (supported NetworkPolicy subset) to
@@ -128,20 +156,28 @@ func CompilePolicy(spec microv1.SegmentationPolicySpec) ([]CompiledAllow, error)
 			if peer.PodSelector == nil && peer.NamespaceSelector == nil {
 				return nil, fmt.Errorf("ingress[%d].from[%d]: a podSelector or namespaceSelector is required (ipBlock is not supported)", i, j)
 			}
+			if peer.PodSelector != nil && peer.NamespaceSelector != nil {
+				return nil, fmt.Errorf("ingress[%d].from[%d]: set podSelector (same-namespace, intra-scope) OR namespaceSelector (cross-namespace, extra-scope), not both", i, j)
+			}
+			// podSelector → intra-scope (same namespace); namespaceSelector → extra-scope.
+			sel, intra := peer.PodSelector, true
+			if sel == nil {
+				sel, intra = peer.NamespaceSelector, false
+			}
+			if len(sel.MatchExpressions) > 0 {
+				return nil, fmt.Errorf("ingress[%d].from[%d]: matchExpressions are not supported; use matchLabels", i, j)
+			}
+			// An empty podSelector means "all pods in this namespace" = intra-scope All Workloads.
+			if intra && len(sel.MatchLabels) == 0 {
+				out = append(out, CompiledAllow{AllWorkloads: true, IntraScope: true, Ports: ports})
+				continue
+			}
+			if len(sel.MatchLabels) == 0 {
+				return nil, fmt.Errorf("ingress[%d].from[%d]: namespaceSelector requires matchLabels", i, j)
+			}
 			from := map[string]string{}
-			for _, sel := range []*metav1.LabelSelector{peer.PodSelector, peer.NamespaceSelector} {
-				if sel == nil {
-					continue
-				}
-				if len(sel.MatchExpressions) > 0 {
-					return nil, fmt.Errorf("ingress[%d].from[%d]: matchExpressions are not supported; use matchLabels", i, j)
-				}
-				maps.Copy(from, sel.MatchLabels)
-			}
-			if len(from) == 0 {
-				return nil, fmt.Errorf("ingress[%d].from[%d]: no matchLabels found", i, j)
-			}
-			out = append(out, CompiledAllow{From: from, Ports: ports})
+			maps.Copy(from, sel.MatchLabels)
+			out = append(out, CompiledAllow{From: from, IntraScope: intra, Ports: ports})
 		}
 	}
 	return out, nil

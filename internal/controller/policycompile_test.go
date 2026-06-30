@@ -99,6 +99,78 @@ func TestCompilePolicy_MultiPeerOr_DistinctKeys(t *testing.T) {
 	}
 }
 
+func TestCompilePolicy_IntraVsExtraScope(t *testing.T) {
+	spec := microv1.SegmentationPolicySpec{
+		Ingress: []microv1.IngressRule{{
+			From: []microv1.NetworkPolicyPeer{
+				{PodSelector: &metav1.LabelSelector{}},                                                           // empty → ams intra
+				{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyRole: "fe"}}},     // role intra
+				{NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyApp: "x"}}}, // cross-app extra
+			},
+		}},
+	}
+	allows, err := CompilePolicy(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(allows) != 3 {
+		t.Fatalf("allows = %d, want 3", len(allows))
+	}
+	if !allows[0].AllWorkloads || !allows[0].IntraScope {
+		t.Errorf("empty podSelector should be ams intra-scope: %+v", allows[0])
+	}
+	if allows[1].From[testLabelKeyRole] != "fe" || !allows[1].IntraScope {
+		t.Errorf("role podSelector should be intra-scope: %+v", allows[1])
+	}
+	if allows[2].From[testLabelKeyApp] != "x" || allows[2].IntraScope {
+		t.Errorf("namespaceSelector should be extra-scope: %+v", allows[2])
+	}
+}
+
+func TestCompilePolicy_RejectsBothSelectors(t *testing.T) {
+	spec := microv1.SegmentationPolicySpec{Ingress: []microv1.IngressRule{{From: []microv1.NetworkPolicyPeer{
+		{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyRole: "fe"}}, NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyApp: "x"}}},
+	}}}}
+	if _, err := CompilePolicy(spec); err == nil {
+		t.Fatal("expected rejection when both podSelector and namespaceSelector are set")
+	}
+}
+
+func TestCompileIntent_ShortcutAndIntraExtra(t *testing.T) {
+	// any-any shortcut
+	allows, err := CompileIntent(microv1.SegmentationIntentSpec{AllowIntraNamespace: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(allows) != 1 || !allows[0].AllWorkloads || !allows[0].IntraScope {
+		t.Fatalf("shortcut = %+v", allows)
+	}
+	// fromIntraNamespace (intra) + from (extra)
+	allows, err = CompileIntent(microv1.SegmentationIntentSpec{Allow: []microv1.IntentAllow{
+		{FromIntraNamespace: map[string]string{testLabelKeyRole: "fe"}},
+		{From: map[string]string{testLabelKeyApp: testLabelValueCheckout}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if allows[0].From[testLabelKeyRole] != "fe" || !allows[0].IntraScope {
+		t.Errorf("fromIntraNamespace should be intra-scope: %+v", allows[0])
+	}
+	if allows[1].From[testLabelKeyApp] != testLabelValueCheckout || allows[1].IntraScope {
+		t.Errorf("from should be extra-scope: %+v", allows[1])
+	}
+	// errors: empty intent, both sources, neither source
+	if _, err := CompileIntent(microv1.SegmentationIntentSpec{}); err == nil {
+		t.Error("empty intent should be rejected")
+	}
+	if _, err := CompileIntent(microv1.SegmentationIntentSpec{Allow: []microv1.IntentAllow{{From: map[string]string{testLabelKeyApp: "x"}, FromIntraNamespace: map[string]string{testLabelKeyRole: "y"}}}}); err == nil {
+		t.Error("both from and fromIntraNamespace should be rejected")
+	}
+	if _, err := CompileIntent(microv1.SegmentationIntentSpec{Allow: []microv1.IntentAllow{{}}}); err == nil {
+		t.Error("an allow with neither source should be rejected")
+	}
+}
+
 func TestStrictestEnforcement(t *testing.T) {
 	if StrictestEnforcement("idle", testEnforcementFull, testEnforcementVisOnly) != testEnforcementFull {
 		t.Errorf("want full")

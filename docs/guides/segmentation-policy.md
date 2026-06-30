@@ -133,6 +133,58 @@ spec:
       # no ports — allows all ports
 ```
 
+## Intra-namespace (same-app) rules
+
+The `from` entries above are **cross-app** consumers (extra-scope). To allow traffic **between
+services inside your own namespace** (intra-scope), you have two options.
+
+### Shortcut: allow any-any in this namespace
+
+```yaml
+spec:
+  allowIntraNamespace: true   # all workloads in this namespace may reach each other, all ports
+```
+
+This is the easy button: it compiles to a single intra-scope rule (provider and consumer are both
+"All Workloads in scope"). Use it alone, or alongside `allow` for finer cross-app rules.
+
+### Finer: a specific service within the namespace
+
+Use `fromIntraNamespace` (intra-scope) instead of `from` (cross-app). It is narrowed by sub-labels
+(typically `role`, supplied by the [Illumio LabelMap](labelmap-and-the-operator.md)):
+
+```yaml
+spec:
+  allow:
+    - fromIntraNamespace: { role: frontend }   # same namespace, intra-scope
+      ports: [{ port: 8443, protocol: TCP }]
+    - from: { app: checkout, env: prod }       # another app, extra-scope
+      ports: [{ port: 8443, protocol: TCP }]
+```
+
+Each `allow` sets **exactly one** of `from` (cross-app) or `fromIntraNamespace` (same-namespace).
+
+### NetworkPolicy-style (SegmentationPolicy)
+
+The `SegmentationPolicy` front-end expresses the same thing with native NetworkPolicy semantics:
+
+- a `from` peer's **`podSelector`** → **intra-scope** (same namespace) — an **empty** `podSelector: {}`
+  means "all pods in this namespace" (the any-any shortcut); with `matchLabels` it narrows by `role`;
+- a `from` peer's **`namespaceSelector`** → **extra-scope** (another app).
+
+```yaml
+ingress:
+  - from:
+      - podSelector: {}                          # all pods in this namespace (intra-scope any-any)
+  - from:
+      - podSelector: { matchLabels: { role: frontend } }   # role within this namespace (intra-scope)
+      - namespaceSelector: { matchLabels: { app: checkout } }  # another app (extra-scope)
+```
+
+> Why this matters: an Illumio ruleset is scoped to your namespace's app and is **ingress-centric**.
+> Intra-scope rules describe traffic *within* that scope without repeating it; extra-scope rules let
+> other apps in.
+
 ## How compilation works
 
 When a `SegmentationIntent` is applied, the operator:

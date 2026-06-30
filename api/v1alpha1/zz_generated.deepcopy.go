@@ -168,6 +168,13 @@ func (in *IntentAllow) DeepCopyInto(out *IntentAllow) {
 			(*out)[key] = val
 		}
 	}
+	if in.FromIntraNamespace != nil {
+		in, out := &in.FromIntraNamespace, &out.FromIntraNamespace
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.Ports != nil {
 		in, out := &in.Ports, &out.Ports
 		*out = make([]IntentPort, len(*in))
