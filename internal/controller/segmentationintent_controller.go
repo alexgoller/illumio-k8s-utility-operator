@@ -67,6 +67,10 @@ func (r *SegmentationIntentReconciler) Reconcile(ctx context.Context, req ctrl.R
 	si.Status.WorkloadsAffected = res.WorkloadsAffected
 	si.Status.EffectiveEnforcement = res.EffectiveEnforcement
 	si.Status.EnforcementSetBy = res.EnforcementSetBy
+	si.Status.UnknownLabelMode = res.UnknownLabelMode
+	si.Status.UnknownLabelModeSetBy = res.UnknownLabelModeSetBy
+	si.Status.DeferredLabels = res.DeferredLabels
+	si.Status.CreatedLabels = res.CreatedLabels
 	si.Status.ObservedGeneration = si.Generation
 	if err := r.Status().Update(ctx, &si); err != nil {
 		return ctrl.Result{}, err

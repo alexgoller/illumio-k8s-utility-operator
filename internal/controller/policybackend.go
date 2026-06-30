@@ -34,12 +34,16 @@ type Condition struct {
 
 // BackendResult holds the outcome of ReconcilePolicy.
 type BackendResult struct {
-	Ready                *Condition
-	Provisioned          *Condition
-	WorkloadsAffected    int
-	Requeue              time.Duration
-	EffectiveEnforcement string
-	EnforcementSetBy     string
+	Ready                 *Condition
+	Provisioned           *Condition
+	WorkloadsAffected     int
+	Requeue               time.Duration
+	EffectiveEnforcement  string
+	EnforcementSetBy      string
+	UnknownLabelMode      string
+	UnknownLabelModeSetBy string
+	DeferredLabels        []string
+	CreatedLabels         []string
 }
 
 // applyBackendResult writes the Ready and Provisioned conditions from res onto
@@ -101,13 +105,18 @@ func ReconcilePolicy(
 
 	// Compute the effective enforcement for the namespace (admin baseline + policy CRs).
 	var effEnforcement, enfSetBy string
+	var nsAnnotations map[string]string
 	{
 		var nsObj corev1.Namespace
 		if err := k8s.Get(ctx, types.NamespacedName{Name: namespace}, &nsObj); err == nil {
+			nsAnnotations = nsObj.Annotations
 			baseline := ComputeDesiredCWP(namespace, nsObj.Labels, nsObj.Annotations, cp.Spec.NamespaceRules, cp.Spec.SystemNamespaces).EnforcementMode
 			effEnforcement, enfSetBy, _ = EffectiveEnforcement(ctx, k8s, namespace, baseline)
 		}
 	}
+
+	// Resolve the unknown-label mode (CR annotation > namespace annotation > ClusterProfile default).
+	mode, modeSetBy := microv1.ResolveUnknownLabelMode(cp.Spec.UnknownLabelMode, nsAnnotations, annotations)
 
 	pclient := factory(cfg)
 	owner := pce.Owner{DataSet: eds, Reference: string(uid)}
@@ -127,7 +136,7 @@ func ReconcilePolicy(
 		}, nil
 	}
 
-	resolved, _, _, reason, msg, ok, err := resolveAllows(ctx, allows, pclient, microv1.UnknownLabelStrict, owner)
+	resolved, deferred, created, reason, msg, ok, err := resolveAllows(ctx, allows, pclient, mode, owner)
 	if err != nil {
 		return BackendResult{}, err
 	}
@@ -138,7 +147,9 @@ func ReconcilePolicy(
 				Reason:  reason,
 				Message: msg,
 			},
-			Requeue: siRequeueHealthy,
+			Requeue:               siRequeueHealthy,
+			UnknownLabelMode:      mode,
+			UnknownLabelModeSetBy: modeSetBy,
 		}, nil
 	}
 
@@ -170,10 +181,14 @@ func ReconcilePolicy(
 				Reason:  microv1.ReasonProvisioned,
 				Message: fmt.Sprintf("provisioned; %d workloads affected", res.WorkloadsAffected),
 			},
-			WorkloadsAffected:    res.WorkloadsAffected,
-			Requeue:              siRequeueHealthy,
-			EffectiveEnforcement: effEnforcement,
-			EnforcementSetBy:     enfSetBy,
+			WorkloadsAffected:     res.WorkloadsAffected,
+			Requeue:               siRequeueHealthy,
+			EffectiveEnforcement:  effEnforcement,
+			EnforcementSetBy:      enfSetBy,
+			UnknownLabelMode:      mode,
+			UnknownLabelModeSetBy: modeSetBy,
+			DeferredLabels:        deferred,
+			CreatedLabels:         created,
 		}, nil
 	}
 
@@ -190,9 +205,13 @@ func ReconcilePolicy(
 			Reason:  microv1.ReasonProvisionPending,
 			Message: pendingMsg,
 		},
-		Requeue:              siRequeueHealthy,
-		EffectiveEnforcement: effEnforcement,
-		EnforcementSetBy:     enfSetBy,
+		Requeue:               siRequeueHealthy,
+		EffectiveEnforcement:  effEnforcement,
+		EnforcementSetBy:      enfSetBy,
+		UnknownLabelMode:      mode,
+		UnknownLabelModeSetBy: modeSetBy,
+		DeferredLabels:        deferred,
+		CreatedLabels:         created,
 	}, nil
 }
 

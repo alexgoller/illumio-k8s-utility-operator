@@ -73,6 +73,10 @@ func (r *SegmentationPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 	sp.Status.WorkloadsAffected = res.WorkloadsAffected
 	sp.Status.EffectiveEnforcement = res.EffectiveEnforcement
 	sp.Status.EnforcementSetBy = res.EnforcementSetBy
+	sp.Status.UnknownLabelMode = res.UnknownLabelMode
+	sp.Status.UnknownLabelModeSetBy = res.UnknownLabelModeSetBy
+	sp.Status.DeferredLabels = res.DeferredLabels
+	sp.Status.CreatedLabels = res.CreatedLabels
 	sp.Status.ObservedGeneration = sp.Generation
 	if err := r.Status().Update(ctx, &sp); err != nil {
 		return ctrl.Result{}, err

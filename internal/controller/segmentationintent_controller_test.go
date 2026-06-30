@@ -35,6 +35,10 @@ const (
 	// names used across the delete/finalizer test.
 	siDelPCEConn    = "pce-del"
 	siDelIntentName = "del-intent"
+
+	// names used across the skip-mode unknown-label test.
+	siSkipNS      = "skip-si"
+	siSkipPCEConn = "pce-skip"
 )
 
 var _ = Describe("SegmentationIntent controller", func() {
@@ -123,6 +127,71 @@ var _ = Describe("SegmentationIntent controller", func() {
 			g.Expect(c).NotTo(BeNil())
 			g.Expect(c.Status).To(Equal(metav1.ConditionFalse))
 			g.Expect(c.Reason).To(Equal(microv1.ReasonRejected))
+		}, 15*time.Second, 250*time.Millisecond).Should(Succeed())
+	})
+
+	It("skip mode: defers an unknown consumer label instead of rejecting", func() {
+		ctx := context.Background()
+
+		// Managed namespace with a resolvable app label.
+		Expect(k8sClient.Create(ctx, &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: siSkipNS, Labels: map[string]string{testNSLabelPartOf: "skipapp"}},
+		})).To(Succeed())
+
+		// PCEConnection (Connected) + secret.
+		Expect(k8sClient.Create(ctx, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "pce-creds-skip", Namespace: opNS},
+			Data:       map[string][]byte{keyAPIKey: []byte("k"), keyAPISecret: []byte("s")},
+		})).To(Succeed())
+		pcSkip := &microv1.PCEConnection{
+			ObjectMeta: metav1.ObjectMeta{Name: siSkipPCEConn},
+			Spec:       microv1.PCEConnectionSpec{PCEURL: testPCEURL, OrgID: 1, CredentialsSecretRef: microv1.SecretReference{Name: "pce-creds-skip", Namespace: opNS}},
+		}
+		Expect(k8sClient.Create(ctx, pcSkip)).To(Succeed())
+		Eventually(func(g Gomega) {
+			got := &microv1.PCEConnection{}
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: siSkipPCEConn}, got)).To(Succeed())
+			meta.SetStatusCondition(&got.Status.Conditions, metav1.Condition{Type: microv1.ConditionConnected, Status: metav1.ConditionTrue, Reason: microv1.ReasonConnected, Message: "t"})
+			g.Expect(k8sClient.Status().Update(ctx, got)).To(Succeed())
+		}, 10*time.Second, 250*time.Millisecond).Should(Succeed())
+
+		// ClusterProfile with unknownLabelMode: skip, covering siSkipNS.
+		cpSkip := &microv1.ClusterProfile{
+			ObjectMeta: metav1.ObjectMeta{Name: "cp-skip"},
+			Spec: microv1.ClusterProfileSpec{
+				PCEConnectionRef: microv1.LocalObjectReference{Name: siSkipPCEConn},
+				ProvisioningMode: siModeAuto,
+				UnknownLabelMode: microv1.UnknownLabelSkip,
+				Onboarding:       microv1.OnboardingSpec{ContainerClusterName: "ocp-skip", CredentialsOutputSecret: "creds-skip-out"},
+				NamespaceRules: []microv1.NamespaceRule{
+					{Match: microv1.NamespaceMatch{NamePattern: siSkipNS}, Managed: true,
+						AssignLabels: map[string]microv1.LabelAssignment{testLabelKeyApp: {FromNamespaceLabel: testNSLabelPartOf}}},
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, cpSkip)).To(Succeed())
+		Eventually(func(g Gomega) {
+			got := &microv1.ClusterProfile{}
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "cp-skip"}, got)).To(Succeed())
+			g.Expect(meta.FindStatusCondition(got.Status.Conditions, microv1.ConditionOnboarded)).NotTo(BeNil())
+		}, 15*time.Second, 250*time.Millisecond).Should(Succeed())
+
+		// Intent referencing a label that does not exist in the PCE.
+		si := &microv1.SegmentationIntent{
+			ObjectMeta: metav1.ObjectMeta{Name: "skip-intent", Namespace: siSkipNS},
+			Spec: microv1.SegmentationIntentSpec{Allow: []microv1.IntentAllow{
+				{From: map[string]string{testLabelKeyApp: "does-not-exist"}, Ports: []microv1.IntentPort{{Port: 80, Protocol: siProtoTCP}}},
+			}},
+		}
+		Expect(k8sClient.Create(ctx, si)).To(Succeed())
+
+		// skip mode → Ready=True (not Rejected) and the missing label is deferred.
+		Eventually(func(g Gomega) {
+			got := &microv1.SegmentationIntent{}
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "skip-intent", Namespace: siSkipNS}, got)).To(Succeed())
+			g.Expect(meta.IsStatusConditionTrue(got.Status.Conditions, microv1.ConditionReady)).To(BeTrue())
+			g.Expect(got.Status.UnknownLabelMode).To(Equal(microv1.UnknownLabelSkip))
+			g.Expect(got.Status.DeferredLabels).To(ContainElement(testLabelKeyApp + "=does-not-exist"))
 		}, 15*time.Second, 250*time.Millisecond).Should(Succeed())
 	})
 
