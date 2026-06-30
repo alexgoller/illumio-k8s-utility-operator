@@ -214,6 +214,9 @@ func (fakePolicyClient) FindLabel(_ context.Context, key, value string) (*pce.La
 	}
 	return &pce.Label{Href: "/orgs/1/labels/" + key + "-" + value, Key: key, Value: value}, nil
 }
+func (fakePolicyClient) EnsureLabel(_ context.Context, key, value string, _ pce.Owner) (*pce.Label, error) {
+	return &pce.Label{Href: "/orgs/1/labels/created-" + key + "-" + value, Key: key, Value: value}, nil
+}
 func (fakePolicyClient) FindRuleSetByOwner(_ context.Context, owner pce.Owner) (*pce.RuleSet, error) {
 	deleteRuleSetMu.Lock()
 	href := ruleSetsByOwner[owner.Reference]
