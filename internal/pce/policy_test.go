@@ -150,3 +150,18 @@ func TestProvisionRuleSets_PostsChangeSubsetAndReadsAffected(t *testing.T) {
 		t.Fatalf("change_subset.rule_sets = %+v", cs["rule_sets"])
 	}
 }
+
+func TestAllWorkloadsActor_MarshalsToAms(t *testing.T) {
+	b, err := json.Marshal(AllWorkloadsActor())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != `{"actors":"ams"}` {
+		t.Fatalf("ams actor = %s, want {\"actors\":\"ams\"}", b)
+	}
+	// A label actor must still marshal as a label, not actors.
+	lb, _ := json.Marshal(Actor{Label: &LabelRef{Href: "/h/1"}})
+	if string(lb) != `{"label":{"href":"/h/1"}}` {
+		t.Fatalf("label actor = %s", lb)
+	}
+}
