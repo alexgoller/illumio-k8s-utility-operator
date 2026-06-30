@@ -131,6 +131,13 @@ namespace's `app` when no selector is given.
 **intra-scope** (`unscoped_consumers: false`), with the `role`/partial selector narrowing within
 the scope and the scope *not* repeated. This depends on Track 5's scope-correct emission.
 
+**Must be expressible in BOTH front-ends.** Intra-scope / same-namespace selection has to land in
+**both** `SegmentationIntent` (Illumio-native) **and** the NetworkPolicy-shaped `SegmentationPolicy`
+— a self-referential `podSelector`/`from` that resolves to the namespace's own `role`/sub-labels.
+The shared backend already compiles both front-ends, so the intra-scope *emission* is one place;
+the new requirement is parallel **CRD surface** (the sub-namespace provider/consumer selector) on
+each front-end.
+
 **Capability note.** `workloadLabelMap` needs CLAS + Core-for-K8s 5.3.0+ + PCE 24.5.0+. The
 operator doesn't depend on it, but its overlap-warning should account for whether the LabelMap
 mechanism is even present.
