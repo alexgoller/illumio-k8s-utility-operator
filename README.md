@@ -243,6 +243,7 @@ kubectl get segintent payments-ingress -n payments -o jsonpath='{.status.deferre
 
 ### Further reading
 
+- [Policy concepts guide](docs/guides/policy-concepts.md) — mental model, intra/extra-scope, rules vs enforcement, provisioning, unknown labels, and all how-tos in one place. Start here if you are new to Illumio.
 - [Segmentation policy guide](docs/guides/segmentation-policy.md) — compilation, provisioning modes, and enforcement details for `SegmentationIntent`.
 - [NetworkPolicy-style guide](docs/guides/networkpolicy-style.md) — `SegmentationPolicy` in depth, selector mapping, and rejection rules.
 - [SegmentationIntent reference](docs/reference/segmentationintent.md) — complete field and status documentation.
