@@ -155,6 +155,9 @@ const (
 	// ConditionNamespacesReconciled is True when every managed namespace's CWP
 	// was applied to the PCE, and False when one or more namespaces failed.
 	ConditionNamespacesReconciled = "NamespacesReconciled"
+	// ConditionLabelMapOverlap is True when an Illumio LabelMap writes a label key
+	// this operator also assigns at the namespace level (a labeling conflict).
+	ConditionLabelMapOverlap = "LabelMapOverlap"
 
 	ReasonOnboarded             = "Onboarded"
 	ReasonPCEConnectionNotReady = "PCEConnectionNotReady"

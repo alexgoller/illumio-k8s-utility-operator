@@ -193,6 +193,7 @@ func main() {
 	}
 	if err := (&controller.ClusterProfileReconciler{
 		Client:              mgr.GetClient(),
+		APIReader:           mgr.GetAPIReader(),
 		Scheme:              mgr.GetScheme(),
 		OperatorNamespace:   operatorNamespace,
 		NewOnboardingClient: controller.DefaultOnboardingClientFactory,

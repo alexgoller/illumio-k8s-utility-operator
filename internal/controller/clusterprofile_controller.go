@@ -34,6 +34,9 @@ const (
 // ClusterProfileReconciler reconciles a ClusterProfile (onboarding).
 type ClusterProfileReconciler struct {
 	client.Client
+	// APIReader is an uncached reader used to detect the optional Illumio LabelMap
+	// CRD without requiring an informer for it.
+	APIReader           client.Reader
 	Scheme              *runtime.Scheme
 	OperatorNamespace   string
 	NewOnboardingClient OnboardingClientFactory
@@ -190,6 +193,8 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		Type: microv1.ConditionNamespacesReconciled, Status: metav1.ConditionTrue,
 		Reason: microv1.ReasonReconciled, Message: fmt.Sprintf("%d namespace(s) managed", managed),
 	})
+	// Warn (warn-only) if an Illumio LabelMap writes label keys we also assign.
+	r.checkLabelMapOverlap(ctx, &cp)
 	cp.Status.ObservedGeneration = cp.Generation
 	if err := r.Status().Update(ctx, &cp); err != nil {
 		return ctrl.Result{}, err

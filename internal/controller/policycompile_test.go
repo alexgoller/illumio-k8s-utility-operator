@@ -79,7 +79,7 @@ func TestCompilePolicy_MultiPeerOr_DistinctKeys(t *testing.T) {
 		Ingress: []microv1.IngressRule{{
 			From: []microv1.NetworkPolicyPeer{
 				{PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyApp: "api"}}},
-				{NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"tier": "web"}}},
+				{NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{testLabelKeyTier: "web"}}},
 			},
 			Ports: []microv1.NetworkPolicyPort{{Port: 443, Protocol: siProtoTCP}},
 		}},
@@ -94,8 +94,8 @@ func TestCompilePolicy_MultiPeerOr_DistinctKeys(t *testing.T) {
 	if allows[0].From[testLabelKeyApp] != "api" {
 		t.Errorf("allows[0].From[app] = %q, want %q", allows[0].From[testLabelKeyApp], "api")
 	}
-	if allows[1].From["tier"] != "web" {
-		t.Errorf("allows[1].From[tier] = %q, want %q", allows[1].From["tier"], "web")
+	if allows[1].From[testLabelKeyTier] != "web" {
+		t.Errorf("allows[1].From[tier] = %q, want %q", allows[1].From[testLabelKeyTier], "web")
 	}
 }
 
