@@ -116,6 +116,14 @@ spec:
                 - visibility_only
                 - full
                 type: string
+              provider:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Provider optionally narrows the protected provider to a sub-set of this
+                  namespace's app, by Illumio labels (e.g. {"role":"backend"}). The labels must
+                  already exist in the PCE. Default (empty): the whole namespace app.
+                type: object
             type: object
           status:
             description: SegmentationIntentStatus is the observed state.

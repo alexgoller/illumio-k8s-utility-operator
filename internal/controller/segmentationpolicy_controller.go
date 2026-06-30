@@ -65,7 +65,7 @@ func (r *SegmentationPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, r.Status().Update(ctx, &sp)
 	}
 
-	res, err := ReconcilePolicy(ctx, r.Client, r.NewPolicyClient, sp.Namespace, sp.Name, sp.UID, sp.Annotations, allows)
+	res, err := ReconcilePolicy(ctx, r.Client, r.NewPolicyClient, sp.Namespace, sp.Name, sp.UID, sp.Annotations, sp.Spec.PodSelector.MatchLabels, allows)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

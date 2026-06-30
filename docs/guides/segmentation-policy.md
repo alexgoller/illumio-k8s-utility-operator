@@ -164,6 +164,24 @@ spec:
 
 Each `allow` sets **exactly one** of `from` (cross-app) or `fromIntraNamespace` (same-namespace).
 
+### Narrowing the provider (a specific service)
+
+By default the protected provider is your **whole namespace app**. To protect only a **specific
+service** within it (e.g. only `role=backend`), set `spec.provider`:
+
+```yaml
+spec:
+  provider: { role: backend }   # this intent protects only role=backend in this namespace's app
+  allow:
+    - fromIntraNamespace: { role: frontend }   # frontend → backend, intra-scope
+      ports: [{ port: 8443, protocol: TCP }]
+```
+
+The provider labels must already exist in the PCE (they are resolved strictly). The ruleset is
+still **scoped** to the namespace's app; `provider` narrows the rule's provider *within* that scope.
+The `SegmentationPolicy` equivalent is the top-level **`spec.podSelector`** (`matchLabels` narrows
+the provider; empty = the whole app).
+
 ### NetworkPolicy-style (SegmentationPolicy)
 
 The `SegmentationPolicy` front-end expresses the same thing with native NetworkPolicy semantics:

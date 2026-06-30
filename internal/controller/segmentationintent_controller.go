@@ -70,7 +70,7 @@ func (r *SegmentationIntentReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, r.Status().Update(ctx, &si)
 	}
 
-	res, err := ReconcilePolicy(ctx, r.Client, r.NewPolicyClient, si.Namespace, si.Name, si.UID, si.Annotations, allows)
+	res, err := ReconcilePolicy(ctx, r.Client, r.NewPolicyClient, si.Namespace, si.Name, si.UID, si.Annotations, si.Spec.Provider, allows)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

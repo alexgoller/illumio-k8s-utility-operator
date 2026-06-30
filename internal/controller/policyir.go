@@ -50,16 +50,22 @@ func BuildRuleSet(namespace, crName string, providerHrefs []string, owner pce.Ow
 	}
 }
 
-// BuildRules builds one rule per allow entry. Providers are "All Workloads in
-// scope": the ruleset scope (set by BuildRuleSet) already constrains them to the
-// namespace's labels, so the scope is not repeated in the provider actor.
-// Consumers are the allow's resolved labels and are extra-scope (cross-app) today;
-// intra-scope consumer selection lands with Track 4.
-// allServicesHref references the built-in "All Services" service, used for rules
-// with no explicit ports ("all ports"). Illumio's All Services has no valid inline
-// form, so it must be referenced by href.
-func BuildRules(allServicesHref string, allows []ResolvedAllow) []pce.SecRule {
-	providers := []pce.Actor{pce.AllWorkloadsActor()}
+// BuildRules builds one rule per allow entry. The ruleset scope (BuildRuleSet)
+// constrains providers to the namespace's labels. providerHrefs optionally NARROWS
+// the provider to a sub-set within that scope (e.g. role=backend); when empty,
+// providers are "All Workloads in scope" (ams) — the whole app, scope not repeated.
+// Consumers are the allow's resolved labels (extra- or intra-scope per allow).
+// allServicesHref references the built-in "All Services" service for no-ports rules.
+func BuildRules(providerHrefs []string, allServicesHref string, allows []ResolvedAllow) []pce.SecRule {
+	var providers []pce.Actor
+	if len(providerHrefs) == 0 {
+		providers = []pce.Actor{pce.AllWorkloadsActor()}
+	} else {
+		for _, h := range providerHrefs {
+			href := h
+			providers = append(providers, pce.Actor{Label: &pce.LabelRef{Href: href}})
+		}
+	}
 	rules := make([]pce.SecRule, 0, len(allows))
 	for _, a := range allows {
 		var consumers []pce.Actor
@@ -148,8 +154,11 @@ func CompilePolicy(spec microv1.SegmentationPolicySpec) ([]CompiledAllow, error)
 			return nil, fmt.Errorf("unsupported policyType %q: only Ingress is supported", t)
 		}
 	}
-	if len(spec.PodSelector.MatchLabels) > 0 || len(spec.PodSelector.MatchExpressions) > 0 {
-		return nil, fmt.Errorf("spec.podSelector must be empty: the policy applies to the whole namespace's app")
+	// spec.podSelector narrows the provider within the namespace's app (matchLabels
+	// → the provider sub-set; empty = the whole app). The labels themselves are
+	// resolved by the backend; here we only reject the unsupported matchExpressions.
+	if len(spec.PodSelector.MatchExpressions) > 0 {
+		return nil, fmt.Errorf("spec.podSelector: matchExpressions are not supported; use matchLabels to narrow the provider")
 	}
 	out := make([]CompiledAllow, 0)
 	for i, ing := range spec.Ingress {

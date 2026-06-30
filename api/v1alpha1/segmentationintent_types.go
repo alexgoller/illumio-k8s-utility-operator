@@ -35,6 +35,11 @@ type IntentAllow struct {
 
 // SegmentationIntentSpec is an app team's allow-list for their namespace's app.
 type SegmentationIntentSpec struct {
+	// Provider optionally narrows the protected provider to a sub-set of this
+	// namespace's app, by Illumio labels (e.g. {"role":"backend"}). The labels must
+	// already exist in the PCE. Default (empty): the whole namespace app.
+	// +optional
+	Provider map[string]string `json:"provider,omitempty"`
 	// Allow is the set of permitted inbound flows to this namespace's app.
 	// +optional
 	Allow []IntentAllow `json:"allow,omitempty"`
