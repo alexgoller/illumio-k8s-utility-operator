@@ -8,12 +8,14 @@ import (
 	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
 )
 
+const valMissing = "missing"
+
 // stubLabelClient embeds the suite fake and overrides FindLabel so value
-// "missing" is unknown and everything else resolves.
+// valMissing is unknown and everything else resolves.
 type stubLabelClient struct{ fakePolicyClient }
 
 func (stubLabelClient) FindLabel(_ context.Context, key, value string) (*pce.Label, error) {
-	if value == "missing" {
+	if value == valMissing {
 		return nil, pce.ErrLabelNotFound
 	}
 	return &pce.Label{Href: "/h/" + key + "-" + value, Key: key, Value: value}, nil
@@ -21,8 +23,8 @@ func (stubLabelClient) FindLabel(_ context.Context, key, value string) (*pce.Lab
 
 func TestResolveAllows_Modes(t *testing.T) {
 	allows := []CompiledAllow{
-		{From: map[string]string{"app": "known"}},
-		{From: map[string]string{"app": "missing"}},
+		{From: map[string]string{testLabelKeyApp: "known"}},
+		{From: map[string]string{testLabelKeyApp: valMissing}},
 	}
 	ctx := context.Background()
 	c := stubLabelClient{}
@@ -42,7 +44,7 @@ func TestResolveAllows_Modes(t *testing.T) {
 		t.Fatalf("create: res=%d created=%v ok=%v", len(res), created, ok)
 	}
 	// create with a non-standard key -> reject
-	bad := []CompiledAllow{{From: map[string]string{"team": "missing"}}}
+	bad := []CompiledAllow{{From: map[string]string{"team": valMissing}}}
 	if _, _, _, _, _, ok, _ := resolveAllows(ctx, bad, c, microv1.UnknownLabelCreate, pce.Owner{}); ok {
 		t.Fatal("create must reject auto-creating a non-standard key")
 	}

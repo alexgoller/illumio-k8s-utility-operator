@@ -116,7 +116,7 @@ var _ = Describe("SegmentationIntent controller", func() {
 		si := &microv1.SegmentationIntent{
 			ObjectMeta: metav1.ObjectMeta{Name: siBadIntentName, Namespace: siTeamBNS},
 			Spec: microv1.SegmentationIntentSpec{Allow: []microv1.IntentAllow{
-				{From: map[string]string{testLabelKeyApp: "does-not-exist"}, Ports: []microv1.IntentPort{{Port: 80}}},
+				{From: map[string]string{testLabelKeyApp: labelValDoesNotExist}, Ports: []microv1.IntentPort{{Port: 80}}},
 			}},
 		}
 		Expect(k8sClient.Create(ctx, si)).To(Succeed())
@@ -180,7 +180,7 @@ var _ = Describe("SegmentationIntent controller", func() {
 		si := &microv1.SegmentationIntent{
 			ObjectMeta: metav1.ObjectMeta{Name: "skip-intent", Namespace: siSkipNS},
 			Spec: microv1.SegmentationIntentSpec{Allow: []microv1.IntentAllow{
-				{From: map[string]string{testLabelKeyApp: "does-not-exist"}, Ports: []microv1.IntentPort{{Port: 80, Protocol: siProtoTCP}}},
+				{From: map[string]string{testLabelKeyApp: labelValDoesNotExist}, Ports: []microv1.IntentPort{{Port: 80, Protocol: siProtoTCP}}},
 			}},
 		}
 		Expect(k8sClient.Create(ctx, si)).To(Succeed())
