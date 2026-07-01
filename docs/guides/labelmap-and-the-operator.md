@@ -29,7 +29,12 @@ role=frontend | role=backend ← from the Illumio LabelMap (per-workload, mapped
 
 That combined identity is what makes **intra-namespace, service-to-service** policy possible —
 "allow `role=frontend` to reach `role=backend` within `app=payments`." The operator supplies the
-scope (`app`/`env`); the `LabelMap` supplies the sub-namespace distinction (`role`).
+**scope** (`app`/`env`/`loc`, the ruleset scope it owns via the Container Workload Profile); it
+**relies on the C-VEN `LabelMap` to supply `role`**, because distinguishing services *within* one
+namespace is per-workload and a namespace-level CWP cannot express it. Without a `LabelMap` (or
+equivalent Illumio pod annotations) populating `role`, intra-namespace rules have nothing to narrow
+on. See [Scope vs role](namespace-management.md#scope-vs-role-what-the-cwp-should-and-shouldnt-label)
+in the CWP guide for the full division of labor.
 
 ## The golden rule: don't let both write the same key
 
@@ -44,11 +49,40 @@ So when you author a `LabelMap`, **map your Kubernetes labels to `role`/custom k
 `app`/`env` to the operator.** If a `LabelMap` also tried to set `app` or `env`, the namespace-level
 CWP assignment and the per-workload map would disagree.
 
-!!! note "Operator-side overlap warning is on the roadmap"
-    A future release will have the operator **detect** a `LabelMap` that targets a key it already
-    assigns and **emit a warning** (it will never strip or override — warn-only; the operator only
-    controls its own CWP keys). Until then, follow the golden rule by configuration. See the
-    [policy-model roadmap](https://github.com/alexgoller/illumio-k8s-utility-operator/blob/main/docs/superpowers/specs/2026-06-30-policy-model-roadmap-design.md) (Track 4).
+### The operator detects overlap for you (v0.1.17+)
+
+You no longer have to police the golden rule purely by convention. On every `ClusterProfile`
+reconcile, the operator lists the Illumio `LabelMap` objects in the cluster and compares the keys
+they write (`workloadLabelMap[].toKey`) against the keys it assigns itself
+(`namespaceRules.assignLabels` + `systemNamespaces.labels`). If they overlap, it surfaces a warning.
+
+It is **warn-only by design** — the operator never strips, overrides, or edits the `LabelMap`, and
+never changes its own CWP keys in response. It only tells you that two systems are labeling the same
+dimension so you can fix the configuration. If the `LabelMap` CRD is not installed, the check is a
+no-op (nothing to coordinate).
+
+When an overlap is found, the operator:
+
+- sets a **`LabelMapOverlap`** status condition on the `ClusterProfile` (`status: "True"`, with the
+  offending key(s) in the message), and
+- emits a `Warning` event with reason `LabelMapOverlap`.
+
+Read it with:
+
+```bash
+# The condition (True = overlap detected, with the conflicting keys in the message)
+kubectl get clusterprofile this-cluster \
+  -o jsonpath='{range .status.conditions[?(@.type=="LabelMapOverlap")]}{.status}{": "}{.message}{"\n"}{end}'
+# True: Illumio LabelMap writes label key(s) [role] that this operator also assigns ...
+
+# Or as an event
+kubectl describe clusterprofile this-cluster | sed -n '/Events:/,$p'
+```
+
+When the condition is `True`, decide who should own the contested key — in almost all cases the
+answer is "the `LabelMap` owns `role`, the operator owns `app`/`env`" — and remove that key from the
+losing side (`assignLabels`/`systemNamespaces.labels` **or** the `LabelMap`'s `workloadLabelMap`),
+never both.
 
 ## Example: dividing the label set
 

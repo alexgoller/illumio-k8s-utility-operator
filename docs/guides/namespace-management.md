@@ -1,18 +1,62 @@
 # Namespace (CWP) Management
 
-The operator can configure the **Container Workload Profile (CWP)** for every namespace in the cluster. A CWP controls how Illumio treats the workloads in that namespace: whether they are PCE-managed, what Illumio labels are attached, and what enforcement mode applies.
+The operator configures the **Container Workload Profile (CWP)** for every namespace in the cluster. If you have ever managed Illumio for Kubernetes by hand, the CWP is where most of the day-to-day pain lives — this guide explains what a CWP is, why managing them manually does not scale, and how the operator turns that toil into a few declarative rules in Git.
 
-## How it works
+## What a Container Workload Profile actually is
 
-Illumio Kubelink creates one CWP per namespace when the C-VEN agent starts. The operator does **not** create CWPs itself — it only updates CWPs that Kubelink has already created. Namespaces whose CWP does not yet exist are skipped and reconciled automatically once the CWP appears.
+When you pair a Kubernetes or OpenShift cluster to the PCE, Illumio represents it as a **Container Cluster**. Inside that Container Cluster, every Kubernetes **namespace** maps to one **Container Workload Profile**. The CWP is the single control point that decides, *for all container workloads in that namespace*:
 
-When the operator reconciles a `ClusterProfile` it:
+| The CWP controls | Meaning |
+|---|---|
+| **Managed vs unmanaged** | Whether the PCE tracks and can enforce the workloads in the namespace at all. Unmanaged = invisible to policy. |
+| **Illumio labels** | The Role/App/Environment/Location (RAEL) labels stamped on **every** workload in the namespace. This is the workload's identity, and what policy scope is written against. |
+| **Enforcement / visibility** | `idle`, `visibility_only`, or `full` for the namespace's workloads. |
+
+Crucially, a CWP assigns labels **uniformly across the whole namespace** — every pod in `payments` gets the same CWP labels. (Per-workload differentiation is a separate mechanism; see [Scope vs role](#scope-vs-role-what-the-cwp-should-and-shouldnt-label) below.)
+
+## Why CWPs are a pain by hand
+
+The CWP model is sound, but operating it manually in the PCE console is where teams lose time:
+
+- **It is click-ops, per namespace.** Out of the box a new namespace's CWP carries no app/env identity. Someone has to open the PCE, find the profile, and assign labels — for *every* namespace.
+- **It does not scale.** A real cluster has dozens to hundreds of namespaces. Multiply that across clusters and environments and the labeling backlog never reaches zero.
+- **It drifts constantly.** Namespaces are created and deleted by CI/CD all day. Every new namespace is unlabeled until a human notices. The PCE has no idea what your Kubernetes namespace labels say.
+- **A single default is too blunt.** You can set one default label assignment for the whole cluster, but then every namespace gets the *same* `app`/`env` — useless for differentiating apps and environments.
+- **Getting `managed` wrong is risky in both directions.** Mark too much managed under `full` and you can block real traffic; leave things unmanaged and they are invisible to policy and flow maps.
+- **Enforcement transitions are finicky.** A *managed* CWP can never be `idle` — the PCE rejects that combination — so naive automation trips over it.
+- **There is no native GitOps.** The desired state lives in someone's head or a runbook, not in source control.
+
+### What the operator does instead
+
+You describe the desired CWP state once, declaratively, in a `ClusterProfile`, and the operator reconciles **every** namespace's CWP continuously:
 
 1. Lists all namespaces in the cluster.
-2. Determines the desired CWP configuration for each namespace using the **precedence model** described below.
-3. Calls the PCE API to update each CWP (managed flag, Illumio labels, enforcement mode).
-4. Updates `status.managedNamespaces` with the count of namespaces whose CWP is marked managed.
-5. Emits a `CWPConfigured` event on each namespace after a successful update.
+2. Resolves the desired CWP configuration for each using the **precedence model** below — including **deriving Illumio labels from the namespace's own Kubernetes labels** (`fromNamespaceLabel`), which the PCE UI cannot do.
+3. Updates each CWP via the PCE API (managed flag, labels, enforcement).
+4. Reconciles again whenever namespaces or the `ClusterProfile` change, so new namespaces are labeled automatically and drift self-heals.
+5. Records `status.managedNamespaces` and emits a `CWPConfigured` event per namespace.
+
+> **Timing note:** Illumio Kubelink creates the CWP for a namespace when the C-VEN stack first discovers it. The operator does **not** create CWPs — it only updates ones Kubelink has already created. A namespace whose CWP does not exist yet is skipped and picked up automatically on a later reconcile. If a namespace never gets labeled, check that the C-VEN agent and Kubelink are running.
+
+## Scope vs role: what the CWP should and shouldn't label
+
+This is the single most important design decision when adopting the operator, and it follows directly from the CWP being **namespace-uniform**.
+
+Illumio policy is written along the **RAEL** dimensions — **R**ole, **A**pp, **E**nvironment, **L**ocation. The operator's policy model uses **App + Env + Loc as the ruleset *scope*** (the namespace's identity) and **Role to distinguish services *within* a namespace** (the provider/consumer tier inside a rule).
+
+Because a CWP labels every workload in the namespace identically, it can only own the **scope** dimensions:
+
+| Dimension | Who should assign it | Why |
+|---|---|---|
+| **App, Env, Loc** (scope) | **This operator** — the CWP | These are namespace-wide identity. Every workload in `payments`/`prod` shares them. The CWP is exactly the right granularity. |
+| **Role** (per-service tier) | **The Illumio C-VEN `LabelMap`** (per-workload) | `frontend` vs `backend` differ *within* one namespace. A CWP cannot express that — it is uniform. The C-VEN's `LabelMap` maps a per-pod Kubernetes label to the Illumio `role`. |
+
+> **Best practice — divide the label set, never overlap it.**
+> The operator owns **scope** (App/Env/Loc) via the CWP. You **rely on the C-VEN `LabelMap` for `role`** (and any other per-workload key). The two systems must never write the *same* Illumio key — that is two controllers fighting over one dimension.
+
+This division is also *what makes intra-namespace, service-to-service policy possible*: the operator supplies the scope (`app=payments, env=prod`) and the `LabelMap` supplies the in-namespace distinction (`role=frontend` / `role=backend`), so you can write "allow `role=frontend` → `role=backend` within `app=payments`."
+
+The operator actively guards this boundary: if a `LabelMap` is detected writing a key the `ClusterProfile` also assigns, it raises a `LabelMapOverlap` warning (it never overrides — warn-only). See the [LabelMap coexistence guide](labelmap-and-the-operator.md) for the full division of labor and how to read the warning.
 
 ## Precedence model
 
@@ -58,6 +102,8 @@ namespaceRules: []                   # optional, written verbatim into the spec
 
 These values are written into the chart-managed `ClusterProfile` spec. If you manage your own `ClusterProfile` directly (not via the chart), set `systemNamespaces` in that resource instead.
 
+> System namespaces are the one place the operator legitimately assigns `role` (e.g. `role: infra`) at the namespace level, because infrastructure pods do not need per-service `role` differentiation. For **application** namespaces, leave `role` to the `LabelMap`.
+
 ## Namespace rules
 
 `namespaceRules` is an ordered list of rules. Each rule has:
@@ -73,6 +119,8 @@ These values are written into the chart-managed `ClusterProfile` spec. If you ma
 
 !!! note "Only `idle`, `visibility_only`, and `full` are valid for container workload profiles."
     The `selective` mode is not supported for CWPs.
+
+> **Keep `assignLabels` to scope keys.** For application namespaces, assign `app`/`env`/`loc` here and do **not** assign `role` — that belongs to the C-VEN `LabelMap` so it can vary per workload. See [Scope vs role](#scope-vs-role-what-the-cwp-should-and-shouldnt-label).
 
 ## Namespace annotations
 
@@ -91,7 +139,7 @@ Annotations are evaluated after all rule resolution, so they always win.
 The following `ClusterProfile` is a recommended starting point for OpenShift clusters. It:
 
 - Marks all system namespaces (`openshift-*`, `kube-*`, etc.) as managed with `visibility_only` enforcement and fixed Illumio labels.
-- Marks namespaces that carry the `microsegment.io/managed: "true"` label as managed, deriving Illumio labels from standard k8s labels.
+- Marks namespaces that carry the `microsegment.io/managed: "true"` label as managed, deriving Illumio **scope** labels (`app`/`env`) from standard k8s labels — and leaving `role` to the `LabelMap`.
 - Marks everything else as unmanaged (no CWP update for unlabelled namespaces).
 
 ```yaml
@@ -106,13 +154,13 @@ spec:
     credentialsOutputSecret: illumio-cluster-creds
   systemNamespaces:
     manage: true
-    labels: { role: control, env: prod }
+    labels: { app: openshift, role: infra }   # infra may carry role at ns level
     enforcementMode: visibility_only
     # patterns default to openshift-*, kube-*, default, kube-system, kube-public, kube-node-lease
   namespaceRules:
     - match: { labels: { "microsegment.io/managed": "true" } }
       managed: true
-      assignLabels:
+      assignLabels:                            # scope only — no role here
         app: { fromNamespaceLabel: app.kubernetes.io/part-of }
         env: { fromNamespaceLabel: app.kubernetes.io/environment }
       enforcementMode: visibility_only
@@ -191,3 +239,7 @@ The assignment is silently skipped if the referenced k8s label is absent from th
 ```bash
 kubectl get namespace <ns-name> --show-labels
 ```
+
+**Workloads have the wrong `role`, or a `LabelMapOverlap` warning appears**
+
+`role` should come from the C-VEN `LabelMap`, not the CWP. If a `ClusterProfile` and a `LabelMap` both assign the same key, the operator raises a `LabelMapOverlap` warning on the `ClusterProfile`. See [LabelMap coexistence](labelmap-and-the-operator.md#the-golden-rule-dont-let-both-write-the-same-key).
