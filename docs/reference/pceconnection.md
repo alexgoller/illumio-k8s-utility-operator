@@ -16,6 +16,15 @@ Cluster-scoped. Defines a connection to one Illumio PCE.
 
 A `Connected` condition reports reachability/auth. Reasons: `Connected`, `SecretMissing`, `AuthFailed`, `RateLimited`, `PCEUnreachable`.
 
+## Reading the credentials Secret
+
+The Secret in `credentialsSecretRef` holds `api_key` and `api_secret`, base64-encoded under `.data` (the Helm chart names it `illumio-pce-api` unless you set `pce.existingSecret`). To inspect it:
+
+```bash
+kubectl get secret illumio-pce-api -n illumio-operator \
+  -o jsonpath='{.data}' | jq 'map_values(@base64d)'
+```
+
 ## Example
 
 ```yaml
