@@ -14,7 +14,7 @@ Short name: `cprof`. Category: `illumio`.
 | `onboarding.nodePairingProfile.existingName` | string | no | Name of an existing PCE Pairing Profile to reuse. When set, `labels` and `enforcementMode` are ignored. |
 | `onboarding.nodePairingProfile.labels` | map[string]string | no | Illumio label key/value pairs to assign to nodes paired with this profile. The operator resolves each to a label href (creating the label on the PCE if necessary). |
 | `onboarding.nodePairingProfile.enforcementMode` | string | no | Enforcement mode for a newly created Pairing Profile. One of `idle`, `visibility_only`, `full`. Defaults to `idle`. |
-| `provisioningMode` | string | no | Default policy provisioning mode for resources in this cluster. One of `auto`, `manual`, `draft-only`. Defaults to `manual`. Reserved for future policy reconciliation. |
+| `provisioningMode` | string | no | Default provisioning mode for `SegmentationIntent`/`SegmentationPolicy` rulesets in this cluster: `auto` provisions on every change, `manual` waits for the `microsegment.io/provision=approved` annotation, `draft-only` compiles but never provisions. Defaults to `manual`. |
 | `systemNamespaces.manage` | boolean | no | When `true`, namespaces matching the system patterns are configured by the `systemNamespaces` block. Takes precedence over any matching `namespaceRule`. Defaults to `false`. |
 | `systemNamespaces.patterns` | []string | no | Glob patterns that identify system namespaces. Defaults when empty to: `openshift-*`, `kube-*`, `default`, `kube-system`, `kube-public`, `kube-node-lease`. |
 | `systemNamespaces.labels` | map[string]string | no | Illumio label key/value pairs assigned to system-namespace CWPs. |
