@@ -2,8 +2,11 @@
 
 **Manage Illumio segmentation for Kubernetes and OpenShift the GitOps way — onboard clusters, label workloads, and author micro-segmentation policy as native Kubernetes resources.**
 
+[![Docs](https://img.shields.io/badge/docs-live-blue)](https://alexgoller.github.io/illumio-k8s-utility-operator/)
 [![Release](https://img.shields.io/github/v/release/alexgoller/illumio-k8s-utility-operator?sort=semver)](https://github.com/alexgoller/illumio-k8s-utility-operator/releases)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+
+📖 **[Documentation site → alexgoller.github.io/illumio-k8s-utility-operator](https://alexgoller.github.io/illumio-k8s-utility-operator/)**
 
 ---
 
