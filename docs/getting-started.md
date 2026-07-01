@@ -43,6 +43,22 @@ kubectl get pceconnections
 kubectl get pceconnection prod-pce -o jsonpath='{.status.conditions[?(@.type=="Connected")].status}'
 ```
 
+!!! tip "Reading the PCE credentials back out"
+    Values in a Secret are base64-encoded under `.data`. To verify what the operator is
+    using — handy when the Secret was created by the Helm chart (`illumio-pce-api` by
+    default) rather than by hand — decode it:
+
+    ```bash
+    # All keys at once
+    kubectl get secret illumio-pce-api -n illumio-operator \
+      -o jsonpath='{.data}' | jq 'map_values(@base64d)'
+    # { "api_key": "api_1234567890abcdef", "api_secret": "your-api-secret" }
+
+    # A single key
+    kubectl get secret illumio-pce-api -n illumio-operator \
+      -o jsonpath='{.data.api_key}' | base64 -d
+    ```
+
 ## 3. Onboard the cluster
 
 Create a `ClusterProfile` to register this cluster with the PCE:
@@ -65,7 +81,21 @@ kubectl apply -f clusterprofile.yaml
 kubectl get cprof   # watch ONBOARDED become True
 ```
 
-Once `ONBOARDED` is `True`, the operator has written a Secret named `illumio-cluster-creds` in the `illumio-operator` namespace containing `pce_url`, `cluster_id`, `cluster_token`, and `cluster_code`. Use these to configure the Illumio C-VEN agent.
+Once `ONBOARDED` is `True`, the operator has written a Secret named `illumio-cluster-creds` in the `illumio-operator` namespace containing `pce_url`, `cluster_id`, `cluster_token`, and `cluster_code` — the values the Illumio C-VEN agent needs to pair.
+
+!!! tip "Getting the onboarding credentials out"
+    Read the whole Secret, or pull individual keys to feed the C-VEN agent install:
+
+    ```bash
+    # All four keys, decoded
+    kubectl get secret illumio-cluster-creds -n illumio-operator \
+      -o jsonpath='{.data}' | jq 'map_values(@base64d)'
+
+    # Individual values (e.g. into shell vars for a Helm install)
+    CLUSTER_ID=$(kubectl get secret illumio-cluster-creds -n illumio-operator -o jsonpath='{.data.cluster_id}'    | base64 -d)
+    CLUSTER_TOKEN=$(kubectl get secret illumio-cluster-creds -n illumio-operator -o jsonpath='{.data.cluster_token}' | base64 -d)
+    CLUSTER_CODE=$(kubectl get secret illumio-cluster-creds -n illumio-operator -o jsonpath='{.data.cluster_code}'  | base64 -d)
+    ```
 
 See the [Onboarding guide](guides/onboarding.md) for node Pairing Profile options, how to consume the credentials with Helm or Flux, and important caveats about pre-existing clusters.
 
