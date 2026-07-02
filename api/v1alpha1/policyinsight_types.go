@@ -22,7 +22,7 @@ type PolicyInsightSpec struct {
 // FlowFinding is one observed flow the current draft policy would block.
 type FlowFinding struct {
 	// Peer is the Illumio labels of the other end (consumer for inbound, provider
-	// for egress). May be empty for an unlabeled / off-cluster peer (see PeerIP).
+	// for outbound). May be empty for an unlabeled / off-cluster peer (see PeerIP).
 	// +optional
 	Peer map[string]string `json:"peer,omitempty"`
 	// PeerIP is the other end's IP when it has no workload/labels (e.g. off-cluster).
@@ -70,12 +70,12 @@ type DecisionCounts struct {
 // PreflightSummary is the draft-decision breakdown of observed flows in each
 // direction. Allowed flows are counted here (not listed individually); the
 // blocked / potentially-blocked flows are also listed in WouldBlockInbound /
-// BlockedEgress.
+// WouldBlockOutbound.
 type PreflightSummary struct {
 	// +optional
 	Inbound DecisionCounts `json:"inbound"`
 	// +optional
-	Egress DecisionCounts `json:"egress"`
+	Outbound DecisionCounts `json:"outbound"`
 }
 
 // PolicyInsightStatus holds the last computed preflight findings.
@@ -97,9 +97,9 @@ type PolicyInsightStatus struct {
 	// InboundBlockedCount is len(WouldBlockInbound) (for the print column).
 	// +optional
 	InboundBlockedCount int `json:"inboundBlockedCount,omitempty"`
-	// EgressBlockedCount is len(BlockedEgress) (for the print column).
+	// OutboundBlockedCount is len(WouldBlockOutbound) (for the print column).
 	// +optional
-	EgressBlockedCount int `json:"egressBlockedCount,omitempty"`
+	OutboundBlockedCount int `json:"outboundBlockedCount,omitempty"`
 	// Truncated is true when the flow result was capped (findings are partial).
 	// +optional
 	Truncated bool `json:"truncated,omitempty"`
@@ -112,13 +112,13 @@ type PolicyInsightStatus struct {
 	// (more distinct findings exist than are listed; see inboundBlockedCount).
 	// +optional
 	WouldBlockInboundTruncated bool `json:"wouldBlockInboundTruncated,omitempty"`
-	// BlockedEgress are flows FROM this namespace's workloads that are denied
+	// WouldBlockOutbound are flows FROM this namespace's workloads that are denied
 	// (surfaced for awareness; this operator does not author egress policy).
 	// +optional
-	BlockedEgress []FlowFinding `json:"blockedEgress,omitempty"`
-	// BlockedEgressTruncated is true when the egress findings list was capped.
+	WouldBlockOutbound []FlowFinding `json:"wouldBlockOutbound,omitempty"`
+	// WouldBlockOutboundTruncated is true when the outbound findings list was capped.
 	// +optional
-	BlockedEgressTruncated bool `json:"blockedEgressTruncated,omitempty"`
+	WouldBlockOutboundTruncated bool `json:"wouldBlockOutboundTruncated,omitempty"`
 	// ObservedGeneration is the spec generation the current status reflects.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -148,11 +148,11 @@ const (
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
 // +kubebuilder:printcolumn:name="In-Allowed",type=integer,JSONPath=`.status.summary.inbound.allowed`
 // +kubebuilder:printcolumn:name="In-Blocked",type=integer,JSONPath=`.status.inboundBlockedCount`
-// +kubebuilder:printcolumn:name="Eg-Allowed",type=integer,JSONPath=`.status.summary.egress.allowed`
-// +kubebuilder:printcolumn:name="Eg-Blocked",type=integer,JSONPath=`.status.egressBlockedCount`
+// +kubebuilder:printcolumn:name="Out-Allowed",type=integer,JSONPath=`.status.summary.outbound.allowed`
+// +kubebuilder:printcolumn:name="Out-Blocked",type=integer,JSONPath=`.status.outboundBlockedCount`
 
 // PolicyInsight is an on-request what-if preflight for a namespace: it reports
-// the flows the current draft policy would block (inbound) and the egress flows
+// the flows the current draft policy would block (inbound) and the outbound flows
 // that are denied, from observed PCE traffic. Read-only — it authors no policy.
 type PolicyInsight struct {
 	metav1.TypeMeta   `json:",inline"`

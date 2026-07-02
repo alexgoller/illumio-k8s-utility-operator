@@ -40,14 +40,14 @@ func TestClassifyFlows_Inbound(t *testing.T) {
 	}
 }
 
-func TestClassifyFlows_EgressUsesDestination(t *testing.T) {
+func TestClassifyFlows_OutboundUsesDestination(t *testing.T) {
 	flows := []pce.TrafficFlow{
 		{DstLabels: map[string]string{testLabelKeyApp: testLabelValueLedger}, Port: 5432, Protocol: 6,
 			DraftPolicyDecision: pce.DecisionBlocked, Connections: 9},
 	}
-	got := classifyFlows(flows, directionEgress)
+	got := classifyFlows(flows, directionOutbound)
 	if len(got) != 1 || got[0].Peer[testLabelKeyApp] != testLabelValueLedger || got[0].Port != 5432 {
-		t.Fatalf("egress finding = %+v", got)
+		t.Fatalf("outbound finding = %+v", got)
 	}
 }
 

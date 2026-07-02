@@ -106,7 +106,7 @@ func (r *PolicyInsightReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		maxResults = 10000
 	}
 
-	// Inbound = scope on destination; egress = scope on source.
+	// Inbound = scope on destination; outbound = scope on source.
 	inFlows, inTrunc, err := pclient.QueryTraffic(ctx, pce.TrafficQuery{
 		QueryName: "preflight-inbound-" + pi.Namespace, DestinationLabelHrefs: scopeHrefs,
 		From: from, To: to, MaxResults: maxResults,
@@ -114,18 +114,18 @@ func (r *PolicyInsightReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if err != nil {
 		return r.fail(ctx, &pi, refresh, microv1.ReasonQueryFailed, "inbound traffic query: "+err.Error())
 	}
-	egFlows, egTrunc, err := pclient.QueryTraffic(ctx, pce.TrafficQuery{
-		QueryName: "preflight-egress-" + pi.Namespace, SourceLabelHrefs: scopeHrefs,
+	outFlows, outTrunc, err := pclient.QueryTraffic(ctx, pce.TrafficQuery{
+		QueryName: "preflight-outbound-" + pi.Namespace, SourceLabelHrefs: scopeHrefs,
 		From: from, To: to, MaxResults: maxResults,
 	})
 	if err != nil {
-		return r.fail(ctx, &pi, refresh, microv1.ReasonQueryFailed, "egress traffic query: "+err.Error())
+		return r.fail(ctx, &pi, refresh, microv1.ReasonQueryFailed, "outbound traffic query: "+err.Error())
 	}
 
 	inboundFull := classifyFlows(inFlows, directionInbound)
-	egressFull := classifyFlows(egFlows, directionEgress)
+	outboundFull := classifyFlows(outFlows, directionOutbound)
 	inSummary := summarizeFlows(inFlows)
-	egSummary := summarizeFlows(egFlows)
+	outSummary := summarizeFlows(outFlows)
 
 	// Cap the listed findings so a pathological namespace (a gateway talking to
 	// thousands of distinct peers) can't produce a status object that exceeds the
@@ -135,24 +135,24 @@ func (r *PolicyInsightReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		maxFindings = 500
 	}
 	inbound, inFindTrunc := capFindings(inboundFull, maxFindings)
-	egress, egFindTrunc := capFindings(egressFull, maxFindings)
+	outbound, outFindTrunc := capFindings(outboundFull, maxFindings)
 
 	fromT, toT := metav1.NewTime(from), metav1.NewTime(to)
 	pi.Status.ObservedWindow = &microv1.ObservationWindow{From: &fromT, To: &toT}
-	pi.Status.Summary = &microv1.PreflightSummary{Inbound: inSummary, Egress: egSummary}
-	pi.Status.FlowsAnalyzed = len(inFlows) + len(egFlows)
-	pi.Status.Truncated = inTrunc || egTrunc
+	pi.Status.Summary = &microv1.PreflightSummary{Inbound: inSummary, Outbound: outSummary}
+	pi.Status.FlowsAnalyzed = len(inFlows) + len(outFlows)
+	pi.Status.Truncated = inTrunc || outTrunc
 	pi.Status.WouldBlockInbound = inbound
 	pi.Status.WouldBlockInboundTruncated = inFindTrunc
-	pi.Status.BlockedEgress = egress
-	pi.Status.BlockedEgressTruncated = egFindTrunc
+	pi.Status.WouldBlockOutbound = outbound
+	pi.Status.WouldBlockOutboundTruncated = outFindTrunc
 	pi.Status.InboundBlockedCount = len(inboundFull)
-	pi.Status.EgressBlockedCount = len(egressFull)
+	pi.Status.OutboundBlockedCount = len(outboundFull)
 	meta.SetStatusCondition(&pi.Status.Conditions, metav1.Condition{
 		Type: microv1.ConditionReady, Status: metav1.ConditionTrue, Reason: microv1.ReasonComputed,
-		Message: fmt.Sprintf("inbound: %d allowed / %d potentially-blocked / %d blocked; egress: %d allowed / %d potentially-blocked / %d blocked",
+		Message: fmt.Sprintf("inbound: %d allowed / %d potentially-blocked / %d blocked; outbound: %d allowed / %d potentially-blocked / %d blocked",
 			inSummary.Allowed, inSummary.PotentiallyBlocked, inSummary.Blocked,
-			egSummary.Allowed, egSummary.PotentiallyBlocked, egSummary.Blocked),
+			outSummary.Allowed, outSummary.PotentiallyBlocked, outSummary.Blocked),
 	})
 	pi.Status.ObservedGeneration = pi.Generation
 	pi.Status.ObservedRefresh = refresh

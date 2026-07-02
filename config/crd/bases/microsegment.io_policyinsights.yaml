@@ -28,18 +28,18 @@ spec:
     - jsonPath: .status.inboundBlockedCount
       name: In-Blocked
       type: integer
-    - jsonPath: .status.summary.egress.allowed
-      name: Eg-Allowed
+    - jsonPath: .status.summary.outbound.allowed
+      name: Out-Allowed
       type: integer
-    - jsonPath: .status.egressBlockedCount
-      name: Eg-Blocked
+    - jsonPath: .status.outboundBlockedCount
+      name: Out-Blocked
       type: integer
     name: v1alpha1
     schema:
       openAPIV3Schema:
         description: |-
           PolicyInsight is an on-request what-if preflight for a namespace: it reports
-          the flows the current draft policy would block (inbound) and the egress flows
+          the flows the current draft policy would block (inbound) and the outbound flows
           that are denied, from observed PCE traffic. Read-only — it authors no policy.
         properties:
           apiVersion:
@@ -78,52 +78,6 @@ spec:
           status:
             description: PolicyInsightStatus holds the last computed preflight findings.
             properties:
-              blockedEgress:
-                description: |-
-                  BlockedEgress are flows FROM this namespace's workloads that are denied
-                  (surfaced for awareness; this operator does not author egress policy).
-                items:
-                  description: FlowFinding is one observed flow the current draft
-                    policy would block.
-                  properties:
-                    connections:
-                      description: Connections is the observed connection count over
-                        the window.
-                      type: integer
-                    decision:
-                      description: |-
-                        Decision is the draft policy decision that flagged this flow
-                        (blocked or potentially_blocked).
-                      type: string
-                    lastDetected:
-                      description: LastDetected is when the flow was last observed.
-                      format: date-time
-                      type: string
-                    peer:
-                      additionalProperties:
-                        type: string
-                      description: |-
-                        Peer is the Illumio labels of the other end (consumer for inbound, provider
-                        for egress). May be empty for an unlabeled / off-cluster peer (see PeerIP).
-                      type: object
-                    peerIP:
-                      description: PeerIP is the other end's IP when it has no workload/labels
-                        (e.g. off-cluster).
-                      type: string
-                    port:
-                      description: Port is the destination port of the flow.
-                      type: integer
-                    protocol:
-                      description: Protocol is TCP or UDP.
-                      type: string
-                  required:
-                  - port
-                  type: object
-                type: array
-              blockedEgressTruncated:
-                description: BlockedEgressTruncated is true when the egress findings
-                  list was capped.
-                type: boolean
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current
@@ -183,10 +137,6 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              egressBlockedCount:
-                description: EgressBlockedCount is len(BlockedEgress) (for the print
-                  column).
-                type: integer
               flowsAnalyzed:
                 description: FlowsAnalyzed is the number of flows the last run examined.
                 type: integer
@@ -215,12 +165,16 @@ spec:
                     format: date-time
                     type: string
                 type: object
+              outboundBlockedCount:
+                description: OutboundBlockedCount is len(WouldBlockOutbound) (for
+                  the print column).
+                type: integer
               summary:
                 description: |-
                   Summary is the draft-decision breakdown (allowed / potentially-blocked /
                   blocked) of observed flows in each direction.
                 properties:
-                  egress:
+                  inbound:
                     description: DecisionCounts breaks observed flows down by draft
                       policy decision.
                     properties:
@@ -235,7 +189,7 @@ spec:
                       unknown:
                         type: integer
                     type: object
-                  inbound:
+                  outbound:
                     description: DecisionCounts breaks observed flows down by draft
                       policy decision.
                     properties:
@@ -282,7 +236,7 @@ spec:
                         type: string
                       description: |-
                         Peer is the Illumio labels of the other end (consumer for inbound, provider
-                        for egress). May be empty for an unlabeled / off-cluster peer (see PeerIP).
+                        for outbound). May be empty for an unlabeled / off-cluster peer (see PeerIP).
                       type: object
                     peerIP:
                       description: PeerIP is the other end's IP when it has no workload/labels
@@ -302,6 +256,52 @@ spec:
                 description: |-
                   WouldBlockInboundTruncated is true when the inbound findings list was capped
                   (more distinct findings exist than are listed; see inboundBlockedCount).
+                type: boolean
+              wouldBlockOutbound:
+                description: |-
+                  WouldBlockOutbound are flows FROM this namespace's workloads that are denied
+                  (surfaced for awareness; this operator does not author egress policy).
+                items:
+                  description: FlowFinding is one observed flow the current draft
+                    policy would block.
+                  properties:
+                    connections:
+                      description: Connections is the observed connection count over
+                        the window.
+                      type: integer
+                    decision:
+                      description: |-
+                        Decision is the draft policy decision that flagged this flow
+                        (blocked or potentially_blocked).
+                      type: string
+                    lastDetected:
+                      description: LastDetected is when the flow was last observed.
+                      format: date-time
+                      type: string
+                    peer:
+                      additionalProperties:
+                        type: string
+                      description: |-
+                        Peer is the Illumio labels of the other end (consumer for inbound, provider
+                        for outbound). May be empty for an unlabeled / off-cluster peer (see PeerIP).
+                      type: object
+                    peerIP:
+                      description: PeerIP is the other end's IP when it has no workload/labels
+                        (e.g. off-cluster).
+                      type: string
+                    port:
+                      description: Port is the destination port of the flow.
+                      type: integer
+                    protocol:
+                      description: Protocol is TCP or UDP.
+                      type: string
+                  required:
+                  - port
+                  type: object
+                type: array
+              wouldBlockOutboundTruncated:
+                description: WouldBlockOutboundTruncated is true when the outbound
+                  findings list was capped.
                 type: boolean
             type: object
         type: object

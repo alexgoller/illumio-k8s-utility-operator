@@ -15,8 +15,8 @@ import (
 
 // preflight flow directions.
 const (
-	directionInbound = "inbound" // peer is the source (consumer) reaching this app
-	directionEgress  = "egress"  // peer is the destination (provider) this app reaches
+	directionInbound  = "inbound"  // peer is the source (consumer) reaching this app
+	directionOutbound = "outbound" // peer is the destination (provider) this app reaches
 
 	protoNameTCP = "TCP"
 	protoNameUDP = "UDP"
@@ -71,7 +71,7 @@ func summarizeFlows(flows []pce.TrafficFlow) microv1.DecisionCounts {
 
 // classifyFlows converts observed flows into findings for the given direction,
 // keeping only those the DRAFT policy would block. For inbound the peer is the
-// flow source (consumer); for egress the peer is the flow destination (provider).
+// flow source (consumer); for outbound the peer is the flow destination (provider).
 // Findings are de-duplicated by (peer, port, proto) and sorted for stable output.
 func classifyFlows(flows []pce.TrafficFlow, direction string) []microv1.FlowFinding {
 	type key struct {
