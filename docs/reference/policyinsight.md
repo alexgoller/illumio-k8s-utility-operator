@@ -38,25 +38,30 @@ The status gives both a **decision breakdown** (allowed / potentially-blocked / 
 ```yaml
 status:
   summary:
-    inbound: { allowed: 118, potentiallyBlocked: 2, blocked: 0, total: 120 }
-    egress:  { allowed: 40,  potentiallyBlocked: 1, blocked: 0, total: 41 }
+    inbound: { allowed: 118, potentiallyBlocked: 1, blocked: 0, total: 119 }
+    outbound:  { allowed: 40,  potentiallyBlocked: 1, blocked: 0, total: 41 }
   wouldBlockInbound:
     - peer: { app: checkout, env: prod }
       port: 8443
       protocol: TCP
       connections: 312
       decision: potentially_blocked
-  blockedEgress:
+  wouldBlockOutbound:
     - peer: { app: ledger }
       port: 5432
       decision: potentially_blocked
   conditions:
     - type: Ready
       reason: Computed
-      message: "inbound: 118 allowed / 2 potentially-blocked / 0 blocked; egress: 40 allowed / 1 potentially-blocked / 0 blocked"
+      message: "inbound: 118 allowed / 1 potentially-blocked / 0 blocked; outbound: 40 allowed / 1 potentially-blocked / 0 blocked"
 ```
 
-`kubectl get policyinsight` shows `In-Allowed`, `In-Blocked`, `Eg-Allowed`, `Eg-Blocked` at a glance.
+Two things to read correctly:
+
+- **The lists (`wouldBlockInbound` / `wouldBlockOutbound`) hold *both* `blocked` and `potentially_blocked` flows** — each record's `decision` field says which. So a `wouldBlockOutbound` entry with `decision: potentially_blocked` is expected; the list name means "flows the draft policy blocks or would block."
+- **The `summary` counts individual flows; the lists are deduplicated** by `(peer, port, protocol)`. So a list can be *shorter* than the summary's `potentiallyBlocked + blocked` count (many flows collapse to one peer/port entry). The `summary` and `*Count` fields are the source of truth for totals.
+
+`kubectl get policyinsight` shows `In-Allowed`, `In-Blocked`, `Out-Allowed`, `Out-Blocked` at a glance.
 
 ## Status
 
@@ -64,12 +69,14 @@ status:
 |-------|------|-------------|
 | `conditions` | []Condition | Standard conditions. See below. |
 | `observedWindow` | object | `{from, to}` — the time range analyzed by the last run. |
-| `summary` | object | Draft-decision breakdown per direction: `inbound` and `egress`, each `{allowed, potentiallyBlocked, blocked, unknown, total}`. Allowed flows are **counted here** (not listed individually). |
+| `summary` | object | Draft-decision breakdown per direction: `inbound` and `outbound`, each `{allowed, potentiallyBlocked, blocked, unknown, total}`. Allowed flows are **counted here** (not listed individually). |
 | `flowsAnalyzed` | integer | Number of flows the last run examined. |
 | `truncated` | boolean | True when the flow result was capped (findings are partial). |
-| `wouldBlockInbound` | []FlowFinding | Flows **to** this namespace's app the draft policy would block at `full` — allow-list gaps. |
-| `blockedEgress` | []FlowFinding | Flows **from** this namespace's workloads that are denied. Surfaced for awareness; this operator does not author egress policy. |
-| `inboundBlockedCount` / `egressBlockedCount` | integer | Lengths of the above (print columns). |
+| `wouldBlockInbound` | []FlowFinding | Flows **to** this namespace's app the draft policy would block at `full` — allow-list gaps. Capped at 500 entries (highest-connection first) for etcd safety; `inboundBlockedCount` holds the true total. |
+| `wouldBlockInboundTruncated` | boolean | True when the inbound list was capped (more distinct findings exist than are listed). |
+| `wouldBlockOutbound` | []FlowFinding | Flows **from** this namespace's workloads that are denied. Surfaced for awareness; this operator does not author outbound policy. Capped like `wouldBlockInbound`. |
+| `wouldBlockOutboundTruncated` | boolean | True when the outbound list was capped. |
+| `inboundBlockedCount` / `outboundBlockedCount` | integer | Lengths of the above (print columns). |
 | `observedGeneration` | integer | Spec generation the status reflects. |
 | `observedRefresh` | string | The `microsegment.io/refresh` value honored by the last run. |
 
@@ -77,7 +84,7 @@ status:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `peer` | map[string]string | Illumio labels of the other end (consumer for inbound, provider for egress). Empty for an unlabeled/off-cluster peer. |
+| `peer` | map[string]string | Illumio labels of the other end (consumer for inbound, provider for outbound). Empty for an unlabeled/off-cluster peer. |
 | `peerIP` | string | The other end's IP when it has no workload labels. |
 | `port` | integer | Destination port. |
 | `protocol` | string | `TCP` or `UDP`. |

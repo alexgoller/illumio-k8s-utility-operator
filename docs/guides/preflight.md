@@ -51,8 +51,8 @@ The operator runs once and writes the result to `status`. Watch it:
 
 ```bash
 kubectl get policyinsight -n payments
-# NAME        READY   IN-ALLOWED   IN-BLOCKED   EG-ALLOWED   EG-BLOCKED
-# preflight   True    118          2            40           1
+# NAME        READY   IN-ALLOWED   IN-BLOCKED   OUT-ALLOWED   OUT-BLOCKED
+# preflight   True    118          1            40            1
 ```
 
 ### Re-run on demand
@@ -79,11 +79,11 @@ status:
     - type: Ready
       status: "True"
       reason: Computed
-      message: "inbound: 118 allowed / 2 potentially-blocked / 0 blocked; egress: 40 allowed / 1 potentially-blocked / 0 blocked"
+      message: "inbound: 118 allowed / 1 potentially-blocked / 0 blocked; outbound: 40 allowed / 1 potentially-blocked / 0 blocked"
   observedWindow: { from: 2026-06-25T…, to: 2026-07-02T… }
   summary:
-    inbound: { allowed: 118, potentiallyBlocked: 2, blocked: 0, total: 120 }
-    egress:  { allowed: 40,  potentiallyBlocked: 1, blocked: 0, total: 41 }
+    inbound:  { allowed: 118, potentiallyBlocked: 1, blocked: 0, total: 119 }
+    outbound: { allowed: 40,  potentiallyBlocked: 1, blocked: 0, total: 41 }
   wouldBlockInbound:
     - peer: { app: checkout, env: prod }
       port: 8443
@@ -91,7 +91,7 @@ status:
       connections: 312
       decision: potentially_blocked
       lastDetected: 2026-07-01T…
-  blockedEgress:
+  wouldBlockOutbound:
     - peer: { app: ledger, env: prod }
       port: 5432
       protocol: TCP
@@ -105,7 +105,14 @@ Two complementary views:
 |---|---|
 | **`status.summary`** | The **decision breakdown** for *all* observed flows, per direction: `allowed` / `potentiallyBlocked` / `blocked` / `total`. Allowed flows are **counted** here, not listed. |
 | **`status.wouldBlockInbound`** | The **inbound flows to act on** — consumers reaching your app that the draft policy would block at `full`. Each is a gap in your allow-list. |
-| **`status.blockedEgress`** | Outbound flows *from* your app that are denied. Surfaced for awareness — this operator authors inbound policy, not egress (see [Policy concepts](policy-concepts.md)). |
+| **`status.wouldBlockOutbound`** | Outbound flows *from* your app that are denied. Surfaced for awareness — this operator authors inbound policy, not outbound (see [Policy concepts](policy-concepts.md)). |
+
+!!! note "Need the full flow detail? Go to PCE Explorer"
+    The listed findings are **deduplicated and capped** (see [Bounded status size](#safety-notes)) —
+    they are a summary, not the raw flow log, so etcd stays safe. For the complete, unaggregated
+    traffic, open **Explorer in the PCE** and filter by this namespace's scope (`app` / `env`) and
+    the draft policy decision. The operator does not deep-link into the PCE UI; use the counts here to
+    know *what* to look at, then drill in there.
 
 **Decision meanings** (from the draft/what-if policy):
 
@@ -113,6 +120,12 @@ Two complementary views:
 - `potentially_blocked` — allowed today, but the draft policy would block it at `full`. **These are
   your allow-list gaps.**
 - `blocked` — already blocked by the draft policy.
+
+The `wouldBlockInbound` / `wouldBlockOutbound` lists contain **both** `blocked` and
+`potentially_blocked` flows (each record's `decision` says which). The `summary` counts individual
+flows, while the lists are **deduplicated** by `(peer, port, protocol)` — so a list is often shorter
+than the summary's `potentiallyBlocked + blocked` count. Treat `summary` and the `*Count` fields as
+the totals.
 
 ## The workflow: preflight → tighten → enforce
 
@@ -145,6 +158,11 @@ Two complementary views:
 - **Draft decision reflects the current draft policy in the PCE**, including rulesets the operator
   compiled in `draft-only`/`manual` mode. So you can compile a draft `SegmentationIntent`, preflight
   it, and see its effect *before* provisioning.
+- **Bounded status size.** The listed findings are capped (500 per direction, highest-connection
+  first) so even a very noisy namespace can't produce a status object that exceeds the
+  etcd/apiserver object limit. If capping happens, `wouldBlockInboundTruncated` /
+  `wouldBlockOutboundTruncated` is set, and the **true totals stay accurate** in `inboundBlockedCount` /
+  `outboundBlockedCount` and the `summary`.
 
 ## Troubleshooting
 

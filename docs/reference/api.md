@@ -116,7 +116,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `peer` _object (keys:string, values:string)_ | Peer is the Illumio labels of the other end (consumer for inbound, provider<br />for egress). May be empty for an unlabeled / off-cluster peer (see PeerIP). |  | Optional: \{\} <br /> |
+| `peer` _object (keys:string, values:string)_ | Peer is the Illumio labels of the other end (consumer for inbound, provider<br />for outbound). May be empty for an unlabeled / off-cluster peer (see PeerIP). |  | Optional: \{\} <br /> |
 | `peerIP` _string_ | PeerIP is the other end's IP when it has no workload/labels (e.g. off-cluster). |  | Optional: \{\} <br /> |
 | `port` _integer_ | Port is the destination port of the flow. |  |  |
 | `protocol` _string_ | Protocol is TCP or UDP. |  | Optional: \{\} <br /> |
@@ -401,7 +401,7 @@ _Appears in:_
 
 
 PolicyInsight is an on-request what-if preflight for a namespace: it reports
-the flows the current draft policy would block (inbound) and the egress flows
+the flows the current draft policy would block (inbound) and the outbound flows
 that are denied, from observed PCE traffic. Read-only — it authors no policy.
 
 
@@ -463,7 +463,7 @@ _Appears in:_
 PreflightSummary is the draft-decision breakdown of observed flows in each
 direction. Allowed flows are counted here (not listed individually); the
 blocked / potentially-blocked flows are also listed in WouldBlockInbound /
-BlockedEgress.
+WouldBlockOutbound.
 
 
 
@@ -473,7 +473,7 @@ _Appears in:_
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
 | `inbound` _[DecisionCounts](#decisioncounts)_ |  |  | Optional: \{\} <br /> |
-| `egress` _[DecisionCounts](#decisioncounts)_ |  |  | Optional: \{\} <br /> |
+| `outbound` _[DecisionCounts](#decisioncounts)_ |  |  | Optional: \{\} <br /> |
 
 
 #### SecretReference

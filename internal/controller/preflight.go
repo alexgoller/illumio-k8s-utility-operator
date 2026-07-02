@@ -15,8 +15,8 @@ import (
 
 // preflight flow directions.
 const (
-	directionInbound = "inbound" // peer is the source (consumer) reaching this app
-	directionEgress  = "egress"  // peer is the destination (provider) this app reaches
+	directionInbound  = "inbound"  // peer is the source (consumer) reaching this app
+	directionOutbound = "outbound" // peer is the destination (provider) this app reaches
 
 	protoNameTCP = "TCP"
 	protoNameUDP = "UDP"
@@ -71,7 +71,7 @@ func summarizeFlows(flows []pce.TrafficFlow) microv1.DecisionCounts {
 
 // classifyFlows converts observed flows into findings for the given direction,
 // keeping only those the DRAFT policy would block. For inbound the peer is the
-// flow source (consumer); for egress the peer is the flow destination (provider).
+// flow source (consumer); for outbound the peer is the flow destination (provider).
 // Findings are de-duplicated by (peer, port, proto) and sorted for stable output.
 func classifyFlows(flows []pce.TrafficFlow, direction string) []microv1.FlowFinding {
 	type key struct {
@@ -125,6 +125,27 @@ func classifyFlows(flows []pce.TrafficFlow, direction string) []microv1.FlowFind
 		return cmp.Compare(a.Protocol, b.Protocol)
 	})
 	return out
+}
+
+// capFindings bounds a findings list to n entries (for etcd object-size safety),
+// keeping the highest-connection flows. Returns the (possibly shortened) list and
+// whether it was truncated. n<=0 means no cap.
+func capFindings(f []microv1.FlowFinding, n int) ([]microv1.FlowFinding, bool) {
+	if n <= 0 || len(f) <= n {
+		return f, false
+	}
+	out := make([]microv1.FlowFinding, len(f))
+	copy(out, f)
+	slices.SortFunc(out, func(a, b microv1.FlowFinding) int {
+		if c := cmp.Compare(b.Connections, a.Connections); c != 0 { // desc by connections
+			return c
+		}
+		if c := cmp.Compare(peerKey(a.Peer, a.PeerIP), peerKey(b.Peer, b.PeerIP)); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Port, b.Port)
+	})
+	return out[:n], true
 }
 
 // peerKey is a stable string identity for a peer (labels or IP).
