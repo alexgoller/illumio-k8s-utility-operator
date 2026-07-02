@@ -97,7 +97,7 @@ func TestBuildRules_ProviderNarrowing(t *testing.T) {
 }
 
 func TestProtoNumber(t *testing.T) {
-	if protoNumber("TCP") != 6 || protoNumber("UDP") != 17 || protoNumber("") != 6 {
+	if protoNumber(protoNameTCP) != 6 || protoNumber(protoNameUDP) != 17 || protoNumber("") != 6 {
 		t.Errorf("protoNumber wrong")
 	}
 }

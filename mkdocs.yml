@@ -52,4 +52,5 @@ nav:
       - ClusterProfile: reference/clusterprofile.md
       - SegmentationIntent: reference/segmentationintent.md
       - SegmentationPolicy: reference/segmentationpolicy.md
+      - PolicyInsight: reference/policyinsight.md
       - Generated API: reference/api.md

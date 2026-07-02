@@ -328,7 +328,7 @@ kubectl get segintent payments-ingress -n payments -o jsonpath='{.status.deferre
 
 | Reference | |
 |---|---|
-| [PCEConnection](docs/reference/pceconnection.md) · [ClusterProfile](docs/reference/clusterprofile.md) · [SegmentationIntent](docs/reference/segmentationintent.md) · [SegmentationPolicy](docs/reference/segmentationpolicy.md) | Full field and status documentation. |
+| [PCEConnection](docs/reference/pceconnection.md) · [ClusterProfile](docs/reference/clusterprofile.md) · [SegmentationIntent](docs/reference/segmentationintent.md) · [SegmentationPolicy](docs/reference/segmentationpolicy.md) · [PolicyInsight](docs/reference/policyinsight.md) | Full field and status documentation. |
 
 ## Compatibility
 

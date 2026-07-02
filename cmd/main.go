@@ -218,6 +218,14 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "SegmentationPolicy")
 		os.Exit(1)
 	}
+	if err := (&controller.PolicyInsightReconciler{
+		Client:           mgr.GetClient(),
+		Scheme:           mgr.GetScheme(),
+		NewInsightClient: controller.DefaultInsightClientFactory,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PolicyInsight")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
