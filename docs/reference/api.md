@@ -83,6 +83,26 @@ _Appears in:_
 
 
 
+#### DecisionCounts
+
+
+
+DecisionCounts breaks observed flows down by draft policy decision.
+
+
+
+_Appears in:_
+- [PreflightSummary](#preflightsummary)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `allowed` _integer_ |  |  | Optional: \{\} <br /> |
+| `potentiallyBlocked` _integer_ |  |  | Optional: \{\} <br /> |
+| `blocked` _integer_ |  |  | Optional: \{\} <br /> |
+| `unknown` _integer_ |  |  | Optional: \{\} <br /> |
+| `total` _integer_ |  |  | Optional: \{\} <br /> |
+
+
 #### FlowFinding
 
 
@@ -434,6 +454,26 @@ _Appears in:_
 | `lookbackDays` _integer_ | LookbackDays is the observation window (in days, ending now) the preflight<br />queries the PCE for. Defaults to 7. | 7 | Maximum: 90 <br />Minimum: 1 <br />Optional: \{\} <br /> |
 
 
+
+
+#### PreflightSummary
+
+
+
+PreflightSummary is the draft-decision breakdown of observed flows in each
+direction. Allowed flows are counted here (not listed individually); the
+blocked / potentially-blocked flows are also listed in WouldBlockInbound /
+BlockedEgress.
+
+
+
+_Appears in:_
+- [PolicyInsightStatus](#policyinsightstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `inbound` _[DecisionCounts](#decisioncounts)_ |  |  | Optional: \{\} <br /> |
+| `egress` _[DecisionCounts](#decisioncounts)_ |  |  | Optional: \{\} <br /> |
 
 
 #### SecretReference

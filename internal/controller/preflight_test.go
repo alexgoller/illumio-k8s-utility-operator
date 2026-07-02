@@ -50,6 +50,23 @@ func TestClassifyFlows_EgressUsesDestination(t *testing.T) {
 	}
 }
 
+func TestSummarizeFlows(t *testing.T) {
+	flows := []pce.TrafficFlow{
+		{DraftPolicyDecision: pce.DecisionAllowed},
+		{DraftPolicyDecision: pce.DecisionAllowed},
+		{DraftPolicyDecision: pce.DecisionPotentiallyBlocked},
+		{DraftPolicyDecision: pce.DecisionBlocked},
+		{DraftPolicyDecision: pce.DecisionUnknown},
+	}
+	c := summarizeFlows(flows)
+	if c.Allowed != 2 || c.PotentiallyBlocked != 1 || c.Blocked != 1 || c.Unknown != 1 || c.Total != 5 {
+		t.Errorf("summary = %+v, want allowed=2 pot=1 blocked=1 unknown=1 total=5", c)
+	}
+	if got := summarizeFlows(nil); got.Total != 0 {
+		t.Errorf("empty summary total = %d, want 0", got.Total)
+	}
+}
+
 func TestClassifyFlows_AllAllowed(t *testing.T) {
 	flows := []pce.TrafficFlow{
 		{SrcLabels: map[string]string{testLabelKeyApp: "x"}, Port: 80, Protocol: 6, DraftPolicyDecision: pce.DecisionAllowed},

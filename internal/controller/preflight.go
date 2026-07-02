@@ -50,6 +50,25 @@ func draftBlocked(decision string) bool {
 	return decision == pce.DecisionBlocked || decision == pce.DecisionPotentiallyBlocked
 }
 
+// summarizeFlows counts observed flows by their DRAFT policy decision.
+func summarizeFlows(flows []pce.TrafficFlow) microv1.DecisionCounts {
+	var c microv1.DecisionCounts
+	for i := range flows {
+		switch flows[i].DraftPolicyDecision {
+		case pce.DecisionAllowed:
+			c.Allowed++
+		case pce.DecisionPotentiallyBlocked:
+			c.PotentiallyBlocked++
+		case pce.DecisionBlocked:
+			c.Blocked++
+		default:
+			c.Unknown++
+		}
+		c.Total++
+	}
+	return c
+}
+
 // classifyFlows converts observed flows into findings for the given direction,
 // keeping only those the DRAFT policy would block. For inbound the peer is the
 // flow source (consumer); for egress the peer is the flow destination (provider).

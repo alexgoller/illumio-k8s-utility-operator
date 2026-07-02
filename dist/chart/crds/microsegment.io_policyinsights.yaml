@@ -22,11 +22,17 @@ spec:
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
+    - jsonPath: .status.summary.inbound.allowed
+      name: In-Allowed
+      type: integer
     - jsonPath: .status.inboundBlockedCount
-      name: Inbound-Blocked
+      name: In-Blocked
+      type: integer
+    - jsonPath: .status.summary.egress.allowed
+      name: Eg-Allowed
       type: integer
     - jsonPath: .status.egressBlockedCount
-      name: Egress-Blocked
+      name: Eg-Blocked
       type: integer
     name: v1alpha1
     schema:
@@ -204,6 +210,42 @@ spec:
                   to:
                     format: date-time
                     type: string
+                type: object
+              summary:
+                description: |-
+                  Summary is the draft-decision breakdown (allowed / potentially-blocked /
+                  blocked) of observed flows in each direction.
+                properties:
+                  egress:
+                    description: DecisionCounts breaks observed flows down by draft
+                      policy decision.
+                    properties:
+                      allowed:
+                        type: integer
+                      blocked:
+                        type: integer
+                      potentiallyBlocked:
+                        type: integer
+                      total:
+                        type: integer
+                      unknown:
+                        type: integer
+                    type: object
+                  inbound:
+                    description: DecisionCounts breaks observed flows down by draft
+                      policy decision.
+                    properties:
+                      allowed:
+                        type: integer
+                      blocked:
+                        type: integer
+                      potentiallyBlocked:
+                        type: integer
+                      total:
+                        type: integer
+                      unknown:
+                        type: integer
+                    type: object
                 type: object
               truncated:
                 description: Truncated is true when the flow result was capped (findings

@@ -53,6 +53,31 @@ type ObservationWindow struct {
 	To *metav1.Time `json:"to,omitempty"`
 }
 
+// DecisionCounts breaks observed flows down by draft policy decision.
+type DecisionCounts struct {
+	// +optional
+	Allowed int `json:"allowed"`
+	// +optional
+	PotentiallyBlocked int `json:"potentiallyBlocked"`
+	// +optional
+	Blocked int `json:"blocked"`
+	// +optional
+	Unknown int `json:"unknown,omitempty"`
+	// +optional
+	Total int `json:"total"`
+}
+
+// PreflightSummary is the draft-decision breakdown of observed flows in each
+// direction. Allowed flows are counted here (not listed individually); the
+// blocked / potentially-blocked flows are also listed in WouldBlockInbound /
+// BlockedEgress.
+type PreflightSummary struct {
+	// +optional
+	Inbound DecisionCounts `json:"inbound"`
+	// +optional
+	Egress DecisionCounts `json:"egress"`
+}
+
 // PolicyInsightStatus holds the last computed preflight findings.
 type PolicyInsightStatus struct {
 	// +optional
@@ -62,6 +87,10 @@ type PolicyInsightStatus struct {
 	// ObservedWindow is the time range analyzed by the last run.
 	// +optional
 	ObservedWindow *ObservationWindow `json:"observedWindow,omitempty"`
+	// Summary is the draft-decision breakdown (allowed / potentially-blocked /
+	// blocked) of observed flows in each direction.
+	// +optional
+	Summary *PreflightSummary `json:"summary,omitempty"`
 	// FlowsAnalyzed is the number of flows the last run examined.
 	// +optional
 	FlowsAnalyzed int `json:"flowsAnalyzed,omitempty"`
@@ -109,8 +138,10 @@ const (
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:categories=illumio,shortName=insight
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
-// +kubebuilder:printcolumn:name="Inbound-Blocked",type=integer,JSONPath=`.status.inboundBlockedCount`
-// +kubebuilder:printcolumn:name="Egress-Blocked",type=integer,JSONPath=`.status.egressBlockedCount`
+// +kubebuilder:printcolumn:name="In-Allowed",type=integer,JSONPath=`.status.summary.inbound.allowed`
+// +kubebuilder:printcolumn:name="In-Blocked",type=integer,JSONPath=`.status.inboundBlockedCount`
+// +kubebuilder:printcolumn:name="Eg-Allowed",type=integer,JSONPath=`.status.summary.egress.allowed`
+// +kubebuilder:printcolumn:name="Eg-Blocked",type=integer,JSONPath=`.status.egressBlockedCount`
 
 // PolicyInsight is an on-request what-if preflight for a namespace: it reports
 // the flows the current draft policy would block (inbound) and the egress flows
