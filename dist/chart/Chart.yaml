@@ -3,8 +3,8 @@ name: illumio-k8s-utility-operator
 description: A Helm chart to distribute illumio-k8s-utility-operator
 type: application
 
-version: 0.1.20
-appVersion: "0.1.20"
+version: 0.1.21
+appVersion: "0.1.21"
 
 keywords:
   - kubernetes

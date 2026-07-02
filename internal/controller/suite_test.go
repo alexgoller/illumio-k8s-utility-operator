@@ -282,17 +282,21 @@ func (fakeInsightClient) FindLabel(_ context.Context, key, value string) (*pce.L
 	return &pce.Label{Href: "/orgs/1/labels/" + key + "-" + value, Key: key, Value: value}, nil
 }
 func (fakeInsightClient) QueryTraffic(_ context.Context, q pce.TrafficQuery) ([]pce.TrafficFlow, bool, error) {
-	if len(q.DestinationLabelHrefs) > 0 { // inbound query
-		return []pce.TrafficFlow{{
-			SrcLabels: map[string]string{testLabelKeyApp: testLabelValueCheckout}, Port: 8443, Protocol: 6,
-			DraftPolicyDecision: pce.DecisionBlocked, Connections: 42,
-		}}, false, nil
+	if len(q.DestinationLabelHrefs) > 0 { // inbound query: 1 blocked + 1 allowed
+		return []pce.TrafficFlow{
+			{SrcLabels: map[string]string{testLabelKeyApp: testLabelValueCheckout}, Port: 8443, Protocol: 6,
+				DraftPolicyDecision: pce.DecisionBlocked, Connections: 42},
+			{SrcLabels: map[string]string{testLabelKeyApp: "webapp"}, Port: 443, Protocol: 6,
+				DraftPolicyDecision: pce.DecisionAllowed, Connections: 100},
+		}, false, nil
 	}
-	// egress query
-	return []pce.TrafficFlow{{
-		DstLabels: map[string]string{testLabelKeyApp: testLabelValueLedger}, Port: 5432, Protocol: 6,
-		DraftPolicyDecision: pce.DecisionPotentiallyBlocked, Connections: 3,
-	}}, false, nil
+	// egress query: 1 potentially-blocked + 1 allowed
+	return []pce.TrafficFlow{
+		{DstLabels: map[string]string{testLabelKeyApp: testLabelValueLedger}, Port: 5432, Protocol: 6,
+			DraftPolicyDecision: pce.DecisionPotentiallyBlocked, Connections: 3},
+		{DstLabels: map[string]string{testLabelKeyApp: "dns"}, Port: 53, Protocol: 17,
+			DraftPolicyDecision: pce.DecisionAllowed, Connections: 8},
+	}, false, nil
 }
 
 // deleteRuleSetMu guards recorded delete/create calls for race-safe assertions.

@@ -31,12 +31,40 @@ kubectl annotate policyinsight preflight -n payments microsegment.io/refresh="$(
 kubectl get policyinsight preflight -n payments -o yaml
 ```
 
+## Outcome
+
+The status gives both a **decision breakdown** (allowed / potentially-blocked / blocked, per direction — allowed flows are counted, not listed) and the **listed blocked flows** to act on:
+
+```yaml
+status:
+  summary:
+    inbound: { allowed: 118, potentiallyBlocked: 2, blocked: 0, total: 120 }
+    egress:  { allowed: 40,  potentiallyBlocked: 1, blocked: 0, total: 41 }
+  wouldBlockInbound:
+    - peer: { app: checkout, env: prod }
+      port: 8443
+      protocol: TCP
+      connections: 312
+      decision: potentially_blocked
+  blockedEgress:
+    - peer: { app: ledger }
+      port: 5432
+      decision: potentially_blocked
+  conditions:
+    - type: Ready
+      reason: Computed
+      message: "inbound: 118 allowed / 2 potentially-blocked / 0 blocked; egress: 40 allowed / 1 potentially-blocked / 0 blocked"
+```
+
+`kubectl get policyinsight` shows `In-Allowed`, `In-Blocked`, `Eg-Allowed`, `Eg-Blocked` at a glance.
+
 ## Status
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `conditions` | []Condition | Standard conditions. See below. |
 | `observedWindow` | object | `{from, to}` — the time range analyzed by the last run. |
+| `summary` | object | Draft-decision breakdown per direction: `inbound` and `egress`, each `{allowed, potentiallyBlocked, blocked, unknown, total}`. Allowed flows are **counted here** (not listed individually). |
 | `flowsAnalyzed` | integer | Number of flows the last run examined. |
 | `truncated` | boolean | True when the flow result was capped (findings are partial). |
 | `wouldBlockInbound` | []FlowFinding | Flows **to** this namespace's app the draft policy would block at `full` — allow-list gaps. |

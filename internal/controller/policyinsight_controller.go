@@ -119,9 +119,12 @@ func (r *PolicyInsightReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	inbound := classifyFlows(inFlows, directionInbound)
 	egress := classifyFlows(egFlows, directionEgress)
+	inSummary := summarizeFlows(inFlows)
+	egSummary := summarizeFlows(egFlows)
 
 	fromT, toT := metav1.NewTime(from), metav1.NewTime(to)
 	pi.Status.ObservedWindow = &microv1.ObservationWindow{From: &fromT, To: &toT}
+	pi.Status.Summary = &microv1.PreflightSummary{Inbound: inSummary, Egress: egSummary}
 	pi.Status.FlowsAnalyzed = len(inFlows) + len(egFlows)
 	pi.Status.Truncated = inTrunc || egTrunc
 	pi.Status.WouldBlockInbound = inbound
@@ -130,7 +133,9 @@ func (r *PolicyInsightReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	pi.Status.EgressBlockedCount = len(egress)
 	meta.SetStatusCondition(&pi.Status.Conditions, metav1.Condition{
 		Type: microv1.ConditionReady, Status: metav1.ConditionTrue, Reason: microv1.ReasonComputed,
-		Message: fmt.Sprintf("preflight complete: %d inbound would-block, %d egress blocked", len(inbound), len(egress)),
+		Message: fmt.Sprintf("inbound: %d allowed / %d potentially-blocked / %d blocked; egress: %d allowed / %d potentially-blocked / %d blocked",
+			inSummary.Allowed, inSummary.PotentiallyBlocked, inSummary.Blocked,
+			egSummary.Allowed, egSummary.PotentiallyBlocked, egSummary.Blocked),
 	})
 	pi.Status.ObservedGeneration = pi.Generation
 	pi.Status.ObservedRefresh = refresh

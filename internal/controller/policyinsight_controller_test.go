@@ -85,6 +85,13 @@ var _ = Describe("PolicyInsight preflight", func() {
 			g.Expect(got.Status.WouldBlockInbound[0].Peer[testLabelKeyApp]).To(Equal(testLabelValueCheckout))
 			g.Expect(got.Status.WouldBlockInbound[0].Port).To(Equal(8443))
 			g.Expect(got.Status.BlockedEgress[0].Port).To(Equal(5432))
+			// Summary counts allowed flows (not listed) alongside the blocked ones.
+			g.Expect(got.Status.Summary).NotTo(BeNil())
+			g.Expect(got.Status.Summary.Inbound.Allowed).To(Equal(1))
+			g.Expect(got.Status.Summary.Inbound.Blocked).To(Equal(1))
+			g.Expect(got.Status.Summary.Inbound.Total).To(Equal(2))
+			g.Expect(got.Status.Summary.Egress.Allowed).To(Equal(1))
+			g.Expect(got.Status.Summary.Egress.PotentiallyBlocked).To(Equal(1))
 		}, 15*time.Second, 250*time.Millisecond).Should(Succeed())
 	})
 })
