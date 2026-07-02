@@ -97,6 +97,11 @@ const (
 	ReasonClusterProfileNotReady = "ClusterProfileNotReady"
 	ReasonProvisioned            = "Provisioned"
 	ReasonProvisionPending       = "ProvisionPending"
+	// ReasonPCEStateConflict marks Ready=False when the operator-owned ruleset is
+	// in a state a human changed out-of-band in the PCE (e.g. an unprovisioned
+	// pending deletion). The operator defers rather than overriding the pending
+	// change; the admin must resolve it in the PCE.
+	ReasonPCEStateConflict = "PCEStateConflict"
 
 	// AnnotationProvisionApprove on a SegmentationIntent approves a pending
 	// provision when provisioningMode is manual (value "approved").

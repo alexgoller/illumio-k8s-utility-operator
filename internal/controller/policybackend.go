@@ -177,6 +177,23 @@ func ReconcilePolicy(
 
 	rsHref, err := reconcileRuleSet(ctx, pclient, crName, namespace, owner, providerHrefs, narrowHrefs, resolved)
 	if err != nil {
+		if errors.Is(err, errRuleSetPendingDeletion) {
+			// Defer to the human: surface the conflict, don't override the pending
+			// change. Re-check periodically — clears once the admin provisions or
+			// reverts the deletion in the PCE.
+			return BackendResult{
+				Ready: &Condition{
+					Status:  metav1.ConditionFalse,
+					Reason:  microv1.ReasonPCEStateConflict,
+					Message: "the operator-owned Illumio ruleset has an unprovisioned pending deletion in the PCE; resolve it there (provision or revert the deletion) — the operator will not override a pending change made in the PCE",
+				},
+				Requeue:               siRequeueNotReady,
+				EffectiveEnforcement:  effEnforcement,
+				EnforcementSetBy:      enfSetBy,
+				UnknownLabelMode:      mode,
+				UnknownLabelModeSetBy: modeSetBy,
+			}, nil
+		}
 		return BackendResult{}, err
 	}
 
@@ -428,10 +445,21 @@ func resolveAllows(ctx context.Context, allows []CompiledAllow, pclient PolicyCl
 
 // reconcileRuleSet ensures the owned ruleset exists and its rules match desired
 // (replace-all). Returns the ruleset href.
+// errRuleSetPendingDeletion signals that the operator-owned ruleset is marked
+// for deletion in the PCE draft store but the deletion was never provisioned.
+// The operator defers to the human rather than recreating or overriding it.
+var errRuleSetPendingDeletion = errors.New("owned ruleset has an unprovisioned pending deletion in the PCE")
+
 func reconcileRuleSet(ctx context.Context, pclient PolicyClient, crName, namespace string, owner pce.Owner, scopeHrefs, narrowHrefs []string, resolved []ResolvedAllow) (string, error) {
 	existing, err := pclient.FindRuleSetByOwner(ctx, owner)
 	if err != nil {
 		return "", err
+	}
+	// A ruleset a human marked for deletion (but did not provision) still appears
+	// in the draft list; operating on it 404s. Defer to the admin instead of
+	// recreating or overriding their pending change.
+	if existing != nil && existing.UpdateType == pce.RuleSetUpdateTypeDelete {
+		return "", errRuleSetPendingDeletion
 	}
 	var rsHref string
 	if existing == nil {

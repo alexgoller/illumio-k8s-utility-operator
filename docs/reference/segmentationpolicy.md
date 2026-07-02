@@ -70,6 +70,7 @@ The operator rejects (sets `Ready=False`, reason `Rejected`) a policy that viola
 | `Compiled` | `True` | All consumer labels resolved; the Illumio ruleset has been written. |
 | `Rejected` | `False` | The spec violates the supported subset, or one or more consumer labels do not exist in the PCE (strict mode). The `message` field gives the specific cause. Not retried until the spec changes. |
 | `ClusterProfileNotReady` | `False` | No `ClusterProfile` manages this namespace, or the `ClusterProfile` has not finished reconciling. The controller retries automatically. |
+| `PCEStateConflict` | `False` | The operator-owned ruleset has an **unprovisioned pending deletion** in the PCE (someone deleted it in the PCE but did not provision the change). The operator defers rather than overriding the pending change — resolve it in the PCE (provision or revert the deletion) and the operator recovers automatically. The controller re-checks periodically. |
 
 ### The `Provisioned` condition
 
