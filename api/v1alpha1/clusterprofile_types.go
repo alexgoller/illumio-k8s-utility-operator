@@ -112,6 +112,15 @@ type ClusterProfileSpec struct {
 	// +kubebuilder:default=manual
 	// +optional
 	ProvisioningMode string `json:"provisioningMode,omitempty"`
+	// PolicyScopeLabels limits which of a namespace's assigned Illumio labels
+	// form the per-namespace ruleset scope. An Illumio ruleset scope may be any
+	// number of labels; for Kubernetes namespaces app+env is the right scope
+	// almost always, and loc is a poor scope choice. When empty, the scope
+	// defaults to app+env. Labels assigned to the namespace CWP that are not in
+	// this set (e.g. loc) are still applied to workloads for visibility, but do
+	// not become part of the ruleset scope.
+	// +optional
+	PolicyScopeLabels []string `json:"policyScopeLabels,omitempty"`
 	// UnknownLabelMode is the default policy when a referenced Illumio label is
 	// not yet in the PCE: strict (reject), skip (omit the actor/rule and report),
 	// or create (mint role/app/env/loc labels). Overridable per-namespace and

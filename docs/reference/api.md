@@ -73,6 +73,8 @@ _Appears in:_
 | `pceConnectionRef` _[LocalObjectReference](#localobjectreference)_ | PCEConnectionRef references the PCEConnection to use. |  |  |
 | `onboarding` _[OnboardingSpec](#onboardingspec)_ | Onboarding configures PCE cluster onboarding. |  |  |
 | `provisioningMode` _string_ | ProvisioningMode is the default policy provisioning mode for resources in<br />this cluster. One of: auto, manual, draft-only. Consumed by later<br />policy reconciliation; defaults to manual. | manual | Enum: [auto manual draft-only] <br />Optional: \{\} <br /> |
+| `policyScopeLabels` _string array_ | PolicyScopeLabels limits which of a namespace's assigned Illumio labels<br />form the per-namespace ruleset scope. An Illumio ruleset scope may be any<br />number of labels; for Kubernetes namespaces app+env is the right scope<br />almost always, and loc is a poor scope choice. When empty, the scope<br />defaults to app+env. Labels assigned to the namespace CWP that are not in<br />this set (e.g. loc) are still applied to workloads for visibility, but do<br />not become part of the ruleset scope. |  | Optional: \{\} <br /> |
+| `unknownLabelMode` _string_ | UnknownLabelMode is the default policy when a referenced Illumio label is<br />not yet in the PCE: strict (reject), skip (omit the actor/rule and report),<br />or create (mint role/app/env/loc labels). Overridable per-namespace and<br />per-CR via the microsegment.io/unknown-label-mode annotation. Defaults to strict. |  | Enum: [strict skip create] <br />Optional: \{\} <br /> |
 | `systemNamespaces` _[SystemNamespacesSpec](#systemnamespacesspec)_ | SystemNamespaces manages OpenShift/Kubernetes system namespaces out of the box. |  | Optional: \{\} <br /> |
 | `namespaceRules` _[NamespaceRule](#namespacerule) array_ | NamespaceRules are evaluated in order; the first match wins. For namespaces<br />that match the SystemNamespaces patterns, SystemNamespaces takes precedence<br />and overrides any matching NamespaceRule. For all other namespaces,<br />the first matching NamespaceRule governs. |  | Optional: \{\} <br /> |
 
@@ -100,8 +102,9 @@ _Appears in:_
 
 
 
-IntentAllow allows a consumer (referenced by existing Illumio labels) to
-reach this namespace's app on the given ports.
+IntentAllow allows a consumer to reach this namespace's app on the given ports.
+The consumer is EITHER From (a cross-app consumer, extra-scope) OR
+FromIntraNamespace (a consumer within this namespace, intra-scope) — set one.
 
 
 
@@ -110,7 +113,8 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `from` _object (keys:string, values:string)_ | From is the consumer's Illumio labels (key -> value), e.g.<br />\{"app":"checkout","env":"prod"\}. They must already exist in the PCE. |  |  |
+| `from` _object (keys:string, values:string)_ | From is a cross-app consumer's Illumio labels (key -> value), e.g.<br />\{"app":"checkout","env":"prod"\}. They must already exist in the PCE.<br />This is an extra-scope source (it may live in any app). |  | Optional: \{\} <br /> |
+| `fromIntraNamespace` _object (keys:string, values:string)_ | FromIntraNamespace is a consumer WITHIN this namespace's scope, narrowed by<br />Illumio labels (typically \{"role":"frontend"\}). This is an intra-scope source<br />(same app), so the scope is not repeated. Empty map = all workloads in scope. |  | Optional: \{\} <br /> |
 | `ports` _[IntentPort](#intentport) array_ | Ports the consumer may reach. Empty means all ports. |  | Optional: \{\} <br /> |
 
 
@@ -398,7 +402,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `allow` _[IntentAllow](#intentallow) array_ | Allow is the set of permitted inbound flows to this namespace's app. |  | MinItems: 1 <br /> |
+| `provider` _object (keys:string, values:string)_ | Provider optionally narrows the protected provider to a sub-set of this<br />namespace's app, by Illumio labels (e.g. \{"role":"backend"\}). The labels must<br />already exist in the PCE. Default (empty): the whole namespace app. |  | Optional: \{\} <br /> |
+| `allow` _[IntentAllow](#intentallow) array_ | Allow is the set of permitted inbound flows to this namespace's app. |  | Optional: \{\} <br /> |
+| `allowIntraNamespace` _boolean_ | AllowIntraNamespace is a shortcut: when true, allow all workloads in this<br />namespace to reach each other on all ports (an intra-scope allow-all). Combine<br />with Allow for finer cross-app rules, or use alone for "allow any-any here". |  | Optional: \{\} <br /> |
 | `enforcement` _string_ | Enforcement requests a namespace enforcement mode. The operator applies<br />the strictest mode requested across all policy CRs in the namespace (on<br />top of the admin baseline). One of idle, visibility_only, full. |  | Enum: [idle visibility_only full] <br />Optional: \{\} <br /> |
 
 

@@ -89,6 +89,11 @@ func (in *ClusterProfileSpec) DeepCopyInto(out *ClusterProfileSpec) {
 	*out = *in
 	out.PCEConnectionRef = in.PCEConnectionRef
 	in.Onboarding.DeepCopyInto(&out.Onboarding)
+	if in.PolicyScopeLabels != nil {
+		in, out := &in.PolicyScopeLabels, &out.PolicyScopeLabels
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	in.SystemNamespaces.DeepCopyInto(&out.SystemNamespaces)
 	if in.NamespaceRules != nil {
 		in, out := &in.NamespaceRules, &out.NamespaceRules

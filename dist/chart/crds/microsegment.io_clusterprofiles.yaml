@@ -167,6 +167,18 @@ spec:
                 required:
                 - name
                 type: object
+              policyScopeLabels:
+                description: |-
+                  PolicyScopeLabels limits which of a namespace's assigned Illumio labels
+                  form the per-namespace ruleset scope. An Illumio ruleset scope may be any
+                  number of labels; for Kubernetes namespaces app+env is the right scope
+                  almost always, and loc is a poor scope choice. When empty, the scope
+                  defaults to app+env. Labels assigned to the namespace CWP that are not in
+                  this set (e.g. loc) are still applied to workloads for visibility, but do
+                  not become part of the ruleset scope.
+                items:
+                  type: string
+                type: array
               provisioningMode:
                 default: manual
                 description: |-

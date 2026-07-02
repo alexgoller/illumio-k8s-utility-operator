@@ -337,8 +337,16 @@ func resolveProvider(ctx context.Context, k8s client.Client, nsName string, cp *
 	if !desired.Managed || len(desired.Labels) == 0 {
 		return nil, microv1.ReasonRejected, "namespace is not managed or has no Illumio labels; an admin must manage it via ClusterProfile", false, nil
 	}
-	hrefs := make([]string, 0, len(desired.Labels))
-	for key, value := range desired.Labels {
+	// The ruleset scope is only the scope-label subset of the namespace's assigned
+	// labels (default app+env; loc and other assigned labels stay on the workloads
+	// for visibility but are not part of the scope).
+	scopeKeys := cp.Spec.ScopeLabelKeys()
+	scopeLabels := scopeLabelSubset(desired.Labels, scopeKeys)
+	if len(scopeLabels) == 0 {
+		return nil, microv1.ReasonRejected, fmt.Sprintf("namespace has none of the policy scope labels %v assigned via ClusterProfile; assign at least one to scope its ruleset", scopeKeys), false, nil
+	}
+	hrefs := make([]string, 0, len(scopeLabels))
+	for key, value := range scopeLabels {
 		lbl, err := pclient.FindLabel(ctx, key, value)
 		if err != nil {
 			if errors.Is(err, pce.ErrLabelNotFound) {
@@ -349,6 +357,21 @@ func resolveProvider(ctx context.Context, k8s client.Client, nsName string, cp *
 		hrefs = append(hrefs, lbl.Href)
 	}
 	return hrefs, "", "", true, nil
+}
+
+// scopeLabelSubset keeps only the label keys that are part of the ruleset scope.
+func scopeLabelSubset(labels map[string]string, scopeKeys []string) map[string]string {
+	keep := make(map[string]bool, len(scopeKeys))
+	for _, k := range scopeKeys {
+		keep[k] = true
+	}
+	out := make(map[string]string, len(labels))
+	for k, v := range labels {
+		if keep[k] {
+			out[k] = v
+		}
+	}
+	return out
 }
 
 // resolveAllows resolves consumer labels per the unknown-label mode. Returns the

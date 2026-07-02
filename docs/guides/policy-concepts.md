@@ -10,9 +10,11 @@ tasks. Read it top-to-bottom once; then use the cross-links for details.
 
 An Illumio **ruleset** has two parts:
 
-- **Scope** — the application the ruleset protects. Defined by the namespace's Illumio labels:
-  typically `app` + `env` + `loc`. The operator derives these labels from the namespace's
-  Container Workload Profile (CWP), which is configured by `ClusterProfile`.
+- **Scope** — the application the ruleset protects. A scope can be any number of Illumio labels;
+  the operator scopes each namespace's ruleset to **`app` + `env`** by default (`loc` is a poor
+  scope choice and is excluded). The operator derives these labels from the namespace's Container
+  Workload Profile (CWP), which is configured by `ClusterProfile`; adjust the set with
+  `ClusterProfile.spec.policyScopeLabels`.
 - **Rules** — each rule says: _these **consumers** (sources) may reach these **providers**
   (destinations) on these **services** (ports)._
 
