@@ -47,6 +47,7 @@ nav:
       - Policy concepts: guides/policy-concepts.md
       - Segmentation policy: guides/segmentation-policy.md
       - NetworkPolicy-style: guides/networkpolicy-style.md
+      - Policy preflight: guides/preflight.md
   - API Reference:
       - PCEConnection: reference/pceconnection.md
       - ClusterProfile: reference/clusterprofile.md
