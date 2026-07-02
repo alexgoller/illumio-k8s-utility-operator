@@ -120,6 +120,10 @@ spec:
                   - port
                   type: object
                 type: array
+              blockedEgressTruncated:
+                description: BlockedEgressTruncated is true when the egress findings
+                  list was capped.
+                type: boolean
               conditions:
                 items:
                   description: Condition contains details for one aspect of the current
@@ -254,7 +258,8 @@ spec:
               wouldBlockInbound:
                 description: |-
                   WouldBlockInbound are flows TO this namespace's app the draft policy would
-                  block at full enforcement (allow-list gaps).
+                  block at full enforcement (allow-list gaps). The list is capped for etcd
+                  safety; inboundBlockedCount and summary hold the true totals.
                 items:
                   description: FlowFinding is one observed flow the current draft
                     policy would block.
@@ -293,6 +298,11 @@ spec:
                   - port
                   type: object
                 type: array
+              wouldBlockInboundTruncated:
+                description: |-
+                  WouldBlockInboundTruncated is true when the inbound findings list was capped
+                  (more distinct findings exist than are listed; see inboundBlockedCount).
+                type: boolean
             type: object
         type: object
     served: true

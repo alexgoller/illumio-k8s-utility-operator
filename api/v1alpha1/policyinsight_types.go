@@ -104,13 +104,21 @@ type PolicyInsightStatus struct {
 	// +optional
 	Truncated bool `json:"truncated,omitempty"`
 	// WouldBlockInbound are flows TO this namespace's app the draft policy would
-	// block at full enforcement (allow-list gaps).
+	// block at full enforcement (allow-list gaps). The list is capped for etcd
+	// safety; inboundBlockedCount and summary hold the true totals.
 	// +optional
 	WouldBlockInbound []FlowFinding `json:"wouldBlockInbound,omitempty"`
+	// WouldBlockInboundTruncated is true when the inbound findings list was capped
+	// (more distinct findings exist than are listed; see inboundBlockedCount).
+	// +optional
+	WouldBlockInboundTruncated bool `json:"wouldBlockInboundTruncated,omitempty"`
 	// BlockedEgress are flows FROM this namespace's workloads that are denied
 	// (surfaced for awareness; this operator does not author egress policy).
 	// +optional
 	BlockedEgress []FlowFinding `json:"blockedEgress,omitempty"`
+	// BlockedEgressTruncated is true when the egress findings list was capped.
+	// +optional
+	BlockedEgressTruncated bool `json:"blockedEgressTruncated,omitempty"`
 	// ObservedGeneration is the spec generation the current status reflects.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`

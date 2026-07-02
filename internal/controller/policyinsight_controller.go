@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	microv1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
 	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
@@ -25,9 +26,13 @@ type PolicyInsightReconciler struct {
 	client.Client
 	Scheme           *runtime.Scheme
 	NewInsightClient InsightClientFactory
-	// Now and MaxResults are injectable for tests.
-	Now        func() time.Time
+	// Now, MaxResults, and MaxFindings are injectable for tests.
+	Now func() time.Time
+	// MaxResults caps the raw flows downloaded per query (default 10000).
 	MaxResults int
+	// MaxFindings caps the listed findings per direction for etcd object-size
+	// safety (default 500). The true counts remain in the summary + *Count fields.
+	MaxFindings int
 }
 
 // +kubebuilder:rbac:groups=microsegment.io,resources=policyinsights,verbs=get;list;watch;create;update;patch;delete
@@ -117,10 +122,20 @@ func (r *PolicyInsightReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return r.fail(ctx, &pi, refresh, microv1.ReasonQueryFailed, "egress traffic query: "+err.Error())
 	}
 
-	inbound := classifyFlows(inFlows, directionInbound)
-	egress := classifyFlows(egFlows, directionEgress)
+	inboundFull := classifyFlows(inFlows, directionInbound)
+	egressFull := classifyFlows(egFlows, directionEgress)
 	inSummary := summarizeFlows(inFlows)
 	egSummary := summarizeFlows(egFlows)
+
+	// Cap the listed findings so a pathological namespace (a gateway talking to
+	// thousands of distinct peers) can't produce a status object that exceeds the
+	// etcd/apiserver ~1.5MB limit. The *Count fields and summary keep the true totals.
+	maxFindings := r.MaxFindings
+	if maxFindings <= 0 {
+		maxFindings = 500
+	}
+	inbound, inFindTrunc := capFindings(inboundFull, maxFindings)
+	egress, egFindTrunc := capFindings(egressFull, maxFindings)
 
 	fromT, toT := metav1.NewTime(from), metav1.NewTime(to)
 	pi.Status.ObservedWindow = &microv1.ObservationWindow{From: &fromT, To: &toT}
@@ -128,9 +143,11 @@ func (r *PolicyInsightReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	pi.Status.FlowsAnalyzed = len(inFlows) + len(egFlows)
 	pi.Status.Truncated = inTrunc || egTrunc
 	pi.Status.WouldBlockInbound = inbound
+	pi.Status.WouldBlockInboundTruncated = inFindTrunc
 	pi.Status.BlockedEgress = egress
-	pi.Status.InboundBlockedCount = len(inbound)
-	pi.Status.EgressBlockedCount = len(egress)
+	pi.Status.BlockedEgressTruncated = egFindTrunc
+	pi.Status.InboundBlockedCount = len(inboundFull)
+	pi.Status.EgressBlockedCount = len(egressFull)
 	meta.SetStatusCondition(&pi.Status.Conditions, metav1.Condition{
 		Type: microv1.ConditionReady, Status: metav1.ConditionTrue, Reason: microv1.ReasonComputed,
 		Message: fmt.Sprintf("inbound: %d allowed / %d potentially-blocked / %d blocked; egress: %d allowed / %d potentially-blocked / %d blocked",
@@ -140,7 +157,16 @@ func (r *PolicyInsightReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	pi.Status.ObservedGeneration = pi.Generation
 	pi.Status.ObservedRefresh = refresh
 	// No RequeueAfter — preflight is on-request only, never periodic.
-	return ctrl.Result{}, r.Status().Update(ctx, &pi)
+	if err := r.Status().Update(ctx, &pi); err != nil {
+		// Do NOT return the error: an error requeues, which would re-run the
+		// (expensive) PCE traffic query. Log and stop; the user re-requests
+		// (refresh) or a later change re-triggers. Findings are already capped,
+		// so an oversized-object write failure should not happen here.
+		log.FromContext(ctx).Error(err, "failed to write PolicyInsight status; not re-querying the PCE",
+			"namespace", pi.Namespace, "name", pi.Name)
+		return ctrl.Result{}, nil
+	}
+	return ctrl.Result{}, nil
 }
 
 // fail records a Ready=False condition and the request token so the reconcile

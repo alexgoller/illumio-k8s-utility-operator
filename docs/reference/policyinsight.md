@@ -67,8 +67,10 @@ status:
 | `summary` | object | Draft-decision breakdown per direction: `inbound` and `egress`, each `{allowed, potentiallyBlocked, blocked, unknown, total}`. Allowed flows are **counted here** (not listed individually). |
 | `flowsAnalyzed` | integer | Number of flows the last run examined. |
 | `truncated` | boolean | True when the flow result was capped (findings are partial). |
-| `wouldBlockInbound` | []FlowFinding | Flows **to** this namespace's app the draft policy would block at `full` — allow-list gaps. |
-| `blockedEgress` | []FlowFinding | Flows **from** this namespace's workloads that are denied. Surfaced for awareness; this operator does not author egress policy. |
+| `wouldBlockInbound` | []FlowFinding | Flows **to** this namespace's app the draft policy would block at `full` — allow-list gaps. Capped at 500 entries (highest-connection first) for etcd safety; `inboundBlockedCount` holds the true total. |
+| `wouldBlockInboundTruncated` | boolean | True when the inbound list was capped (more distinct findings exist than are listed). |
+| `blockedEgress` | []FlowFinding | Flows **from** this namespace's workloads that are denied. Surfaced for awareness; this operator does not author egress policy. Capped like `wouldBlockInbound`. |
+| `blockedEgressTruncated` | boolean | True when the egress list was capped. |
 | `inboundBlockedCount` / `egressBlockedCount` | integer | Lengths of the above (print columns). |
 | `observedGeneration` | integer | Spec generation the status reflects. |
 | `observedRefresh` | string | The `microsegment.io/refresh` value honored by the last run. |

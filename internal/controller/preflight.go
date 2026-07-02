@@ -127,6 +127,27 @@ func classifyFlows(flows []pce.TrafficFlow, direction string) []microv1.FlowFind
 	return out
 }
 
+// capFindings bounds a findings list to n entries (for etcd object-size safety),
+// keeping the highest-connection flows. Returns the (possibly shortened) list and
+// whether it was truncated. n<=0 means no cap.
+func capFindings(f []microv1.FlowFinding, n int) ([]microv1.FlowFinding, bool) {
+	if n <= 0 || len(f) <= n {
+		return f, false
+	}
+	out := make([]microv1.FlowFinding, len(f))
+	copy(out, f)
+	slices.SortFunc(out, func(a, b microv1.FlowFinding) int {
+		if c := cmp.Compare(b.Connections, a.Connections); c != 0 { // desc by connections
+			return c
+		}
+		if c := cmp.Compare(peerKey(a.Peer, a.PeerIP), peerKey(b.Peer, b.PeerIP)); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Port, b.Port)
+	})
+	return out[:n], true
+}
+
 // peerKey is a stable string identity for a peer (labels or IP).
 func peerKey(labels map[string]string, ip string) string {
 	if len(labels) == 0 {

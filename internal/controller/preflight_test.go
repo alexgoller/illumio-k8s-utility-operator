@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	microv1 "github.com/alexgoller/illumio-k8s-utility-operator/api/v1alpha1"
 	"github.com/alexgoller/illumio-k8s-utility-operator/internal/pce"
 )
 
@@ -47,6 +48,33 @@ func TestClassifyFlows_EgressUsesDestination(t *testing.T) {
 	got := classifyFlows(flows, directionEgress)
 	if len(got) != 1 || got[0].Peer[testLabelKeyApp] != testLabelValueLedger || got[0].Port != 5432 {
 		t.Fatalf("egress finding = %+v", got)
+	}
+}
+
+func TestCapFindings(t *testing.T) {
+	mk := func(app string, conns int) microv1.FlowFinding {
+		return microv1.FlowFinding{Peer: map[string]string{testLabelKeyApp: app}, Port: 80, Connections: conns}
+	}
+	findings := []microv1.FlowFinding{mk("a", 5), mk("b", 50), mk("c", 20), mk("d", 1)}
+
+	// Under the cap → unchanged, not truncated.
+	got, trunc := capFindings(findings, 10)
+	if trunc || len(got) != 4 {
+		t.Fatalf("no-cap: trunc=%v len=%d", trunc, len(got))
+	}
+
+	// Over the cap → top-N by connections, truncated.
+	got, trunc = capFindings(findings, 2)
+	if !trunc || len(got) != 2 {
+		t.Fatalf("cap: trunc=%v len=%d", trunc, len(got))
+	}
+	if got[0].Connections != 50 || got[1].Connections != 20 {
+		t.Errorf("expected top-2 by connections [50,20], got [%d,%d]", got[0].Connections, got[1].Connections)
+	}
+
+	// n<=0 → no cap.
+	if _, trunc := capFindings(findings, 0); trunc {
+		t.Error("n=0 should not truncate")
 	}
 }
 

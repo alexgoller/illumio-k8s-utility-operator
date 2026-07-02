@@ -145,6 +145,11 @@ Two complementary views:
 - **Draft decision reflects the current draft policy in the PCE**, including rulesets the operator
   compiled in `draft-only`/`manual` mode. So you can compile a draft `SegmentationIntent`, preflight
   it, and see its effect *before* provisioning.
+- **Bounded status size.** The listed findings are capped (500 per direction, highest-connection
+  first) so even a very noisy namespace can't produce a status object that exceeds the
+  etcd/apiserver object limit. If capping happens, `wouldBlockInboundTruncated` /
+  `blockedEgressTruncated` is set, and the **true totals stay accurate** in `inboundBlockedCount` /
+  `egressBlockedCount` and the `summary`.
 
 ## Troubleshooting
 
