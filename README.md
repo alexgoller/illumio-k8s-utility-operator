@@ -324,6 +324,7 @@ kubectl get segintent payments-ingress -n payments -o jsonpath='{.status.deferre
 | [Policy concepts](docs/guides/policy-concepts.md) | Scope, rules vs enforcement, provisioning, unknown labels — **start here for policy**. |
 | [Segmentation policy](docs/guides/segmentation-policy.md) | `SegmentationIntent` compilation and provisioning modes. |
 | [NetworkPolicy-style](docs/guides/networkpolicy-style.md) | `SegmentationPolicy` selector mapping in depth. |
+| [Policy preflight](docs/guides/preflight.md) | `PolicyInsight` — what-if preflight from observed PCE flows before you enforce. |
 | [LabelMap & the operator](docs/guides/labelmap-and-the-operator.md) | Coexisting with Illumio's per-workload LabelMap. |
 
 | Reference | |
@@ -350,6 +351,7 @@ The operator is in active development (`v0.1.x`, API group `microsegment.io/v1al
 - ✅ Per-namespace enforcement and auto/manual/draft provisioning
 - ✅ Configurable unknown-label handling (`strict` / `skip` / `create`)
 - ✅ LabelMap overlap detection (warns when Illumio's LabelMap labels the same dimension)
+- ✅ On-request policy preflight (`PolicyInsight`) — what-if from observed PCE flows + draft decisions
 
 On the roadmap:
 
