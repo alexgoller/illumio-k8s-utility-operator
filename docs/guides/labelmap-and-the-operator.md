@@ -29,7 +29,7 @@ role=frontend | role=backend ← from the Illumio LabelMap (per-workload, mapped
 
 That combined identity is what makes **intra-namespace, service-to-service** policy possible —
 "allow `role=frontend` to reach `role=backend` within `app=payments`." The operator supplies the
-**scope** (`app`/`env`/`loc`, the ruleset scope it owns via the Container Workload Profile); it
+**scope** (`app`+`env` by default, the ruleset scope it owns via the Container Workload Profile); it
 **relies on the C-VEN `LabelMap` to supply `role`**, because distinguishing services *within* one
 namespace is per-workload and a namespace-level CWP cannot express it. Without a `LabelMap` (or
 equivalent Illumio pod annotations) populating `role`, intra-namespace rules have nothing to narrow

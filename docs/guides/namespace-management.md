@@ -42,19 +42,31 @@ You describe the desired CWP state once, declaratively, in a `ClusterProfile`, a
 
 This is the single most important design decision when adopting the operator, and it follows directly from the CWP being **namespace-uniform**.
 
-Illumio policy is written along the **RAEL** dimensions — **R**ole, **A**pp, **E**nvironment, **L**ocation. The operator's policy model uses **App + Env + Loc as the ruleset *scope*** (the namespace's identity) and **Role to distinguish services *within* a namespace** (the provider/consumer tier inside a rule).
+An Illumio ruleset **scope** can be any number of labels. For Kubernetes namespaces the right scope is **`app` + `env`** almost every time (that is the operator's default) — it identifies the namespace's application and environment. `loc` is **not** a good scope label, and `role` is never scope (it distinguishes services *within* a namespace, inside a rule). The scope-label set is configurable — see [`policyScopeLabels`](#limiting-the-scope-labels) below.
 
-Because a CWP labels every workload in the namespace identically, it can only own the **scope** dimensions:
+Because a CWP labels every workload in the namespace identically, it can only own **namespace-uniform** dimensions:
 
 | Dimension | Who should assign it | Why |
 |---|---|---|
-| **App, Env, Loc** (scope) | **This operator** — the CWP | These are namespace-wide identity. Every workload in `payments`/`prod` shares them. The CWP is exactly the right granularity. |
+| **App, Env** (the default scope) | **This operator** — the CWP | Namespace-wide identity. Every workload in `payments`/`prod` shares them. The CWP is exactly the right granularity, and these become the ruleset scope. |
+| **Loc, other custom keys** | The operator (CWP) *if you want them on workloads* | Fine to assign for visibility, but keep them **out of the ruleset scope** (they are not in `policyScopeLabels` by default). |
 | **Role** (per-service tier) | **The Illumio C-VEN `LabelMap`** (per-workload) | `frontend` vs `backend` differ *within* one namespace. A CWP cannot express that — it is uniform. The C-VEN's `LabelMap` maps a per-pod Kubernetes label to the Illumio `role`. |
 
 > **Best practice — divide the label set, never overlap it.**
-> The operator owns **scope** (App/Env/Loc) via the CWP. You **rely on the C-VEN `LabelMap` for `role`** (and any other per-workload key). The two systems must never write the *same* Illumio key — that is two controllers fighting over one dimension.
+> The operator owns the **scope** labels (`app`+`env` by default) via the CWP. You **rely on the C-VEN `LabelMap` for `role`** (and any other per-workload key). The two systems must never write the *same* Illumio key — that is two controllers fighting over one dimension.
 
-This division is also *what makes intra-namespace, service-to-service policy possible*: the operator supplies the scope (`app=payments, env=prod`) and the `LabelMap` supplies the in-namespace distinction (`role=frontend` / `role=backend`), so you can write "allow `role=frontend` → `role=backend` within `app=payments`."
+### Limiting the scope labels
+
+By default a namespace's ruleset is scoped to its `app` and `env` labels. If a namespace CWP also carries other labels (e.g. `loc`), they stay on the workloads for visibility but are **not** part of the ruleset scope. To change which assigned labels form the scope, set `policyScopeLabels` on the `ClusterProfile`:
+
+```yaml
+spec:
+  policyScopeLabels: [app, env]   # the default; loc is intentionally excluded
+```
+
+Set it explicitly (e.g. `[app, env, tier]`) to scope on a different set. Leaving it empty keeps the `app`+`env` default. A namespace that carries none of the scope labels is rejected for policy — it has nothing to scope its ruleset by.
+
+This division is also *what makes intra-namespace, service-to-service policy possible*: the operator supplies the scope (`app=payments, env=prod`) and the `LabelMap` supplies the in-namespace distinction (`role=frontend` / `role=backend`), so you can write "allow `role=frontend` → `role=backend` within `app=payments, env=prod`."
 
 The operator actively guards this boundary: if a `LabelMap` is detected writing a key the `ClusterProfile` also assigns, it raises a `LabelMapOverlap` warning (it never overrides — warn-only). See the [LabelMap coexistence guide](labelmap-and-the-operator.md) for the full division of labor and how to read the warning.
 
@@ -120,7 +132,7 @@ These values are written into the chart-managed `ClusterProfile` spec. If you ma
 !!! note "Only `idle`, `visibility_only`, and `full` are valid for container workload profiles."
     The `selective` mode is not supported for CWPs.
 
-> **Keep `assignLabels` to scope keys.** For application namespaces, assign `app`/`env`/`loc` here and do **not** assign `role` — that belongs to the C-VEN `LabelMap` so it can vary per workload. See [Scope vs role](#scope-vs-role-what-the-cwp-should-and-shouldnt-label).
+> **Keep `assignLabels` to scope keys.** For application namespaces, assign the scope labels (`app`/`env`) here and do **not** assign `role` — that belongs to the C-VEN `LabelMap` so it can vary per workload. Other keys like `loc` may be assigned for visibility but stay out of the ruleset scope. See [Scope vs role](#scope-vs-role-what-the-cwp-should-and-shouldnt-label).
 
 ## Namespace annotations
 
