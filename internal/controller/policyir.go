@@ -97,7 +97,7 @@ func BuildRules(providerHrefs []string, allServicesHref string, allows []Resolve
 
 // protoNumber maps a k8s protocol string to its IANA number (default TCP).
 func protoNumber(protocol string) int {
-	if protocol == "UDP" {
+	if protocol == protoNameUDP {
 		return 17
 	}
 	return 6

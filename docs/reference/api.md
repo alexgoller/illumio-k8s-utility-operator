@@ -13,6 +13,8 @@ Package v1alpha1 contains API Schema definitions for the microsegment v1alpha1 A
 - [ClusterProfileList](#clusterprofilelist)
 - [PCEConnection](#pceconnection)
 - [PCEConnectionList](#pceconnectionlist)
+- [PolicyInsight](#policyinsight)
+- [PolicyInsightList](#policyinsightlist)
 - [SegmentationIntent](#segmentationintent)
 - [SegmentationIntentList](#segmentationintentlist)
 - [SegmentationPolicy](#segmentationpolicy)
@@ -79,6 +81,28 @@ _Appears in:_
 | `namespaceRules` _[NamespaceRule](#namespacerule) array_ | NamespaceRules are evaluated in order; the first match wins. For namespaces<br />that match the SystemNamespaces patterns, SystemNamespaces takes precedence<br />and overrides any matching NamespaceRule. For all other namespaces,<br />the first matching NamespaceRule governs. |  | Optional: \{\} <br /> |
 
 
+
+
+#### FlowFinding
+
+
+
+FlowFinding is one observed flow the current draft policy would block.
+
+
+
+_Appears in:_
+- [PolicyInsightStatus](#policyinsightstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `peer` _object (keys:string, values:string)_ | Peer is the Illumio labels of the other end (consumer for inbound, provider<br />for egress). May be empty for an unlabeled / off-cluster peer (see PeerIP). |  | Optional: \{\} <br /> |
+| `peerIP` _string_ | PeerIP is the other end's IP when it has no workload/labels (e.g. off-cluster). |  | Optional: \{\} <br /> |
+| `port` _integer_ | Port is the destination port of the flow. |  |  |
+| `protocol` _string_ | Protocol is TCP or UDP. |  | Optional: \{\} <br /> |
+| `connections` _integer_ | Connections is the observed connection count over the window. |  | Optional: \{\} <br /> |
+| `decision` _string_ | Decision is the draft policy decision that flagged this flow<br />(blocked or potentially_blocked). |  | Optional: \{\} <br /> |
+| `lastDetected` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#time-v1-meta)_ | LastDetected is when the flow was last observed. |  | Optional: \{\} <br /> |
 
 
 #### IngressRule
@@ -259,6 +283,23 @@ _Appears in:_
 | `enforcementMode` _string_ | EnforcementMode for a created pairing profile. One of idle,<br />visibility_only, full. Defaults to idle. | idle | Enum: [idle visibility_only full] <br />Optional: \{\} <br /> |
 
 
+#### ObservationWindow
+
+
+
+ObservationWindow is the time range the preflight analyzed.
+
+
+
+_Appears in:_
+- [PolicyInsightStatus](#policyinsightstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `from` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#time-v1-meta)_ |  |  | Optional: \{\} <br /> |
+| `to` _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#time-v1-meta)_ |  |  | Optional: \{\} <br /> |
+
+
 #### OnboardingSpec
 
 
@@ -331,6 +372,66 @@ _Appears in:_
 | `orgId` _integer_ | OrgID is the PCE organization id. |  |  |
 | `credentialsSecretRef` _[SecretReference](#secretreference)_ | CredentialsSecretRef references the Secret with api_key / api_secret. |  |  |
 | `externalDataSet` _string_ | ExternalDataSet is the ownership tag stamped on PCE objects this<br />operator creates. Defaults to "illumio-operator" if empty. |  | Optional: \{\} <br /> |
+
+
+
+
+#### PolicyInsight
+
+
+
+PolicyInsight is an on-request what-if preflight for a namespace: it reports
+the flows the current draft policy would block (inbound) and the egress flows
+that are denied, from observed PCE traffic. Read-only — it authors no policy.
+
+
+
+_Appears in:_
+- [PolicyInsightList](#policyinsightlist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `microsegment.io/v1alpha1` | | |
+| `kind` _string_ | `PolicyInsight` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[PolicyInsightSpec](#policyinsightspec)_ |  |  |  |
+
+
+#### PolicyInsightList
+
+
+
+PolicyInsightList contains a list of PolicyInsight.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `microsegment.io/v1alpha1` | | |
+| `kind` _string_ | `PolicyInsightList` | | |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[PolicyInsight](#policyinsight) array_ |  |  |  |
+
+
+#### PolicyInsightSpec
+
+
+
+PolicyInsightSpec requests a what-if preflight for the namespace it lives in.
+The preflight runs ON REQUEST ONLY (on create, on spec change, or when the
+microsegment.io/refresh annotation changes) — never on a timer. PCE traffic
+queries are expensive; the operator computes once per request and then idles.
+
+
+
+_Appears in:_
+- [PolicyInsight](#policyinsight)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `lookbackDays` _integer_ | LookbackDays is the observation window (in days, ending now) the preflight<br />queries the PCE for. Defaults to 7. | 7 | Maximum: 90 <br />Minimum: 1 <br />Optional: \{\} <br /> |
 
 
 

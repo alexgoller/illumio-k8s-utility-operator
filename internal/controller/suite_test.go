@@ -133,6 +133,13 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	err = (&PolicyInsightReconciler{
+		Client:           k8sManager.GetClient(),
+		Scheme:           k8sManager.GetScheme(),
+		NewInsightClient: func(pce.Config) InsightClient { return fakeInsightClient{} },
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
 	go func() {
 		defer GinkgoRecover()
 		err = k8sManager.Start(ctx)
@@ -262,6 +269,30 @@ func (fakePolicyClient) CreateRule(_ context.Context, _ string, rule pce.SecRule
 func (fakePolicyClient) DeleteRule(context.Context, string) error { return nil }
 func (fakePolicyClient) ProvisionRuleSets(context.Context, []string, string) (*pce.ProvisionResult, error) {
 	return &pce.ProvisionResult{Version: 80, WorkloadsAffected: 2}, nil
+}
+
+// fakeInsightClient is a test double for InsightClient used by the PolicyInsight
+// controller tests. It returns one draft-blocked flow per direction.
+type fakeInsightClient struct{}
+
+func (fakeInsightClient) FindLabel(_ context.Context, key, value string) (*pce.Label, error) {
+	if value == labelValDoesNotExist {
+		return nil, pce.ErrLabelNotFound
+	}
+	return &pce.Label{Href: "/orgs/1/labels/" + key + "-" + value, Key: key, Value: value}, nil
+}
+func (fakeInsightClient) QueryTraffic(_ context.Context, q pce.TrafficQuery) ([]pce.TrafficFlow, bool, error) {
+	if len(q.DestinationLabelHrefs) > 0 { // inbound query
+		return []pce.TrafficFlow{{
+			SrcLabels: map[string]string{testLabelKeyApp: testLabelValueCheckout}, Port: 8443, Protocol: 6,
+			DraftPolicyDecision: pce.DecisionBlocked, Connections: 42,
+		}}, false, nil
+	}
+	// egress query
+	return []pce.TrafficFlow{{
+		DstLabels: map[string]string{testLabelKeyApp: testLabelValueLedger}, Port: 5432, Protocol: 6,
+		DraftPolicyDecision: pce.DecisionPotentiallyBlocked, Connections: 3,
+	}}, false, nil
 }
 
 // deleteRuleSetMu guards recorded delete/create calls for race-safe assertions.
