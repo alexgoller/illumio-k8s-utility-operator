@@ -72,7 +72,15 @@ type RuleSet struct {
 	Scopes                [][]RuleSetScope `json:"scopes"`
 	ExternalDataSet       string           `json:"external_data_set,omitempty"`
 	ExternalDataReference string           `json:"external_data_reference,omitempty"`
+	// UpdateType is the pending draft change for this object as reported by the
+	// PCE: "create", "update", "delete", or "" (no pending change). A "delete"
+	// means someone marked the ruleset for deletion but has not provisioned it.
+	UpdateType string `json:"update_type,omitempty"`
 }
+
+// RuleSetUpdateTypeDelete is the UpdateType of a ruleset with an unprovisioned
+// pending deletion in the PCE draft store.
+const RuleSetUpdateTypeDelete = "delete"
 
 // SecRule is an Illumio security rule (draft).
 type SecRule struct {
