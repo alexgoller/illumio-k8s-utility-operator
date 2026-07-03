@@ -148,7 +148,7 @@ it* — is differentiated value that is dead-in-the-water at L3/L4 and only poss
 ## How it fits what already exists
 
 - **`SegmentationPolicy` CRD** (NetworkPolicy-shaped) is the natural front-end — likely a
-  backend selector (`enforcement.backend: illumio | networkPolicy`) rather than a new CRD.
+  backend selector (`enforcement.backend: illumio | networkPolicy | cilium`) rather than a new CRD.
 - **CWP enforcement control** already lets us set `visibility_only` — the posture flip is not new code.
 - **`PolicyInsight` preflight** is the de-risking mechanism for turning NP on.
 - **The label problem is shared** with preflight: NP needs *k8s* pod/namespace labels, while intent
