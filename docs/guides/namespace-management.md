@@ -38,6 +38,19 @@ You describe the desired CWP state once, declaratively, in a `ClusterProfile`, a
 
 > **Timing note:** Illumio Kubelink creates the CWP for a namespace when the C-VEN stack first discovers it. The operator does **not** create CWPs — it only updates ones Kubelink has already created. A namespace whose CWP does not exist yet is skipped and picked up automatically on a later reconcile. If a namespace never gets labeled, check that the C-VEN agent and Kubelink are running.
 
+### What triggers a reconcile (and new-namespace behavior)
+
+The operator applies your rules **automatically** — you never label namespaces one by one. A `ClusterProfile` reconcile fires on:
+
+- **A new namespace being created** → the operator re-lists namespaces and applies the matching rule to the new one. Near-instant (it watches `Namespace` objects), not a poll.
+- **A namespace's labels or annotations changing** → e.g. you label a namespace so it matches a `namespaceRule`, or set a `microsegment.io/label.*` / `microsegment.io/enforcement` override.
+- **The `ClusterProfile` (or a policy CR) changing.**
+- **A ~10-minute periodic backstop** — even with no events, the profile re-reconciles, so labeling and enforcement self-heal and converge.
+
+The one lag to expect: a brand-new namespace is labeled once **both** it exists *and* Kubelink has created its CWP (see the timing note above). The operator reconciles immediately on the namespace-create event; if the CWP isn't there yet, that namespace is skipped and picked up on the next reconcile (a later event or the 10-minute tick). So the practical flow is: apply the `ClusterProfile` once → existing namespaces are labeled on the first pass → new namespaces are labeled automatically as they appear. No per-namespace action from you.
+
+> **Works the same on adopted clusters.** This all applies whether the operator onboarded the cluster (`onboarding.mode: create`) or adopted an already-paired one (`onboarding.mode: adopt`) — namespace/CWP labeling and new-namespace pickup are identical. See [Onboarding](onboarding.md#two-onboarding-paths).
+
 ## Scope vs role: what the CWP should and shouldn't label
 
 This is the single most important design decision when adopting the operator, and it follows directly from the CWP being **namespace-uniform**.
