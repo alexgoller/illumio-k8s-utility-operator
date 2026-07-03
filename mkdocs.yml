@@ -48,6 +48,7 @@ nav:
       - Segmentation policy: guides/segmentation-policy.md
       - NetworkPolicy-style: guides/networkpolicy-style.md
       - Policy preflight: guides/preflight.md
+      - Security & credentials: guides/security.md
   - API Reference:
       - PCEConnection: reference/pceconnection.md
       - ClusterProfile: reference/clusterprofile.md
