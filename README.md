@@ -53,14 +53,16 @@ Everything is a Kubernetes custom resource, so it lives in Git, flows through yo
 
 You declare intent in Kubernetes; the operator translates it into Container Clusters, labels, and rulesets in the PCE and keeps them reconciled.
 
-## The four custom resources
+## The custom resources
 
 | CRD | Short name | Scope | What it does |
 |-----|-----------|-------|--------------|
 | `PCEConnection` | `pceconn` | Cluster | Holds the PCE URL, org ID, and a reference to the credentials Secret. The connection every other resource uses. |
-| `ClusterProfile` | `clusterprofile` | Cluster | Onboards the cluster to the PCE and defines namespace **label rules**, system-namespace handling, the **enforcement baseline**, and the **provisioning mode**. |
+| `ClusterProfile` | `clusterprofile` | Cluster | Onboards (or **adopts**) the cluster and defines namespace **label rules**, system-namespace handling, the **enforcement baseline**, and the **provisioning mode**. |
 | `SegmentationIntent` | `segintent` | Namespaced | Illumio-native **allow-list** policy for the namespace it lives in. |
 | `SegmentationPolicy` | `segpol` | Namespaced | The same policy expressed in Kubernetes **`NetworkPolicy`** shape (`ingress` / `from` / `ports`). |
+| `PolicyInsight` | `insight` | Namespaced | **What-if preflight** — what a policy would block, from observed PCE flows + draft decisions (read-only). |
+| `RuleView` | `rview` | Namespaced | **Live rule view** — the current Illumio rules protecting the app, incl. rules authored outside k8s (read-only). |
 
 `SegmentationIntent` and `SegmentationPolicy` compile to the same backend and have identical capabilities — pick whichever matches your team's mental model.
 
@@ -325,6 +327,7 @@ kubectl get segintent payments-ingress -n payments -o jsonpath='{.status.deferre
 | [Segmentation policy](docs/guides/segmentation-policy.md) | `SegmentationIntent` compilation and provisioning modes. |
 | [NetworkPolicy-style](docs/guides/networkpolicy-style.md) | `SegmentationPolicy` selector mapping in depth. |
 | [Policy preflight](docs/guides/preflight.md) | `PolicyInsight` — what-if preflight from observed PCE flows before you enforce. |
+| [Live rule view](docs/guides/ruleview.md) | `RuleView` — the current Illumio rules protecting your app in kubectl, incl. rules made outside k8s. |
 | [Security & credentials](docs/guides/security.md) | Protecting PCE API keys (one key per cluster), RBAC, TLS, etcd, supply chain. |
 | [LabelMap & the operator](docs/guides/labelmap-and-the-operator.md) | Coexisting with Illumio's per-workload LabelMap. |
 

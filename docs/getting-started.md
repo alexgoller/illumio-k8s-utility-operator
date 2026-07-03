@@ -192,3 +192,21 @@ kubectl get segintent -n payments   # or: kubectl get segpol -n payments
 
 See the [Segmentation policy guide](guides/segmentation-policy.md) for compilation details, provisioning modes, and enforcement notes.
 See the [NetworkPolicy-style guide](guides/networkpolicy-style.md) for the `SegmentationPolicy` front-end, including the supported subset and rejection rules.
+
+## 6. See what protects your app — without the Illumio UI
+
+Two read-only resources let you stay in `kubectl`:
+
+- **[Policy preflight](guides/preflight.md)** (`PolicyInsight`) — what a policy *would* block, from observed flows, before you enforce.
+- **[Live rule view](guides/ruleview.md)** (`RuleView`) — the current Illumio rules protecting your app, **including rules authored outside Kubernetes**:
+
+```bash
+kubectl apply -f - <<'YAML'
+apiVersion: microsegment.io/v1alpha1
+kind: RuleView
+metadata: { name: current, namespace: payments }
+YAML
+kubectl get ruleview -n payments
+# NAME      READY   RULES   OWNED   EXTERNAL   SYNCED
+# current   True    7       4       3          30s
+```
