@@ -45,6 +45,8 @@ The common case: the C-VEN was installed and paired by the **Illumio helm chart*
 
 **What adopt does *not* do:** it never creates a Container Cluster or Pairing Profile, never generates a pairing key, and never writes a credentials Secret. It leaves the existing pairing untouched.
 
+**Managing namespaces on an adopted cluster:** add `namespaceRules` / `systemNamespaces` to the same `ClusterProfile` — CWP labeling, enforcement, and automatic pickup of new namespaces work identically to create mode. See [Namespace management → what triggers a reconcile](namespace-management.md#what-triggers-a-reconcile-and-new-namespace-behavior).
+
 **Troubleshooting adopt:** if `Onboarded=False` with reason `OnboardFailed` and a message like *"container cluster … was not found"*, the `containerClusterName` doesn't match an existing cluster in the PCE. Fix the name (it is case- and exact-match by name) and the operator retries. The controller re-checks on its healthy cadence, so a cluster that appears later is picked up automatically.
 
 ## What the operator does (create mode)
