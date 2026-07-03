@@ -100,9 +100,50 @@ Shared plumbing for both:
 - Operator **owns** the emitted NP objects (labels/annotations), reconciles them, and garbage-collects
   on CR delete. Idempotent, drift-correcting. The `ipBlock` sets re-reconcile as PCE workload IPs move.
 
-Explicit non-goals for the MVP: CNI-specific policy (Cilium/Calico CRDs, L7, FQDN), audit mode,
-cross-*cluster* pod↔pod, and any change to how intent is authored. (Egress is **in** scope now — but
-only the VM-`ipBlock` form above, not general egress.)
+**Two emission backends** (chosen per capability, not either/or):
+
+- **Standard `NetworkPolicy` API** — portable across CNIs, L3/L4. The baseline for intra-cluster
+  east-west and the VM-`ipBlock` egress bridge above.
+- **Cilium** (`CiliumNetworkPolicy` / Gateway API) — for the **L7 ingress opportunity** below, which
+  standard NetworkPolicy cannot express. Cilium is the primary L7 target.
+
+Deferred past the MVP (but named, not dismissed): the L7 ingress work (own section below), FQDN
+egress, audit mode, cross-*cluster* pod↔pod, and any change to how intent is authored. (Egress is
+**in** scope for the MVP — but only the VM-`ipBlock` form above, not general egress.)
+
+## Ingress / L7 opportunity (Cilium)
+
+This is where the CNI angle gets **strategic**, not just a re-plumbing of enforcement. Illumio is
+L3/L4, so the ingress path has always been a blind spot: the **ingress controller (nginx/Envoy) is
+one workload that fans out to many backends**. From Illumio it's just `ingress-nginx → app-pods:8080` —
+it can't see or govern *which host/path/method* an external client used or *which route* hit *which
+backend*. All the interesting north-south policy lives inside the ingress controller's config,
+invisible and ungovernable at L3/L4. So Illumio never engaged. An **L7-capable CNI (Cilium)** changes
+the substrate — L7 network policy (HTTP method/path), L7 flow visibility (Hubble), and CNI-as-gateway
+(Gateway API). Illumio's label model and visibility can now follow the traffic up to L7.
+
+Concrete value-adds (roughly in order of wedge strength):
+
+1. **L7-segment the ingress chokepoint — works even with nginx.** The ingress controller is a huge
+   blast radius. Even when *nginx* owns external L7 routing, the **nginx→backend hop runs over the
+   CNI**, so we can emit `CiliumNetworkPolicy` L7 rules that restrict the ingress controller to *only*
+   the backends + HTTP paths its routes actually use, derived from Illumio intent. Net-new L7
+   segmentation Illumio couldn't do — hardening the workload everyone worries about.
+2. **Pull L7 visibility into Illumio.** Ingest Hubble HTTP flows (host/path/method/status) and attach
+   them to the Illumio label model → Explorer and the **`PolicyInsight` preflight** gain L7 context
+   for the ingress path they've never had ("this client hit `/admin` on payments").
+3. **Govern external→service at L7 when Cilium is the gateway.** If Cilium Gateway API terminates
+   ingress, Illumio intent can drive host/path→service authorization directly — north-south policy in
+   Illumio's model, enforced at L7 by the CNI.
+4. **Attach edge identity.** Ingress is where external identity (mTLS/JWT/source) enters; mapping it to
+   Illumio labels gives Illumio a north-south identity handle it lacks today.
+
+**Honest caveats:** L7 = **Cilium (or equivalent), not portable** — this is the `CiliumNetworkPolicy`
+backend, not standard NP. And we **govern the hop, we don't replace nginx**: #1 constrains the
+nginx→backend fan-out; full external→service L7 (#3) needs Cilium to *be* the gateway.
+
+**The wedge:** #1 + #2 together — *segment the ingress fan-out at L7 and light up L7 visibility for
+it* — is differentiated value that is dead-in-the-water at L3/L4 and only possible on an L7 CNI.
 
 ## How it fits what already exists
 
@@ -120,8 +161,9 @@ only the VM-`ipBlock` form above, not general egress.)
    configurable Illumio→k8s label map? Needs a look at real clusters before any build.
 2. **Cross-domain gap:** accept intra-cluster-only, or design a split model where the C-VEN still
    enforces the cross-domain slice?
-3. **CNI target:** standard `NetworkPolicy` only (portable) vs Cilium/Calico CRDs (richer, eBPF, audit
-   mode, egress/FQDN/L7)?
+3. **CNI target:** decided — **both**. Standard `NetworkPolicy` API as the portable L3/L4 baseline,
+   and **Cilium** (`CiliumNetworkPolicy` / Gateway API) as the primary L7 target for the ingress
+   opportunity. Open sub-question: how much do we invest in Calico L7 parity vs Cilium-first?
 4. **Who owns the posture flip:** does the operator set the C-VEN to `visibility_only`, or is that an
    admin decision it only *reports* on?
 5. **Trust / correctness:** if the CNI enforces and Illumio only observes, how do we reconcile
@@ -143,3 +185,7 @@ in-cluster selectors. Everything else leans on machinery we already have (CWP en
 NetworkPolicy-shaped CRD, preflight, the PCE client). Worth a real design + spike **if** the
 label-mapping checks out on actual clusters — and the VM-`ipBlock` egress bridge is the piece worth
 prototyping first, since it's the unique value.
+
+Beyond the L3/L4 MVP, the **L7 ingress opportunity on Cilium** is the strategic prize: it takes
+Illumio somewhere its own L3/L4 dataplane never could — governing and *seeing* the north-south
+ingress path at L7. Standard `NetworkPolicy` stays the portable baseline; Cilium unlocks the L7 tier.
