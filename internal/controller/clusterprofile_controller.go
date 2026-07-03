@@ -29,7 +29,18 @@ const (
 	onboardRequeueNotReady = 30 * time.Second
 	onboardRequeueHealthy  = 10 * time.Minute
 	onboardRequeueTerminal = time.Hour
+
+	onboardModeCreate = "create"
+	onboardModeAdopt  = "adopt"
 )
+
+// onboardMode returns the effective onboarding mode (defaults to create).
+func onboardMode(cp *microv1.ClusterProfile) string {
+	if cp.Spec.Onboarding.Mode == onboardModeAdopt {
+		return onboardModeAdopt
+	}
+	return onboardModeCreate
+}
 
 // ClusterProfileReconciler reconciles a ClusterProfile (onboarding).
 type ClusterProfileReconciler struct {
@@ -74,96 +85,66 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	pclient := r.NewOnboardingClient(cfg)
 	owner := pce.Owner{DataSet: externalDataSet, Reference: string(cp.UID)}
 
-	// Ensure the container cluster (capture the one-time token only on create).
-	var token string
+	mode := onboardMode(&cp)
+
+	// Ensure the container cluster: create it (create mode) or adopt an existing one.
 	if cp.Status.ContainerClusterHref == "" {
 		existing, err := pclient.FindContainerClusterByName(ctx, cp.Spec.Onboarding.ContainerClusterName)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		if existing != nil {
-			return r.onboardFail(ctx, &cp, microv1.ReasonOnboardFailed,
-				fmt.Sprintf("container cluster %q already exists in the PCE; its one-time token cannot be recovered. Delete it or supply credentials manually.", cp.Spec.Onboarding.ContainerClusterName),
-				onboardRequeueTerminal)
-		}
-		created, err := pclient.CreateContainerCluster(ctx, cp.Spec.Onboarding.ContainerClusterName, "Managed by illumio-k8s-utility-operator")
-		if err != nil {
-			return r.onboardError(ctx, &cp,
-				fmt.Sprintf("failed to create PCE container cluster %q: %v", cp.Spec.Onboarding.ContainerClusterName, err), err)
-		}
-		cp.Status.ContainerClusterHref = created.Href
-		cp.Status.ContainerClusterID = pce.ContainerClusterUUID(created.Href)
-		token = created.ContainerClusterToken
-
-		// Persist href/ID and the one-time token immediately so that a crash
-		// during the subsequent pairing-profile steps leaves the next reconcile
-		// able to skip the create branch and find the token already in the Secret.
-		// A crash between CreateContainerCluster returning and these two writes is
-		// a sub-second unavoidable window; it results in the same dead-end, but
-		// that window is orders of magnitude smaller than the entire reconcile loop.
-		if err := r.writeCredentialsSecret(ctx, &cp, cfg.PCEURL, token, ""); err != nil {
-			return ctrl.Result{}, err
-		}
-		if err := r.Status().Update(ctx, &cp); err != nil {
-			return ctrl.Result{}, err
-		}
-	}
-
-	// Ensure the node pairing profile (cluster_code source).
-	npp := cp.Spec.Onboarding.NodePairingProfile
-	var pp *pce.PairingProfile
-	var err error
-	if npp.ExistingName != "" {
-		pp, err = pclient.FindPairingProfileByName(ctx, npp.ExistingName)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		if pp == nil {
-			return r.onboardFail(ctx, &cp, microv1.ReasonOnboardFailed,
-				fmt.Sprintf("pairing profile %q not found in the PCE", npp.ExistingName), onboardRequeueHealthy)
-		}
-	} else {
-		ppName := cp.Spec.Onboarding.ContainerClusterName + "-nodes"
-		pp, err = pclient.FindPairingProfileByName(ctx, ppName)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		if pp == nil {
-			// Resolve the requested node labels to Illumio label hrefs.
-			labels := make([]pce.LabelRef, 0, len(npp.Labels))
-			for key, value := range npp.Labels {
-				lbl, lerr := pclient.EnsureLabel(ctx, key, value, owner)
-				if lerr != nil {
-					return ctrl.Result{}, lerr
-				}
-				labels = append(labels, pce.LabelRef{Href: lbl.Href})
+		if mode == onboardModeAdopt {
+			// Adopt: the cluster must already exist; record its href and skip pairing.
+			if existing == nil {
+				return r.onboardFail(ctx, &cp, microv1.ReasonOnboardFailed,
+					fmt.Sprintf("onboarding.mode is adopt but container cluster %q was not found in the PCE; create it first or use mode create", cp.Spec.Onboarding.ContainerClusterName),
+					onboardRequeueHealthy)
 			}
-			mode := npp.EnforcementMode
-			if mode == "" {
-				mode = enforcementIdle
+			cp.Status.ContainerClusterHref = existing.Href
+			cp.Status.ContainerClusterID = pce.ContainerClusterUUID(existing.Href)
+			if err := r.Status().Update(ctx, &cp); err != nil {
+				return ctrl.Result{}, err
 			}
-			pp, err = pclient.CreatePairingProfile(ctx, pce.PairingProfile{
-				Name: ppName, Enabled: true, EnforcementMode: mode,
-				AllowedUsesPerKey: "unlimited", KeyLifespan: "unlimited",
-				Labels:                labels,
-				ExternalDataSet:       owner.DataSet,
-				ExternalDataReference: owner.Reference,
-			})
+		} else {
+			// Create: the cluster must NOT already exist, and needs an output Secret.
+			if cp.Spec.Onboarding.CredentialsOutputSecret == "" {
+				return r.onboardFail(ctx, &cp, microv1.ReasonOnboardFailed,
+					"onboarding.credentialsOutputSecret is required in create mode", onboardRequeueTerminal)
+			}
+			if existing != nil {
+				return r.onboardFail(ctx, &cp, microv1.ReasonOnboardFailed,
+					fmt.Sprintf("container cluster %q already exists in the PCE; its one-time token cannot be recovered. Set onboarding.mode: adopt to manage it in place, or delete it.", cp.Spec.Onboarding.ContainerClusterName),
+					onboardRequeueTerminal)
+			}
+			created, err := pclient.CreateContainerCluster(ctx, cp.Spec.Onboarding.ContainerClusterName, "Managed by illumio-k8s-utility-operator")
 			if err != nil {
+				return r.onboardError(ctx, &cp,
+					fmt.Sprintf("failed to create PCE container cluster %q: %v", cp.Spec.Onboarding.ContainerClusterName, err), err)
+			}
+			cp.Status.ContainerClusterHref = created.Href
+			cp.Status.ContainerClusterID = pce.ContainerClusterUUID(created.Href)
+
+			// Persist href/ID and the one-time token immediately so that a crash
+			// during the subsequent pairing-profile steps leaves the next reconcile
+			// able to skip the create branch and find the token already in the Secret.
+			// A crash between CreateContainerCluster returning and these two writes is
+			// a sub-second unavoidable window; it results in the same dead-end, but
+			// that window is orders of magnitude smaller than the entire reconcile loop.
+			if err := r.writeCredentialsSecret(ctx, &cp, cfg.PCEURL, created.ContainerClusterToken, ""); err != nil {
+				return ctrl.Result{}, err
+			}
+			if err := r.Status().Update(ctx, &cp); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
 	}
-	code, err := pclient.GeneratePairingKey(ctx, pp.Href)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
 
-	// Publish cluster_code into the output Secret. Pass an empty token so
-	// writeCredentialsSecret preserves the token written in the early persist step
-	// (or a no-op on reconcile paths where the cluster already existed).
-	if err := r.writeCredentialsSecret(ctx, &cp, cfg.PCEURL, "", code); err != nil {
-		return ctrl.Result{}, err
+	// Pairing profile + key + credentials Secret are create-only: an adopted cluster
+	// is already paired, so there is no key to generate and no Secret to publish.
+	if mode == onboardModeCreate {
+		if res, done, err := r.ensurePairing(ctx, &cp, pclient, cfg, owner); done {
+			return res, err
+		}
 	}
 
 	// Reconcile per-namespace CWPs now that the cluster is onboarded. A single
@@ -171,9 +152,13 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// managed regardless and only advance observedGeneration on a clean pass.
 	managed, cwpErr := r.reconcileNamespaceCWPs(ctx, &cp, pclient, owner)
 	cp.Status.ManagedNamespaces = managed
+	onboardMsg := "cluster onboarded; credentials published"
+	if mode == onboardModeAdopt {
+		onboardMsg = "existing container cluster adopted"
+	}
 	meta.SetStatusCondition(&cp.Status.Conditions, metav1.Condition{
 		Type: microv1.ConditionOnboarded, Status: metav1.ConditionTrue,
-		Reason: microv1.ReasonOnboarded, Message: "cluster onboarded; credentials published",
+		Reason: microv1.ReasonOnboarded, Message: onboardMsg,
 	})
 
 	if cwpErr != nil {
@@ -200,6 +185,67 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{RequeueAfter: onboardRequeueHealthy}, nil
+}
+
+// ensurePairing runs the create-only path: ensure the node pairing profile, generate
+// the pairing key, and publish it into the credentials Secret. Returns
+// (result, done, err) where done=true means the caller should return (result, err).
+func (r *ClusterProfileReconciler) ensurePairing(ctx context.Context, cp *microv1.ClusterProfile, pclient OnboardingClient, cfg pce.Config, owner pce.Owner) (ctrl.Result, bool, error) {
+	npp := cp.Spec.Onboarding.NodePairingProfile
+	var pp *pce.PairingProfile
+	var err error
+	if npp.ExistingName != "" {
+		pp, err = pclient.FindPairingProfileByName(ctx, npp.ExistingName)
+		if err != nil {
+			return ctrl.Result{}, true, err
+		}
+		if pp == nil {
+			res, ferr := r.onboardFail(ctx, cp, microv1.ReasonOnboardFailed,
+				fmt.Sprintf("pairing profile %q not found in the PCE", npp.ExistingName), onboardRequeueHealthy)
+			return res, true, ferr
+		}
+	} else {
+		ppName := cp.Spec.Onboarding.ContainerClusterName + "-nodes"
+		pp, err = pclient.FindPairingProfileByName(ctx, ppName)
+		if err != nil {
+			return ctrl.Result{}, true, err
+		}
+		if pp == nil {
+			// Resolve the requested node labels to Illumio label hrefs.
+			labels := make([]pce.LabelRef, 0, len(npp.Labels))
+			for key, value := range npp.Labels {
+				lbl, lerr := pclient.EnsureLabel(ctx, key, value, owner)
+				if lerr != nil {
+					return ctrl.Result{}, true, lerr
+				}
+				labels = append(labels, pce.LabelRef{Href: lbl.Href})
+			}
+			ppEnf := npp.EnforcementMode
+			if ppEnf == "" {
+				ppEnf = enforcementIdle
+			}
+			pp, err = pclient.CreatePairingProfile(ctx, pce.PairingProfile{
+				Name: ppName, Enabled: true, EnforcementMode: ppEnf,
+				AllowedUsesPerKey: "unlimited", KeyLifespan: "unlimited",
+				Labels:                labels,
+				ExternalDataSet:       owner.DataSet,
+				ExternalDataReference: owner.Reference,
+			})
+			if err != nil {
+				return ctrl.Result{}, true, err
+			}
+		}
+	}
+	code, err := pclient.GeneratePairingKey(ctx, pp.Href)
+	if err != nil {
+		return ctrl.Result{}, true, err
+	}
+	// Publish cluster_code into the output Secret. Pass an empty token so
+	// writeCredentialsSecret preserves the token written in the early persist step.
+	if err := r.writeCredentialsSecret(ctx, cp, cfg.PCEURL, "", code); err != nil {
+		return ctrl.Result{}, true, err
+	}
+	return ctrl.Result{}, false, nil
 }
 
 // resolveConnection finds the PCEConnection, checks its Connected condition,

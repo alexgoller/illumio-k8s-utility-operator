@@ -43,6 +43,24 @@ helm install illumio-operator oci://ghcr.io/alexgoller/charts/illumio-k8s-utilit
 
 The operator will create the PCE Container Cluster, generate a node Pairing Profile and pairing key, and write the credentials to a Secret named `illumio-cluster-creds` in the `illumio-operator` namespace. See the [Onboarding guide](guides/onboarding.md) for details on reading status and consuming those credentials.
 
+#### Cluster already onboarded? Use `adopt` mode
+
+If the C-VEN is **already paired** (e.g. installed by the Illumio helm chart), don't re-onboard — **adopt** the existing Container Cluster by name. The operator manages it (labels, policy, preflight) without creating a cluster, pairing profile, key, or credentials Secret:
+
+```bash
+helm install illumio-operator oci://ghcr.io/alexgoller/charts/illumio-k8s-utility-operator --version 0.1.23 \
+  --namespace illumio-operator --create-namespace \
+  --set pce.url=mypce.example.com:8443 \
+  --set pce.orgId=3 \
+  --set pce.apiKey=api_1234567890abcdef \
+  --set pce.apiSecret=your-api-secret \
+  --set onboarding.enabled=true \
+  --set onboarding.mode=adopt \
+  --set onboarding.containerClusterName=ocp-prod-01   # the EXISTING cluster's name
+```
+
+See [Adopting an already-onboarded cluster](guides/onboarding.md#adopting-an-already-onboarded-cluster-walkthrough).
+
 ### Using an existing Secret for PCE credentials
 
 If your credentials are already managed by an external secret manager (e.g., Vault, External Secrets Operator), point the chart at the existing Secret instead of supplying raw values:
@@ -80,8 +98,9 @@ helm install illumio-operator \
 | `pce.existingSecret` | `""` | Name of a pre-existing Secret with `api_key`/`api_secret`. |
 | `pce.connectionName` | `default` | Name of the `PCEConnection` resource to create. |
 | `onboarding.enabled` | `false` | When `true`, creates a `ClusterProfile` for this cluster. |
+| `onboarding.mode` | `create` | `create` onboards a not-yet-paired cluster; `adopt` manages an already-onboarded one (skips pairing/credentials). |
 | `onboarding.name` | `this-cluster` | `metadata.name` of the rendered `ClusterProfile`. Because `ClusterProfile` is cluster-scoped, each cluster must use a unique name to avoid resource collisions. |
-| `onboarding.containerClusterName` | `""` | Required when `onboarding.enabled=true`. |
+| `onboarding.containerClusterName` | `""` | Required when `onboarding.enabled=true`. In `adopt` mode, the name of the existing PCE Container Cluster to manage. |
 | `onboarding.credentialsOutputSecret` | `illumio-cluster-creds` | Name of the Secret the operator writes credentials into. |
 | `onboarding.nodePairingProfile.existingName` | `""` | Reuse this existing PCE Pairing Profile by name. |
 | `onboarding.nodePairingProfile.labels` | `{}` | Illumio label key/value pairs for the created Pairing Profile. |

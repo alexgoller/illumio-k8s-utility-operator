@@ -15,7 +15,7 @@
 The Illumio K8s Utility Operator connects a Kubernetes or OpenShift cluster to an Illumio **PCE** and lets platform and application teams drive Illumio from the cluster instead of clicking through the PCE console:
 
 - **🔌 Connect** — register one or more PCEs with a single `PCEConnection` resource and store credentials in a Kubernetes Secret (or reuse one from Vault / External Secrets).
-- **🚀 Onboard** — create the PCE **Container Cluster**, node **Pairing Profile**, and pairing key automatically from a `ClusterProfile`.
+- **🚀 Onboard or adopt** — create the PCE **Container Cluster**, node **Pairing Profile**, and pairing key from a `ClusterProfile` — or **adopt** a cluster that's already paired (e.g. by the Illumio helm chart) with `onboarding.mode: adopt`.
 - **🏷️ Label** — apply Illumio labels to namespaces and workloads (Container Workload Profiles) from declarative namespace rules, with safe handling for system namespaces.
 - **🛡️ Segment** — author micro-segmentation policy as `SegmentationIntent` (allow-list style) or `SegmentationPolicy` (Kubernetes `NetworkPolicy` style). Both compile to the **same Illumio ruleset backend**.
 - **🚦 Enforce & provision** — control enforcement (`idle` → `visibility_only` → `full`) per namespace and provision rulesets automatically or behind a manual approval gate.
@@ -345,7 +345,7 @@ kubectl get segintent payments-ingress -n payments -o jsonpath='{.status.deferre
 The operator is in active development (`v0.1.x`, API group `microsegment.io/v1alpha1`). Shipped and live-verified against a real PCE today:
 
 - ✅ PCE connection and credential management
-- ✅ Cluster onboarding (Container Cluster + Pairing Profile + key)
+- ✅ Cluster onboarding (Container Cluster + Pairing Profile + key) **or adopt** an already-onboarded cluster
 - ✅ Namespace / Container Workload Profile labeling, incl. helm-tunable system namespaces
 - ✅ `SegmentationIntent` and `SegmentationPolicy` → Illumio rulesets (intra-/extra-scope)
 - ✅ Per-namespace enforcement and auto/manual/draft provisioning

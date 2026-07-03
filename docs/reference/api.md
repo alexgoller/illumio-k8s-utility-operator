@@ -333,8 +333,9 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `containerClusterName` _string_ | ContainerClusterName is the name of the PCE Container Cluster object to<br />ensure exists for this cluster. |  |  |
-| `credentialsOutputSecret` _string_ | CredentialsOutputSecret is the name of the Secret (in the operator's<br />namespace) the operator writes the agent credentials into:<br />pce_url, cluster_id, cluster_token, cluster_code. |  |  |
+| `mode` _string_ | Mode selects the onboarding path: "create" (default) onboards a not-yet-paired<br />cluster (creates the Container Cluster, node Pairing Profile, pairing key, and<br />credentials Secret); "adopt" manages a cluster that is ALREADY onboarded<br />(e.g. paired by the Illumio helm chart) by finding the existing Container<br />Cluster by name and recording its href — no pairing, no credentials Secret. | create | Enum: [create adopt] <br />Optional: \{\} <br /> |
+| `containerClusterName` _string_ | ContainerClusterName is the name of the PCE Container Cluster object to<br />ensure exists (create mode) or to find and adopt (adopt mode). |  |  |
+| `credentialsOutputSecret` _string_ | CredentialsOutputSecret is the name of the Secret (in the operator's<br />namespace) the operator writes the agent credentials into:<br />pce_url, cluster_id, cluster_token, cluster_code. Required in create mode;<br />ignored in adopt mode (the cluster is already paired). |  | Optional: \{\} <br /> |
 | `nodePairingProfile` _[NodePairingProfileSpec](#nodepairingprofilespec)_ | NodePairingProfile configures the pairing profile the C-VEN uses to pair<br />the cluster's nodes. |  | Optional: \{\} <br /> |
 
 
