@@ -1,13 +1,37 @@
 # Cluster Onboarding
 
-A `ClusterProfile` tells the operator to register this Kubernetes cluster with the Illumio PCE as a **Container Cluster**, set up a **node Pairing Profile**, generate a pairing key, and publish all the resulting credentials to a Kubernetes Secret.
+A `ClusterProfile` connects this Kubernetes cluster to the Illumio PCE as a **Container Cluster**. There are **two paths**, chosen with `onboarding.mode`:
 
-## What the operator does
+## Two onboarding paths
 
-When you create a `ClusterProfile`:
+| Path | `onboarding.mode` | Use when | What the operator does |
+|------|------------------|----------|------------------------|
+| **Create** (default) | `create` | The cluster is **not yet onboarded**. | Creates the Container Cluster, a node Pairing Profile, generates the pairing key, and writes the credentials Secret. |
+| **Adopt** | `adopt` | The cluster is **already onboarded** — e.g. the C-VEN was paired by the Illumio helm chart or another process. | Finds the existing Container Cluster **by name**, records its href, and marks `Onboarded=True`. **No pairing, no pairing key, no credentials Secret** — the cluster is already paired. |
+
+In **both** paths, once `Onboarded=True` everything downstream — namespace/CWP labeling, `SegmentationIntent`/`SegmentationPolicy`, and `PolicyInsight` preflight — works the same. Adopt simply skips the pairing steps that don't apply to an already-paired cluster.
+
+```yaml
+# Path 2 — adopt an already-onboarded cluster
+apiVersion: microsegment.io/v1alpha1
+kind: ClusterProfile
+metadata: { name: this-cluster }
+spec:
+  pceConnectionRef: { name: prod-pce }
+  onboarding:
+    mode: adopt
+    containerClusterName: ocp-prod-01   # the name of the EXISTING PCE Container Cluster
+    # credentialsOutputSecret + nodePairingProfile are not needed in adopt mode
+```
+
+Via Helm: `--set onboarding.enabled=true --set onboarding.mode=adopt --set onboarding.containerClusterName=<existing-cluster>`.
+
+## What the operator does (create mode)
+
+When you create a `ClusterProfile` in the default `create` mode:
 
 1. Reads the referenced `PCEConnection` and waits for it to be `Connected`.
-2. Calls the PCE API to create a **Container Cluster** with the specified name. If a cluster with that name already exists and the operator has not yet recorded its href, onboarding fails (see [Pre-existing cluster caveat](#pre-existing-cluster-caveat)).
+2. Calls the PCE API to create a **Container Cluster** with the specified name. If a cluster with that name already exists and the operator has not yet recorded its href, onboarding fails — use `adopt` mode instead (see [Pre-existing cluster in create mode](#pre-existing-cluster-in-create-mode)).
 3. Ensures a **node Pairing Profile** exists — either creating one with the supplied labels and enforcement mode, or reusing an existing profile by name.
 4. Calls the PCE to **generate a pairing key** for that profile.
 5. Writes the credentials to a Kubernetes Secret in the operator's namespace (key: `credentialsOutputSecret`).
@@ -164,14 +188,11 @@ helm install illumio-cven <cven-chart> \
   --set pce.activationCode="$CLUSTER_CODE"
 ```
 
-## Pre-existing cluster caveat
+## Pre-existing cluster in `create` mode
 
-If a Container Cluster with the requested name already exists on the PCE **and this `ClusterProfile` has not yet recorded its href**, the operator sets `Onboarded=False` with reason `OnboardFailed` and stops reconciling. It does **not** reuse the existing cluster, because the one-time pairing token cannot be recovered after the cluster was originally created.
+In **`create`** mode, if a Container Cluster with the requested name already exists on the PCE **and this `ClusterProfile` has not yet recorded its href**, the operator sets `Onboarded=False` with reason `OnboardFailed` and stops — it will not create a duplicate, and the original's one-time pairing token cannot be recovered.
 
-To recover, you have two options:
-
-- **Delete the Container Cluster** from the PCE. On the next reconcile the operator will create a new one, obtain a fresh pairing token, and complete onboarding.
-- **Supply credentials manually**: create the output Secret yourself with valid `pce_url`, `cluster_id`, `cluster_token`, and `cluster_code` values. You must also patch the `ClusterProfile` status to set `containerClusterHref` so the operator skips the create branch on subsequent reconciles.
+The intended fix is **`onboarding.mode: adopt`** (see [Two onboarding paths](#two-onboarding-paths)): it manages the existing cluster in place without needing the token. Alternatively, delete the Container Cluster from the PCE and let `create` mode make a fresh one.
 
 ## Output Secret ownership
 

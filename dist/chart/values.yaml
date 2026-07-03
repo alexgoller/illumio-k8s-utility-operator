@@ -185,6 +185,11 @@ pce:
 # --- Optional cluster onboarding ---
 onboarding:
   enabled: false
+  # mode: "create" onboards a not-yet-paired cluster (creates the Container Cluster,
+  # pairing profile, key, and credentials Secret). "adopt" manages a cluster that is
+  # ALREADY onboarded (e.g. paired by the Illumio helm chart) — the operator finds the
+  # existing Container Cluster by containerClusterName and skips pairing/credentials.
+  mode: create
   name: this-cluster
   containerClusterName: ""
   credentialsOutputSecret: illumio-cluster-creds

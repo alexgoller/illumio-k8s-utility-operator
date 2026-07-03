@@ -7,8 +7,11 @@ spec:
   pceConnectionRef:
     name: {{ .Values.pce.connectionName | default "default" }}
   onboarding:
+    mode: {{ .Values.onboarding.mode | default "create" | quote }}
     containerClusterName: {{ required "onboarding.containerClusterName is required when onboarding.enabled" .Values.onboarding.containerClusterName | quote }}
+    {{- if ne (.Values.onboarding.mode | default "create") "adopt" }}
     credentialsOutputSecret: {{ .Values.onboarding.credentialsOutputSecret | default "illumio-cluster-creds" | quote }}
+    {{- end }}
     nodePairingProfile:
       {{- with .Values.onboarding.nodePairingProfile.existingName }}
       existingName: {{ . | quote }}

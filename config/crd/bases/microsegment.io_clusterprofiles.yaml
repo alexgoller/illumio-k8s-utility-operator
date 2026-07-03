@@ -118,13 +118,26 @@ spec:
                   containerClusterName:
                     description: |-
                       ContainerClusterName is the name of the PCE Container Cluster object to
-                      ensure exists for this cluster.
+                      ensure exists (create mode) or to find and adopt (adopt mode).
                     type: string
                   credentialsOutputSecret:
                     description: |-
                       CredentialsOutputSecret is the name of the Secret (in the operator's
                       namespace) the operator writes the agent credentials into:
-                      pce_url, cluster_id, cluster_token, cluster_code.
+                      pce_url, cluster_id, cluster_token, cluster_code. Required in create mode;
+                      ignored in adopt mode (the cluster is already paired).
+                    type: string
+                  mode:
+                    default: create
+                    description: |-
+                      Mode selects the onboarding path: "create" (default) onboards a not-yet-paired
+                      cluster (creates the Container Cluster, node Pairing Profile, pairing key, and
+                      credentials Secret); "adopt" manages a cluster that is ALREADY onboarded
+                      (e.g. paired by the Illumio helm chart) by finding the existing Container
+                      Cluster by name and recording its href — no pairing, no credentials Secret.
+                    enum:
+                    - create
+                    - adopt
                     type: string
                   nodePairingProfile:
                     description: |-
@@ -157,7 +170,6 @@ spec:
                     type: object
                 required:
                 - containerClusterName
-                - credentialsOutputSecret
                 type: object
               pceConnectionRef:
                 description: PCEConnectionRef references the PCEConnection to use.

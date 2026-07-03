@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -174,7 +175,12 @@ var (
 // fakeOnboardingClient returns deterministic onboarding results for envtest.
 type fakeOnboardingClient struct{}
 
-func (fakeOnboardingClient) FindContainerClusterByName(context.Context, string) (*pce.ContainerCluster, error) {
+func (fakeOnboardingClient) FindContainerClusterByName(_ context.Context, name string) (*pce.ContainerCluster, error) {
+	// A name with the "existing-" prefix simulates a cluster already onboarded in
+	// the PCE (drives the adopt path and the create-mode conflict path).
+	if strings.HasPrefix(name, "existing-") {
+		return &pce.ContainerCluster{Href: "/orgs/1/container_clusters/adopted-uuid", Name: name}, nil
+	}
 	return nil, nil // not found → controller creates
 }
 func (fakeOnboardingClient) CreateContainerCluster(_ context.Context, name, _ string) (*pce.ContainerCluster, error) {

@@ -9,8 +9,9 @@ Short name: `cprof`. Category: `illumio`.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `pceConnectionRef.name` | string | yes | Name of the `PCEConnection` to use for PCE API calls. |
-| `onboarding.containerClusterName` | string | yes | Name of the PCE Container Cluster object to create or reuse. |
-| `onboarding.credentialsOutputSecret` | string | yes | Name of the Secret (in the operator's namespace) where the operator writes `pce_url`, `cluster_id`, `cluster_token`, and `cluster_code`. |
+| `onboarding.mode` | string | no | Onboarding path: `create` (default) onboards a not-yet-paired cluster; `adopt` manages a cluster that is **already onboarded** (e.g. paired by the Illumio helm chart) by finding the existing Container Cluster by name — no pairing, no credentials Secret. See [Onboarding](../guides/onboarding.md). |
+| `onboarding.containerClusterName` | string | yes | Name of the PCE Container Cluster object to create (`create`) or find and adopt (`adopt`). |
+| `onboarding.credentialsOutputSecret` | string | create only | Name of the Secret (in the operator's namespace) where the operator writes `pce_url`, `cluster_id`, `cluster_token`, and `cluster_code`. Required in `create` mode; ignored in `adopt` mode. |
 | `onboarding.nodePairingProfile.existingName` | string | no | Name of an existing PCE Pairing Profile to reuse. When set, `labels` and `enforcementMode` are ignored. |
 | `onboarding.nodePairingProfile.labels` | map[string]string | no | Illumio label key/value pairs to assign to nodes paired with this profile. The operator resolves each to a label href (creating the label on the PCE if necessary). |
 | `onboarding.nodePairingProfile.enforcementMode` | string | no | Enforcement mode for a newly created Pairing Profile. One of `idle`, `visibility_only`, `full`. Defaults to `idle`. |

@@ -86,13 +86,24 @@ type SystemNamespacesSpec struct {
 
 // OnboardingSpec configures how the cluster is onboarded to the PCE.
 type OnboardingSpec struct {
+	// Mode selects the onboarding path: "create" (default) onboards a not-yet-paired
+	// cluster (creates the Container Cluster, node Pairing Profile, pairing key, and
+	// credentials Secret); "adopt" manages a cluster that is ALREADY onboarded
+	// (e.g. paired by the Illumio helm chart) by finding the existing Container
+	// Cluster by name and recording its href — no pairing, no credentials Secret.
+	// +kubebuilder:validation:Enum=create;adopt
+	// +kubebuilder:default=create
+	// +optional
+	Mode string `json:"mode,omitempty"`
 	// ContainerClusterName is the name of the PCE Container Cluster object to
-	// ensure exists for this cluster.
+	// ensure exists (create mode) or to find and adopt (adopt mode).
 	ContainerClusterName string `json:"containerClusterName"`
 	// CredentialsOutputSecret is the name of the Secret (in the operator's
 	// namespace) the operator writes the agent credentials into:
-	// pce_url, cluster_id, cluster_token, cluster_code.
-	CredentialsOutputSecret string `json:"credentialsOutputSecret"`
+	// pce_url, cluster_id, cluster_token, cluster_code. Required in create mode;
+	// ignored in adopt mode (the cluster is already paired).
+	// +optional
+	CredentialsOutputSecret string `json:"credentialsOutputSecret,omitempty"`
 	// NodePairingProfile configures the pairing profile the C-VEN uses to pair
 	// the cluster's nodes.
 	// +optional
