@@ -43,6 +43,7 @@ rules:
   - clusterprofiles
   - pceconnections
   - policyinsights
+  - ruleviews
   - segmentationintents
   - segmentationpolicies
   verbs:
@@ -59,6 +60,7 @@ rules:
   - clusterprofiles/status
   - pceconnections/status
   - policyinsights/status
+  - ruleviews/status
   - segmentationintents/status
   - segmentationpolicies/status
   verbs:

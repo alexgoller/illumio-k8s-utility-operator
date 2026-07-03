@@ -329,7 +329,7 @@ kubectl get segintent payments-ingress -n payments -o jsonpath='{.status.deferre
 
 | Reference | |
 |---|---|
-| [PCEConnection](docs/reference/pceconnection.md) · [ClusterProfile](docs/reference/clusterprofile.md) · [SegmentationIntent](docs/reference/segmentationintent.md) · [SegmentationPolicy](docs/reference/segmentationpolicy.md) · [PolicyInsight](docs/reference/policyinsight.md) | Full field and status documentation. |
+| [PCEConnection](docs/reference/pceconnection.md) · [ClusterProfile](docs/reference/clusterprofile.md) · [SegmentationIntent](docs/reference/segmentationintent.md) · [SegmentationPolicy](docs/reference/segmentationpolicy.md) · [PolicyInsight](docs/reference/policyinsight.md) · [RuleView](docs/reference/ruleview.md) | Full field and status documentation. |
 
 ## Compatibility
 
@@ -352,6 +352,7 @@ The operator is in active development (`v0.1.x`, API group `microsegment.io/v1al
 - ✅ Configurable unknown-label handling (`strict` / `skip` / `create`)
 - ✅ LabelMap overlap detection (warns when Illumio's LabelMap labels the same dimension)
 - ✅ On-request policy preflight (`PolicyInsight`) — what-if from observed PCE flows + draft decisions
+- ✅ Live rule view (`RuleView`) — the current Illumio rules protecting your app in `kubectl`, incl. rules authored outside k8s
 
 On the roadmap:
 

@@ -226,6 +226,14 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "PolicyInsight")
 		os.Exit(1)
 	}
+	if err := (&controller.RuleViewReconciler{
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		NewRuleViewClient: controller.DefaultRuleViewClientFactory,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "RuleView")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

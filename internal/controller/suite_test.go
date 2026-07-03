@@ -141,6 +141,13 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	err = (&RuleViewReconciler{
+		Client:            k8sManager.GetClient(),
+		Scheme:            k8sManager.GetScheme(),
+		NewRuleViewClient: func(pce.Config) RuleViewClient { return fakeRuleViewClient{} },
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
 	go func() {
 		defer GinkgoRecover()
 		err = k8sManager.Start(ctx)
@@ -303,6 +310,25 @@ func (fakeInsightClient) QueryTraffic(_ context.Context, q pce.TrafficQuery) ([]
 		{DstLabels: map[string]string{testLabelKeyApp: "dns"}, Port: 53, Protocol: 17,
 			DraftPolicyDecision: pce.DecisionAllowed, Connections: 8},
 	}, false, nil
+}
+
+// fakeRuleViewClient is a test double for RuleViewClient: returns one operator-owned
+// rule and one external rule for the RuleView controller tests.
+type fakeRuleViewClient struct{}
+
+func (fakeRuleViewClient) FindLabel(_ context.Context, key, value string) (*pce.Label, error) {
+	if value == labelValDoesNotExist {
+		return nil, pce.ErrLabelNotFound
+	}
+	return &pce.Label{Href: "/orgs/1/labels/" + key + "-" + value, Key: key, Value: value}, nil
+}
+func (fakeRuleViewClient) SearchRules(_ context.Context, _ pce.RuleSearchQuery) ([]pce.FoundRule, error) {
+	return []pce.FoundRule{
+		{Href: "/r/owned", RulesetName: testRulesetName, RulesetExternalDataSet: testEDS,
+			Enabled: true, Type: pce.RuleTypeAllow, Services: []pce.IngressService{{Port: 8443, Proto: 6}}},
+		{Href: "/r/ext", RulesetName: "admin-baseline", RulesetExternalDataSet: "someone-else",
+			Enabled: true, Type: pce.RuleTypeAllow, Consumers: []pce.Actor{pce.AllWorkloadsActor()}},
+	}, nil
 }
 
 // deleteRuleSetMu guards recorded delete/create calls for race-safe assertions.

@@ -54,4 +54,5 @@ nav:
       - SegmentationIntent: reference/segmentationintent.md
       - SegmentationPolicy: reference/segmentationpolicy.md
       - PolicyInsight: reference/policyinsight.md
+      - RuleView: reference/ruleview.md
       - Generated API: reference/api.md
