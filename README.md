@@ -325,6 +325,7 @@ kubectl get segintent payments-ingress -n payments -o jsonpath='{.status.deferre
 | [Segmentation policy](docs/guides/segmentation-policy.md) | `SegmentationIntent` compilation and provisioning modes. |
 | [NetworkPolicy-style](docs/guides/networkpolicy-style.md) | `SegmentationPolicy` selector mapping in depth. |
 | [Policy preflight](docs/guides/preflight.md) | `PolicyInsight` — what-if preflight from observed PCE flows before you enforce. |
+| [Security & credentials](docs/guides/security.md) | Protecting PCE API keys (one key per cluster), RBAC, TLS, etcd, supply chain. |
 | [LabelMap & the operator](docs/guides/labelmap-and-the-operator.md) | Coexisting with Illumio's per-workload LabelMap. |
 
 | Reference | |

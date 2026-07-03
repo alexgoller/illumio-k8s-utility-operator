@@ -74,7 +74,7 @@ helm install illumio-operator oci://ghcr.io/alexgoller/charts/illumio-k8s-utilit
   --set pce.existingSecret=my-pce-credentials
 ```
 
-The Secret must exist in the release namespace and contain the keys `api_key` and `api_secret`.
+The Secret must exist in the release namespace and contain the keys `api_key` and `api_secret`. This is the recommended way to supply the key — see the [Security & credentials guide](guides/security.md) for one-key-per-cluster, rotation, and RBAC hardening.
 
 ### Using a values file
 
