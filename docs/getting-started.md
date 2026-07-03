@@ -81,6 +81,12 @@ kubectl apply -f clusterprofile.yaml
 kubectl get cprof   # watch ONBOARDED become True
 ```
 
+!!! tip "Already onboarded? Adopt instead"
+    If the C-VEN is **already paired** (e.g. installed by the Illumio helm chart), set
+    `onboarding.mode: adopt` and point `containerClusterName` at the existing PCE Container Cluster.
+    The operator manages it in place — no re-pairing, no credentials Secret. See
+    [Adopting an already-onboarded cluster](guides/onboarding.md#adopting-an-already-onboarded-cluster-walkthrough).
+
 Once `ONBOARDED` is `True`, the operator has written a Secret named `illumio-cluster-creds` in the `illumio-operator` namespace containing `pce_url`, `cluster_id`, `cluster_token`, and `cluster_code` — the values the Illumio C-VEN agent needs to pair.
 
 !!! tip "Getting the onboarding credentials out"

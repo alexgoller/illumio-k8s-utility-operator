@@ -26,6 +26,27 @@ spec:
 
 Via Helm: `--set onboarding.enabled=true --set onboarding.mode=adopt --set onboarding.containerClusterName=<existing-cluster>`.
 
+### Adopting an already-onboarded cluster (walkthrough)
+
+The common case: the C-VEN was installed and paired by the **Illumio helm chart** (or a prior manual pairing), so a Container Cluster already exists in the PCE. You want this operator to *manage* that cluster (labels, policy, preflight) without re-pairing it.
+
+1. **Find the existing Container Cluster's name** in the PCE (Infrastructure → Container Clusters), e.g. `ocp-prod-01`.
+2. **Create the `PCEConnection`** (or install the chart with PCE creds) as usual — adoption still needs API access to the PCE.
+3. **Create the `ClusterProfile` in `adopt` mode** with `containerClusterName` set to that exact name (above). No `credentialsOutputSecret`, no `nodePairingProfile` — those are for pairing, which already happened.
+4. **Verify:**
+   ```bash
+   kubectl get clusterprofile this-cluster
+   # NAME           CLUSTER       CLUSTERID   ONBOARDED   MANAGED-NS
+   # this-cluster   ocp-prod-01   a1b2c3d4…   True        47
+   kubectl get clusterprofile this-cluster -o jsonpath='{.status.conditions[?(@.type=="Onboarded")].message}{"\n"}'
+   # existing container cluster adopted
+   ```
+   `ONBOARDED=True` with the message **"existing container cluster adopted"** confirms the operator matched and recorded the existing cluster (its href/UUID appear in `status.containerClusterHref`/`containerClusterID`). From here, `namespaceRules`, `SegmentationIntent`/`Policy`, and `PolicyInsight` all work exactly as in create mode.
+
+**What adopt does *not* do:** it never creates a Container Cluster or Pairing Profile, never generates a pairing key, and never writes a credentials Secret. It leaves the existing pairing untouched.
+
+**Troubleshooting adopt:** if `Onboarded=False` with reason `OnboardFailed` and a message like *"container cluster … was not found"*, the `containerClusterName` doesn't match an existing cluster in the PCE. Fix the name (it is case- and exact-match by name) and the operator retries. The controller re-checks on its healthy cadence, so a cluster that appears later is picked up automatically.
+
 ## What the operator does (create mode)
 
 When you create a `ClusterProfile` in the default `create` mode:
