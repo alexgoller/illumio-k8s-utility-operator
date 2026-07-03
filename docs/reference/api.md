@@ -15,6 +15,8 @@ Package v1alpha1 contains API Schema definitions for the microsegment v1alpha1 A
 - [PCEConnectionList](#pceconnectionlist)
 - [PolicyInsight](#policyinsight)
 - [PolicyInsightList](#policyinsightlist)
+- [RuleView](#ruleview)
+- [RuleViewList](#ruleviewlist)
 - [SegmentationIntent](#segmentationintent)
 - [SegmentationIntentList](#segmentationintentlist)
 - [SegmentationPolicy](#segmentationpolicy)
@@ -475,6 +477,88 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `inbound` _[DecisionCounts](#decisioncounts)_ |  |  | Optional: \{\} <br /> |
 | `outbound` _[DecisionCounts](#decisioncounts)_ |  |  | Optional: \{\} <br /> |
+
+
+#### RuleSummary
+
+
+
+RuleSummary is one Illumio rule that protects this namespace's app.
+
+
+
+_Appears in:_
+- [RuleViewStatus](#ruleviewstatus)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `href` _string_ | Href is the PCE rule href. |  |  |
+| `rulesetName` _string_ | RulesetName is the ruleset the rule belongs to. |  | Optional: \{\} <br /> |
+| `ownedBy` _string_ | OwnedBy is "operator" when this operator authored the rule's ruleset, or<br />"external" when it was authored outside Kubernetes (e.g. the Illumio UI). |  |  |
+| `type` _string_ | Type is allow, deny, or override_deny. |  | Optional: \{\} <br /> |
+| `enabled` _boolean_ | Enabled reports whether the rule is enabled. |  | Optional: \{\} <br /> |
+| `consumers` _string array_ | Consumers are the rule's sources, rendered as label-set strings<br />(e.g. "app=checkout;env=prod"), "ams" (All Workloads), or "ip_list:<name>". |  | Optional: \{\} <br /> |
+| `services` _string array_ | Services are the allowed services, rendered as "<port>/<proto>" or "All Services". |  | Optional: \{\} <br /> |
+
+
+#### RuleView
+
+
+
+RuleView is a read-only, periodically-synced mirror of the current Illumio
+rules that protect this namespace's app (where the app is the provider),
+including rules authored outside Kubernetes.
+
+
+
+_Appears in:_
+- [RuleViewList](#ruleviewlist)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `microsegment.io/v1alpha1` | | |
+| `kind` _string_ | `RuleView` | | |
+| `metadata` _[ObjectMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#objectmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `spec` _[RuleViewSpec](#ruleviewspec)_ |  |  |  |
+
+
+#### RuleViewList
+
+
+
+RuleViewList contains a list of RuleView.
+
+
+
+
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `apiVersion` _string_ | `microsegment.io/v1alpha1` | | |
+| `kind` _string_ | `RuleViewList` | | |
+| `metadata` _[ListMeta](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#listmeta-v1-meta)_ | Refer to Kubernetes API documentation for fields of `metadata`. |  |  |
+| `items` _[RuleView](#ruleview) array_ |  |  |  |
+
+
+#### RuleViewSpec
+
+
+
+RuleViewSpec configures how the operator mirrors the current Illumio rules that
+protect this namespace's app (where the app is the provider). Read-only: the
+operator never authors or edits rules from a RuleView.
+
+
+
+_Appears in:_
+- [RuleView](#ruleview)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `refreshIntervalMinutes` _integer_ | RefreshIntervalMinutes is the periodic sync cadence. The operator re-queries<br />the PCE Rule Search API every interval (and immediately on a<br />microsegment.io/refresh annotation change). Defaults to 5. | 5 | Maximum: 1440 <br />Minimum: 1 <br />Optional: \{\} <br /> |
+| `policyVersion` _string_ | PolicyVersion selects which policy store to mirror: active (enforced) or draft. | active | Enum: [active draft] <br />Optional: \{\} <br /> |
+
+
 
 
 #### SecretReference
