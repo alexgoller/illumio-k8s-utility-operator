@@ -19,6 +19,12 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("pce api error: status %d: %s", e.StatusCode, e.Body)
 }
 
+// IsNotFound reports whether err is a PCE 404 (object already gone).
+func IsNotFound(err error) bool {
+	var apiErr *APIError
+	return errors.As(err, &apiErr) && apiErr.StatusCode == 404
+}
+
 // RateLimitError is a 429 from the PCE (limit is 500 req/min per key).
 type RateLimitError struct {
 	RetryAfter time.Duration

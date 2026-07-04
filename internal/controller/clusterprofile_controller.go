@@ -150,7 +150,7 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Reconcile per-namespace CWPs now that the cluster is onboarded. A single
 	// namespace's PCE failure must not freeze the whole status, so persist what we
 	// managed regardless and only advance observedGeneration on a clean pass.
-	managed, cwpErr := r.reconcileNamespaceCWPs(ctx, &cp, pclient, owner)
+	managed, pending, cwpErr := r.reconcileNamespaceCWPs(ctx, &cp, pclient, owner)
 	cp.Status.ManagedNamespaces = managed
 	onboardMsg := "cluster onboarded; credentials published"
 	if mode == onboardModeAdopt {
@@ -174,9 +174,13 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, cwpErr
 	}
 
+	nsMsg := fmt.Sprintf("%d namespace(s) managed", managed)
+	if pending > 0 {
+		nsMsg += fmt.Sprintf("; %d awaiting CWP creation by Kubelink", pending)
+	}
 	meta.SetStatusCondition(&cp.Status.Conditions, metav1.Condition{
 		Type: microv1.ConditionNamespacesReconciled, Status: metav1.ConditionTrue,
-		Reason: microv1.ReasonReconciled, Message: fmt.Sprintf("%d namespace(s) managed", managed),
+		Reason: microv1.ReasonReconciled, Message: nsMsg,
 	})
 	// Warn (warn-only) if an Illumio LabelMap writes label keys we also assign.
 	r.checkLabelMapOverlap(ctx, &cp)
@@ -184,7 +188,13 @@ func (r *ClusterProfileReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if err := r.Status().Update(ctx, &cp); err != nil {
 		return ctrl.Result{}, err
 	}
-	return ctrl.Result{RequeueAfter: onboardRequeueHealthy}, nil
+	// Re-check sooner while namespaces await their Kubelink-created CWP, since a new
+	// CWP appearing in the PCE does not raise a Kubernetes event.
+	requeue := onboardRequeueHealthy
+	if pending > 0 {
+		requeue = onboardRequeueNotReady
+	}
+	return ctrl.Result{RequeueAfter: requeue}, nil
 }
 
 // ensurePairing runs the create-only path: ensure the node pairing profile, generate
@@ -370,17 +380,21 @@ func (r *ClusterProfileReconciler) clusterProfilesForNamespace(ctx context.Conte
 // the aggregated per-namespace errors (nil = every namespace applied cleanly). A
 // single namespace's PCE failure does not abort the loop: the remaining
 // namespaces are still reconciled so one bad namespace cannot freeze the rest.
-func (r *ClusterProfileReconciler) reconcileNamespaceCWPs(ctx context.Context, cp *microv1.ClusterProfile, pclient OnboardingClient, owner pce.Owner) (int, error) {
+// reconcileNamespaceCWPs updates the CWP for each namespace. It returns the count
+// of namespaces actually managed (CWP present and in the desired state), the count
+// of managed-intent namespaces still awaiting a Kubelink-created CWP (pending), and
+// any per-namespace errors.
+func (r *ClusterProfileReconciler) reconcileNamespaceCWPs(ctx context.Context, cp *microv1.ClusterProfile, pclient OnboardingClient, owner pce.Owner) (managed, pending int, err error) {
 	if cp.Status.ContainerClusterID == "" {
-		return 0, nil
+		return 0, 0, nil
 	}
 	var nsList corev1.NamespaceList
 	if err := r.List(ctx, &nsList); err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	cwps, err := pclient.ListContainerWorkloadProfiles(ctx, cp.Status.ContainerClusterID)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	byNS := make(map[string]pce.ContainerWorkloadProfile, len(cwps))
 	for _, c := range cwps {
@@ -390,21 +404,26 @@ func (r *ClusterProfileReconciler) reconcileNamespaceCWPs(ctx context.Context, c
 	}
 
 	labelHref := map[string]string{} // "key|value" -> href cache
-	managed := 0
 	var errs []error
 	for i := range nsList.Items {
 		nsObj := &nsList.Items[i]
 		desired := ComputeDesiredCWP(nsObj.Name, nsObj.Labels, nsObj.Annotations, cp.Spec.NamespaceRules, cp.Spec.SystemNamespaces)
 		if desired.Managed {
-			managed++
 			// Raise enforcement to the strictest requested by any policy CR in this namespace.
 			if raised, _, eerr := EffectiveEnforcement(ctx, r.Client, nsObj.Name, desired.EnforcementMode); eerr == nil {
 				desired.EnforcementMode = raised
+			} else {
+				// Surface the error rather than silently under-enforcing.
+				errs = append(errs, fmt.Errorf("namespace %s: effective enforcement: %w", nsObj.Name, eerr))
 			}
 		}
 		cwp, ok := byNS[nsObj.Name]
 		if !ok {
-			// Kubelink has not created this namespace's CWP yet; reconcile later.
+			// Kubelink has not created this namespace's CWP yet; retried on the next
+			// reconcile. Reported as pending (not counted as managed).
+			if desired.Managed {
+				pending++
+			}
 			continue
 		}
 		update, changed, lerr := r.buildCWPUpdate(ctx, pclient, owner, cwp, desired, labelHref)
@@ -412,19 +431,22 @@ func (r *ClusterProfileReconciler) reconcileNamespaceCWPs(ctx context.Context, c
 			errs = append(errs, fmt.Errorf("namespace %s: %w", nsObj.Name, lerr))
 			continue
 		}
-		if !changed {
-			continue
+		if changed {
+			if err := pclient.UpdateContainerWorkloadProfile(ctx, cwp.Href, update); err != nil {
+				errs = append(errs, fmt.Errorf("namespace %s: %w", nsObj.Name, err))
+				continue
+			}
+			if r.Recorder != nil {
+				r.Recorder.Eventf(nsObj, nil, corev1.EventTypeNormal, "CWPConfigured", "Configure",
+					"managed=%v enforcement=%s", desired.Managed, desired.EnforcementMode)
+			}
 		}
-		if err := pclient.UpdateContainerWorkloadProfile(ctx, cwp.Href, update); err != nil {
-			errs = append(errs, fmt.Errorf("namespace %s: %w", nsObj.Name, err))
-			continue
-		}
-		if r.Recorder != nil {
-			r.Recorder.Eventf(nsObj, nil, corev1.EventTypeNormal, "CWPConfigured", "Configure",
-				"managed=%v enforcement=%s", desired.Managed, desired.EnforcementMode)
+		// Count only namespaces whose CWP exists and is confirmed in the desired state.
+		if desired.Managed {
+			managed++
 		}
 	}
-	return managed, errors.Join(errs...)
+	return managed, pending, errors.Join(errs...)
 }
 
 // buildCWPUpdate resolves desired labels to Illumio hrefs and diffs against the

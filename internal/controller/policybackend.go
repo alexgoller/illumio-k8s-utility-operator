@@ -284,11 +284,20 @@ func FinalizePolicy(
 	if err != nil || rs == nil {
 		return err
 	}
-	if err := pclient.DeleteRuleSet(ctx, rs.Href); err != nil {
-		return err
+	// Idempotent: if the ruleset is not already marked for deletion, mark it. A
+	// re-entrant finalizer (e.g. a prior provision failure) must not re-delete an
+	// already pending-deletion ruleset — the PCE rejects that, which would wedge
+	// the finalizer and leave the CR undeletable.
+	if rs.UpdateType != pce.RuleSetUpdateTypeDelete {
+		if derr := pclient.DeleteRuleSet(ctx, rs.Href); derr != nil && !pce.IsNotFound(derr) {
+			return derr
+		}
 	}
-	_, err = pclient.ProvisionRuleSets(ctx, []string{rs.Href}, "delete "+namespace+"/"+string(uid))
-	return err
+	// Provision the deletion. A 404 (ruleset already gone) is success.
+	if _, perr := pclient.ProvisionRuleSets(ctx, []string{rs.Href}, "delete "+namespace+"/"+string(uid)); perr != nil && !pce.IsNotFound(perr) {
+		return perr
+	}
+	return nil
 }
 
 // resolveClusterProfile finds an Onboarded ClusterProfile whose namespace rules
@@ -445,6 +454,25 @@ func resolveAllows(ctx context.Context, allows []CompiledAllow, pclient PolicyCl
 
 // reconcileRuleSet ensures the owned ruleset exists and its rules match desired
 // (replace-all). Returns the ruleset href.
+// pceRateLimit returns the PCE-requested wait and true when err is a rate-limit
+// error, so callers can honor Retry-After instead of default exponential backoff.
+func pceRateLimit(err error) (time.Duration, bool) {
+	var rl *pce.RateLimitError
+	if errors.As(err, &rl) {
+		return rl.RetryAfter, true
+	}
+	return 0, false
+}
+
+// pceFailReason classifies a PCE query error for a status condition reason: a
+// rate-limit is surfaced as RateLimited (distinct from a generic QueryFailed).
+func pceFailReason(err error) string {
+	if _, ok := pceRateLimit(err); ok {
+		return microv1.ReasonRateLimited
+	}
+	return microv1.ReasonQueryFailed
+}
+
 // errRuleSetPendingDeletion signals that the operator-owned ruleset is marked
 // for deletion in the PCE draft store but the deletion was never provisioned.
 // The operator defers to the human rather than recreating or overriding it.

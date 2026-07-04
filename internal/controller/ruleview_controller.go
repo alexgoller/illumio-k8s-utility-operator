@@ -91,14 +91,14 @@ func (r *RuleViewReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 				return r.fail(ctx, &rv, refresh, interval, microv1.ReasonNoScopeLabels,
 					fmt.Sprintf("scope label %s=%s not yet in the PCE", k, v))
 			}
-			return r.fail(ctx, &rv, refresh, interval, microv1.ReasonQueryFailed, "resolve scope label: "+lerr.Error())
+			return r.fail(ctx, &rv, refresh, interval, pceFailReason(lerr), "resolve scope label: "+lerr.Error())
 		}
 		scopeHrefs = append(scopeHrefs, lbl.Href)
 	}
 
 	found, err := pclient.SearchRules(ctx, pce.RuleSearchQuery{ProviderLabelHrefs: scopeHrefs, PolicyVersion: rv.Spec.PolicyVersion})
 	if err != nil {
-		return r.fail(ctx, &rv, refresh, interval, microv1.ReasonQueryFailed, "rule search: "+err.Error())
+		return r.fail(ctx, &rv, refresh, interval, pceFailReason(err), "rule search: "+err.Error())
 	}
 
 	maxRules := r.MaxRules

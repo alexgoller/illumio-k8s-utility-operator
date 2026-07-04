@@ -72,6 +72,15 @@ func (r *SegmentationIntentReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	res, err := ReconcilePolicy(ctx, r.Client, r.NewPolicyClient, si.Namespace, si.Name, si.UID, si.Annotations, si.Spec.Provider, allows)
 	if err != nil {
+		if d, ok := pceRateLimit(err); ok {
+			meta.SetStatusCondition(&si.Status.Conditions, metav1.Condition{
+				Type: microv1.ConditionReady, Status: metav1.ConditionFalse, Reason: microv1.ReasonRateLimited, Message: err.Error()})
+			si.Status.ObservedGeneration = si.Generation
+			if uerr := r.Status().Update(ctx, &si); uerr != nil {
+				return ctrl.Result{}, uerr
+			}
+			return ctrl.Result{RequeueAfter: d}, nil
+		}
 		return ctrl.Result{}, err
 	}
 
