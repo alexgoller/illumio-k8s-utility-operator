@@ -55,8 +55,9 @@ func (s *robustnessStubClient) UpdateContainerWorkloadProfile(_ context.Context,
 
 // TestReconcileNamespaceCWPs_OneFailureDoesNotBlockOthers verifies that a single
 // namespace's PCE failure neither aborts the loop nor hides the others: every
-// other namespace is still applied, the managed count reflects all intended
-// namespaces, and the aggregated error names the failing namespace.
+// other namespace is still applied, the managed count reflects only the namespaces
+// actually managed (the failed one is not counted), and the aggregated error names
+// the failing namespace.
 func TestReconcileNamespaceCWPs_OneFailureDoesNotBlockOthers(t *testing.T) {
 	scheme := runtime.NewScheme()
 	if err := corev1.AddToScheme(scheme); err != nil {
@@ -92,10 +93,13 @@ func TestReconcileNamespaceCWPs_OneFailureDoesNotBlockOthers(t *testing.T) {
 		},
 	}
 
-	managed, err := r.reconcileNamespaceCWPs(context.Background(), cp, stub, pce.Owner{})
+	managed, pending, err := r.reconcileNamespaceCWPs(context.Background(), cp, stub, pce.Owner{})
 
-	if managed != 2 {
-		t.Errorf("managed = %d, want 2 (both namespaces are intended managed)", managed)
+	if managed != 1 {
+		t.Errorf("managed = %d, want 1 (ns-good applied; ns-bad failed and is not counted)", managed)
+	}
+	if pending != 0 {
+		t.Errorf("pending = %d, want 0 (both namespaces have CWPs)", pending)
 	}
 	if err == nil {
 		t.Fatal("expected an aggregated error for the failing namespace, got nil")

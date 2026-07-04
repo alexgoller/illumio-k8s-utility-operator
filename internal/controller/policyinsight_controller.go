@@ -90,7 +90,7 @@ func (r *PolicyInsightReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				return r.fail(ctx, &pi, refresh, microv1.ReasonNoScopeLabels,
 					fmt.Sprintf("scope label %s=%s not yet in the PCE", k, v))
 			}
-			return r.fail(ctx, &pi, refresh, microv1.ReasonQueryFailed, "resolve scope label: "+lerr.Error())
+			return r.fail(ctx, &pi, refresh, pceFailReason(lerr), "resolve scope label: "+lerr.Error())
 		}
 		scopeHrefs = append(scopeHrefs, lbl.Href)
 	}
@@ -112,14 +112,14 @@ func (r *PolicyInsightReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		From: from, To: to, MaxResults: maxResults,
 	})
 	if err != nil {
-		return r.fail(ctx, &pi, refresh, microv1.ReasonQueryFailed, "inbound traffic query: "+err.Error())
+		return r.fail(ctx, &pi, refresh, pceFailReason(err), "inbound traffic query: "+err.Error())
 	}
 	outFlows, outTrunc, err := pclient.QueryTraffic(ctx, pce.TrafficQuery{
 		QueryName: "preflight-outbound-" + pi.Namespace, SourceLabelHrefs: scopeHrefs,
 		From: from, To: to, MaxResults: maxResults,
 	})
 	if err != nil {
-		return r.fail(ctx, &pi, refresh, microv1.ReasonQueryFailed, "outbound traffic query: "+err.Error())
+		return r.fail(ctx, &pi, refresh, pceFailReason(err), "outbound traffic query: "+err.Error())
 	}
 
 	inboundFull := classifyFlows(inFlows, directionInbound)
