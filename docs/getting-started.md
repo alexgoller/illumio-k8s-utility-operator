@@ -5,6 +5,20 @@
 - A Kubernetes or OpenShift cluster.
 - Access to an Illumio PCE (24.5+), with an API key/secret and your org ID.
 
+## The workflow at a glance
+
+You'll do this once, then everything reconciles continuously — and steps 6–7 let you **verify and act entirely from `kubectl`**:
+
+1. **Connect** — `PCEConnection` (PCE URL + credentials).
+2. **Onboard / adopt** — `ClusterProfile` (create a new Container Cluster, or adopt an already-paired one).
+3. **Label** — `namespaceRules` set the app/env labels on each namespace's CWP (new namespaces are picked up automatically).
+4. **Author policy** — `SegmentationIntent` / `SegmentationPolicy` → compiled to PCE rulesets.
+5. **Preflight traffic** — `PolicyInsight` shows what a policy *would* block, from observed flows, before you enforce.
+6. **See current rules** — `RuleView` shows the live Illumio rules protecting your app, including rules made outside Kubernetes.
+7. **Enforce** — move the namespace to `full` with confidence.
+
+The rest of this page walks steps 1–6.
+
 ## 1. Install the operator
 
 See [Installation](installation.md).
