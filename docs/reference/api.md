@@ -248,7 +248,7 @@ _Appears in:_
 | `match` _[NamespaceMatch](#namespacematch)_ |  |  |  |
 | `managed` _boolean_ | Managed marks the namespace's CWP as PCE-managed. |  |  |
 | `assignLabels` _object (keys:string, values:[LabelAssignment](#labelassignment))_ | AssignLabels maps Illumio label keys (role/app/env/loc/custom) to values. |  | Optional: \{\} <br /> |
-| `enforcementMode` _string_ | EnforcementMode for the namespace. One of idle, visibility_only, full. |  | Enum: [idle visibility_only full] <br />Optional: \{\} <br /> |
+| `enforcementMode` _string_ | EnforcementMode for the namespace. One of idle, visibility_only, full. |  | Enum: [idle visibility_only selective full] <br />Optional: \{\} <br /> |
 
 
 #### NetworkPolicyPeer
@@ -302,7 +302,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `existingName` _string_ | ExistingName: if set, use this existing PCE pairing profile (by name)<br />instead of creating one. Labels/EnforcementMode are ignored in that case. |  | Optional: \{\} <br /> |
 | `labels` _object (keys:string, values:string)_ | Labels to apply to nodes paired with this profile, as Illumio<br />label-key -> value (e.g. \{"role": "node", "env": "prod"\}). The operator<br />resolves each to an Illumio label href (create-if-missing). |  | Optional: \{\} <br /> |
-| `enforcementMode` _string_ | EnforcementMode for a created pairing profile. One of idle,<br />visibility_only, full. Defaults to idle. | idle | Enum: [idle visibility_only full] <br />Optional: \{\} <br /> |
+| `enforcementMode` _string_ | EnforcementMode for a created pairing profile. One of idle,<br />visibility_only, full. Defaults to idle. | idle | Enum: [idle visibility_only selective full] <br />Optional: \{\} <br /> |
 
 
 #### ObservationWindow
@@ -631,7 +631,7 @@ _Appears in:_
 | `provider` _object (keys:string, values:string)_ | Provider optionally narrows the protected provider to a sub-set of this<br />namespace's app, by Illumio labels (e.g. \{"role":"backend"\}). The labels must<br />already exist in the PCE. Default (empty): the whole namespace app. |  | Optional: \{\} <br /> |
 | `allow` _[IntentAllow](#intentallow) array_ | Allow is the set of permitted inbound flows to this namespace's app. |  | Optional: \{\} <br /> |
 | `allowIntraNamespace` _boolean_ | AllowIntraNamespace is a shortcut: when true, allow all workloads in this<br />namespace to reach each other on all ports (an intra-scope allow-all). Combine<br />with Allow for finer cross-app rules, or use alone for "allow any-any here". |  | Optional: \{\} <br /> |
-| `enforcement` _string_ | Enforcement requests a namespace enforcement mode. The operator applies<br />the strictest mode requested across all policy CRs in the namespace (on<br />top of the admin baseline). One of idle, visibility_only, full. |  | Enum: [idle visibility_only full] <br />Optional: \{\} <br /> |
+| `enforcement` _string_ | Enforcement requests a namespace enforcement mode. The operator applies<br />the strictest mode requested across all policy CRs in the namespace (on<br />top of the admin baseline). One of idle, visibility_only, full. |  | Enum: [idle visibility_only selective full] <br />Optional: \{\} <br /> |
 
 
 
@@ -689,7 +689,7 @@ _Appears in:_
 | `podSelector` _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ | PodSelector selects the pods to which this policy applies. |  | Optional: \{\} <br /> |
 | `ingress` _[IngressRule](#ingressrule) array_ | Ingress rules (the only supported direction). |  |  |
 | `policyTypes` _string array_ | PolicyTypes must be ["Ingress"]. |  | Optional: \{\} <br /> |
-| `enforcement` _string_ | Enforcement requests a namespace enforcement mode (see SegmentationIntent). |  | Enum: [idle visibility_only full] <br />Optional: \{\} <br /> |
+| `enforcement` _string_ | Enforcement requests a namespace enforcement mode (see SegmentationIntent). |  | Enum: [idle visibility_only selective full] <br />Optional: \{\} <br /> |
 
 
 
@@ -712,6 +712,6 @@ _Appears in:_
 | `manage` _boolean_ | Manage turns on management of system namespaces. |  | Optional: \{\} <br /> |
 | `patterns` _string array_ | Patterns of system namespace name globs. Defaults (when empty) to:<br />openshift-*, kube-*, default. |  | Optional: \{\} <br /> |
 | `labels` _object (keys:string, values:string)_ | Labels assigned to system-namespace CWPs. |  | Optional: \{\} <br /> |
-| `enforcementMode` _string_ | EnforcementMode for system namespaces. Defaults to idle. |  | Enum: [idle visibility_only full] <br />Optional: \{\} <br /> |
+| `enforcementMode` _string_ | EnforcementMode for system namespaces. Defaults to idle. |  | Enum: [idle visibility_only selective full] <br />Optional: \{\} <br /> |
 
 

@@ -51,7 +51,7 @@ type SegmentationIntentSpec struct {
 	// Enforcement requests a namespace enforcement mode. The operator applies
 	// the strictest mode requested across all policy CRs in the namespace (on
 	// top of the admin baseline). One of idle, visibility_only, full.
-	// +kubebuilder:validation:Enum=idle;visibility_only;full
+	// +kubebuilder:validation:Enum=idle;visibility_only;selective;full
 	// +optional
 	Enforcement string `json:"enforcement,omitempty"`
 }

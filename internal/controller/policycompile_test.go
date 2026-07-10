@@ -181,4 +181,14 @@ func TestStrictestEnforcement(t *testing.T) {
 	if StrictestEnforcement("", "") != "" {
 		t.Errorf("want empty")
 	}
+	// selective ranks between visibility_only and full.
+	if StrictestEnforcement(testEnforcementVisOnly, "selective") != "selective" {
+		t.Errorf("selective must beat visibility_only")
+	}
+	if StrictestEnforcement("selective", testEnforcementFull) != testEnforcementFull {
+		t.Errorf("full must beat selective")
+	}
+	if StrictestEnforcement("idle", "selective") != "selective" {
+		t.Errorf("selective must beat idle")
+	}
 }
