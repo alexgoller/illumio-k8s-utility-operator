@@ -1,0 +1,1892 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A Kubernetes operator that automates Illumio PCE-side configuration (onboarding, container workload profiles, segmentation policy).">
+      
+      
+      
+      
+        <link rel="prev" href="../labelmap-and-the-operator/">
+      
+      
+        <link rel="next" href="../segmentation-policy/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.39">
+    
+    
+      
+        <title>Policy concepts - Illumio K8s Utility Operator</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.8c3ca2c6.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#policy-concepts-and-how-tos" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Illumio K8s Utility Operator" class="md-header__button md-logo" aria-label="Illumio K8s Utility Operator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Illumio K8s Utility Operator
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Policy concepts
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/alexgoller/illumio-k8s-utility-operator" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    alexgoller/illumio-k8s-utility-operator
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Illumio K8s Utility Operator" class="md-nav__button md-logo" aria-label="Illumio K8s Utility Operator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Illumio K8s Utility Operator
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/alexgoller/illumio-k8s-utility-operator" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    alexgoller/illumio-k8s-utility-operator
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Concepts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Guides
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../onboarding/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Onboarding
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../namespace-management/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Namespace management
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../labelmap-and-the-operator/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Labeling & the LabelMap
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Policy concepts
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Policy concepts
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-mental-model-a-ruleset-is-a-scope-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Mental model: a ruleset is a scope + rules
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-two-front-ends-one-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Two front-ends, one backend
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-intra-scope-vs-extra-scope-consumers" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Intra-scope vs extra-scope consumers
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Intra-scope vs extra-scope consumers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#field-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Field mapping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-all-workloads-shortcut" class="md-nav__link">
+    <span class="md-ellipsis">
+      The "All Workloads" shortcut
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-who-is-protected-the-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Who is protected: the provider
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-rules-vs-enforcement-the-most-important-distinction" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Rules vs enforcement — the most important distinction
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Rules vs enforcement — the most important distinction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enforcement-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Enforcement modes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#effective-enforcement-strictest-wins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Effective enforcement: strictest-wins
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-to-switch-a-namespace-to-full-enforcement" class="md-nav__link">
+    <span class="md-ellipsis">
+      How to switch a namespace to full enforcement
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-provisioning-draft-vs-active" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Provisioning: draft vs active
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-unknown-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Unknown labels
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Unknown labels">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setting-unknownlabelmode-most-specific-wins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Setting unknownLabelMode (most-specific wins)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-how-tos" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. How-tos
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. How-tos">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-allow-any-any-within-a-namespace" class="md-nav__link">
+    <span class="md-ellipsis">
+      (a) Allow any-any within a namespace
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-cross-app-ingress-extra-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      (b) Cross-app ingress (extra-scope)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-service-to-service-with-provider-narrowing-intra-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      (c) Service-to-service with provider narrowing (intra-scope)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-tolerate-not-yet-existing-consumer-labels-skip-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      (d) Tolerate not-yet-existing consumer labels (skip mode)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e-switch-a-namespace-to-full-enforcement" class="md-nav__link">
+    <span class="md-ellipsis">
+      (e) Switch a namespace to full enforcement
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-provision-a-draft-manual-provisioning-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      (f) Provision a draft (manual provisioning mode)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Troubleshooting
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Further reading
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../segmentation-policy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Segmentation policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../networkpolicy-style/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    NetworkPolicy-style
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../preflight/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Policy preflight
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ruleview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Live rule view
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Security & credentials
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    API Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/pceconnection/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PCEConnection
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/clusterprofile/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ClusterProfile
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/segmentationintent/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SegmentationIntent
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/segmentationpolicy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SegmentationPolicy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/policyinsight/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PolicyInsight
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/ruleview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    RuleView
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Generated API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-mental-model-a-ruleset-is-a-scope-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Mental model: a ruleset is a scope + rules
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-two-front-ends-one-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Two front-ends, one backend
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-intra-scope-vs-extra-scope-consumers" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Intra-scope vs extra-scope consumers
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Intra-scope vs extra-scope consumers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#field-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Field mapping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-all-workloads-shortcut" class="md-nav__link">
+    <span class="md-ellipsis">
+      The "All Workloads" shortcut
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-who-is-protected-the-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Who is protected: the provider
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-rules-vs-enforcement-the-most-important-distinction" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Rules vs enforcement — the most important distinction
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Rules vs enforcement — the most important distinction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enforcement-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Enforcement modes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#effective-enforcement-strictest-wins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Effective enforcement: strictest-wins
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-to-switch-a-namespace-to-full-enforcement" class="md-nav__link">
+    <span class="md-ellipsis">
+      How to switch a namespace to full enforcement
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-provisioning-draft-vs-active" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Provisioning: draft vs active
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-unknown-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Unknown labels
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Unknown labels">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setting-unknownlabelmode-most-specific-wins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Setting unknownLabelMode (most-specific wins)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-how-tos" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. How-tos
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. How-tos">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-allow-any-any-within-a-namespace" class="md-nav__link">
+    <span class="md-ellipsis">
+      (a) Allow any-any within a namespace
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-cross-app-ingress-extra-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      (b) Cross-app ingress (extra-scope)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-service-to-service-with-provider-narrowing-intra-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      (c) Service-to-service with provider narrowing (intra-scope)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-tolerate-not-yet-existing-consumer-labels-skip-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      (d) Tolerate not-yet-existing consumer labels (skip mode)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#e-switch-a-namespace-to-full-enforcement" class="md-nav__link">
+    <span class="md-ellipsis">
+      (e) Switch a namespace to full enforcement
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f-provision-a-draft-manual-provisioning-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      (f) Provision a draft (manual provisioning mode)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Troubleshooting
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Further reading
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="policy-concepts-and-how-tos">Policy: concepts and how-tos<a class="headerlink" href="#policy-concepts-and-how-tos" title="Permanent link">&para;</a></h1>
+<p>This page is the starting point for anyone who knows Kubernetes but is new to Illumio segmentation.
+It explains the mental model, defines the two policy front-ends, and walks through the most common
+tasks. Read it top-to-bottom once; then use the cross-links for details.</p>
+<hr />
+<h2 id="1-mental-model-a-ruleset-is-a-scope-rules">1. Mental model: a ruleset is a scope + rules<a class="headerlink" href="#1-mental-model-a-ruleset-is-a-scope-rules" title="Permanent link">&para;</a></h2>
+<p>An Illumio <strong>ruleset</strong> has two parts:</p>
+<ul>
+<li><strong>Scope</strong> — the application the ruleset protects. A scope can be any number of Illumio labels;
+  the operator scopes each namespace's ruleset to <strong><code>app</code> + <code>env</code></strong> by default (<code>loc</code> is a poor
+  scope choice and is excluded). The operator derives these labels from the namespace's Container
+  Workload Profile (CWP), which is configured by <code>ClusterProfile</code>; adjust the set with
+  <code>ClusterProfile.spec.policyScopeLabels</code>.</li>
+<li><strong>Rules</strong> — each rule says: <em>these <strong>consumers</strong> (sources) may reach these <strong>providers</strong>
+  (destinations) on these <strong>services</strong> (ports).</em></li>
+</ul>
+<div class="highlight"><pre><span></span><code>  Ruleset: scope = app=payments, env=prod
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  Rule 1: checkout/prod  ──8443/TCP──▶  payments/prod (backend)  │
+  │  Rule 2: monitoring/prod ──all ports──▶  payments/prod          │
+  └─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<p>Two things to fix in your mental model before writing any policy:</p>
+<p><strong>One CR = one ruleset = one protected namespace.</strong> A policy CR lives in a namespace and protects
+that namespace's app. You cannot write rules that protect another team's namespace.</p>
+<p><strong>Illumio rulesets are ingress-centric.</strong> The provider is always inside your scope (your
+namespace). The consumer can be anywhere — inside the same namespace (intra-scope) or in another
+app (extra-scope). You only write rules about <em>who may come in</em>, not about where your app is
+allowed to reach out.</p>
+<hr />
+<h2 id="2-two-front-ends-one-backend">2. Two front-ends, one backend<a class="headerlink" href="#2-two-front-ends-one-backend" title="Permanent link">&para;</a></h2>
+<p>There are two CRDs you can use to write policy. Both compile to the same Illumio ruleset backend
+with identical capabilities.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>SegmentationIntent</code></th>
+<th><code>SegmentationPolicy</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Short name</td>
+<td><code>segintent</code></td>
+<td><code>segpol</code></td>
+</tr>
+<tr>
+<td>Style</td>
+<td>Illumio-native allow-list (<code>allow[]</code>)</td>
+<td>NetworkPolicy-shaped (<code>ingress</code>/<code>from</code>/<code>ports</code>)</td>
+</tr>
+<tr>
+<td>Consumer field</td>
+<td><code>from</code> (extra-scope) / <code>fromIntraNamespace</code> (intra-scope)</td>
+<td><code>namespaceSelector</code> (extra-scope) / <code>podSelector</code> (intra-scope)</td>
+</tr>
+<tr>
+<td>Provider narrowing</td>
+<td><code>spec.provider: {role: backend}</code></td>
+<td>top-level <code>spec.podSelector: {matchLabels: {role: backend}}</code></td>
+</tr>
+<tr>
+<td>Best for</td>
+<td>Teams new to Illumio, or who prefer an explicit allow-list</td>
+<td>Teams already familiar with Kubernetes <code>NetworkPolicy</code></td>
+</tr>
+</tbody>
+</table>
+<p>Pick one based on taste. The rest of this page shows both where the syntax differs.</p>
+<p>See the <a href="../segmentation-policy/">Segmentation policy guide</a> for <code>SegmentationIntent</code> in depth, and
+the <a href="../networkpolicy-style/">NetworkPolicy-style guide</a> for <code>SegmentationPolicy</code> in depth.</p>
+<hr />
+<h2 id="3-intra-scope-vs-extra-scope-consumers">3. Intra-scope vs extra-scope consumers<a class="headerlink" href="#3-intra-scope-vs-extra-scope-consumers" title="Permanent link">&para;</a></h2>
+<p>This is the concept that trips people up most often.</p>
+<p><strong>Intra-scope</strong> means the consumer is a workload <em>inside the same namespace</em> — it belongs to the
+same Illumio application scope. No extra identity is needed; the scope is already established.</p>
+<p><strong>Extra-scope</strong> means the consumer is a workload in <em>a different application</em> — it lives outside
+your namespace's scope. You must identify it by its Illumio labels (e.g. <code>app: checkout, env: prod</code>).</p>
+<div class="highlight"><pre><span></span><code>  Cluster
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  namespace: payments  (scope: app=payments, env=prod)           │
+  │  ┌────────────────────────────────────────────────────────┐     │
+  │  │  role=frontend ──(intra-scope)──▶  role=backend        │     │
+  │  └────────────────────────────────────────────────────────┘     │
+  │            ▲                                                     │
+  │   (extra-scope)                                                  │
+  │            │                                                     │
+  │  namespace: checkout  (scope: app=checkout, env=prod)           │
+  │  ┌──────────────────────────────────────────────────────────┐   │
+  │  │  checkout pods                                           │   │
+  │  └──────────────────────────────────────────────────────────┘   │
+  └─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="field-mapping">Field mapping<a class="headerlink" href="#field-mapping" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Consumer is...</th>
+<th>SegmentationIntent</th>
+<th>SegmentationPolicy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Intra-scope (same namespace), specific role</td>
+<td><code>allow[].fromIntraNamespace: {role: frontend}</code></td>
+<td><code>ingress[].from[].podSelector: {matchLabels: {role: frontend}}</code></td>
+</tr>
+<tr>
+<td>Intra-scope (same namespace), any workload</td>
+<td><code>allowIntraNamespace: true</code> (top-level shortcut)</td>
+<td><code>ingress[].from[].podSelector: {}</code> (empty = all in namespace)</td>
+</tr>
+<tr>
+<td>Extra-scope (another app)</td>
+<td><code>allow[].from: {app: checkout, env: prod}</code></td>
+<td><code>ingress[].from[].namespaceSelector: {matchLabels: {app: checkout, env: prod}}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-all-workloads-shortcut">The "All Workloads" shortcut<a class="headerlink" href="#the-all-workloads-shortcut" title="Permanent link">&para;</a></h3>
+<p><code>allowIntraNamespace: true</code> (Intent) or <code>podSelector: {}</code> (Policy) compiles to an Illumio
+<strong>All Workloads</strong> actor scoped to the namespace. It covers every current and future workload in
+the namespace. Use it for the "any-any inside this namespace" pattern.</p>
+<div class="admonition warning">
+<p class="admonition-title">Use empty podSelector carefully in extra-scope</p>
+<p>In the context of an <code>allow[].from</code> field (Intent) or a <code>namespaceSelector</code> peer (Policy),
+an empty or broad label set selects <em>all workloads organization-wide</em>. Be explicit: add at
+least <code>app</code> + <code>env</code> labels to any extra-scope consumer.</p>
+</div>
+<hr />
+<h2 id="4-who-is-protected-the-provider">4. Who is protected: the provider<a class="headerlink" href="#4-who-is-protected-the-provider" title="Permanent link">&para;</a></h2>
+<p>By default, the provider in a ruleset is the <strong>entire namespace app</strong> — every workload in the
+namespace. That is the right default for most rules ("allow checkout to reach anything in
+payments").</p>
+<p>To protect only a <em>specific service</em> within the namespace, narrow the provider:</p>
+<p><strong>SegmentationIntent:</strong>
+<div class="highlight"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> role</span><span class="p">:</span><span class="w"> </span><span class="nv">backend</span><span class="w"> </span><span class="p p-Indicator">}</span><span class="w">   </span><span class="c1"># protects only role=backend pods in this namespace</span>
+<span class="w">  </span><span class="nt">allow</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">fromIntraNamespace</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> role</span><span class="p">:</span><span class="w"> </span><span class="nv">frontend</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> port</span><span class="p">:</span><span class="w"> </span><span class="nv">8443</span><span class="p p-Indicator">,</span><span class="nt"> protocol</span><span class="p">:</span><span class="w"> </span><span class="nv">TCP</span><span class="w"> </span><span class="p p-Indicator">}</span>
+</code></pre></div></p>
+<p><strong>SegmentationPolicy:</strong>
+<div class="highlight"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">podSelector</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">backend</span><span class="w">             </span><span class="c1"># protects only role=backend pods in this namespace</span>
+<span class="w">  </span><span class="nt">ingress</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">from</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">podSelector</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">matchLabels</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">frontend</span>
+<span class="w">      </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8443</span>
+<span class="w">          </span><span class="nt">protocol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TCP</span>
+</code></pre></div></p>
+<p>Provider labels must already exist in the PCE (they are always resolved strictly, regardless of
+<code>unknownLabelMode</code>). The <code>role</code> label is typically supplied by the <a href="../labelmap-and-the-operator/">Illumio LabelMap</a>.</p>
+<hr />
+<h2 id="5-rules-vs-enforcement-the-most-important-distinction">5. Rules vs enforcement — the most important distinction<a class="headerlink" href="#5-rules-vs-enforcement-the-most-important-distinction" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Writing a rule does NOT block any traffic</p>
+<p>Rules declare <em>what is allowed</em>. Traffic that is not allowed is only blocked when the
+namespace's <strong>effective enforcement mode</strong> is <code>full</code>. Without <code>full</code> enforcement, provisioned
+rules have zero effect on traffic — nothing is blocked.</p>
+</div>
+<h3 id="enforcement-modes">Enforcement modes<a class="headerlink" href="#enforcement-modes" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>idle</code></td>
+<td>No enforcement; all traffic flows; no flow visibility.</td>
+</tr>
+<tr>
+<td><code>visibility_only</code></td>
+<td>All traffic flows; Illumio records flow data. Rules compiled but not enforced.</td>
+</tr>
+<tr>
+<td><code>full</code></td>
+<td>Default-deny: only explicitly allowed traffic flows. This is microsegmentation.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="effective-enforcement-strictest-wins">Effective enforcement: strictest-wins<a class="headerlink" href="#effective-enforcement-strictest-wins" title="Permanent link">&para;</a></h3>
+<p>The namespace's <strong>effective enforcement</strong> is the strictest value across:</p>
+<ol>
+<li>The <strong>ClusterProfile admin baseline</strong> — <code>enforcementMode</code> from the matching namespace rule
+   (<code>namespaceRules[].enforcementMode</code>) or <code>systemNamespaces.enforcementMode</code>.</li>
+<li>The <code>spec.enforcement</code> field on <strong>every</strong> <code>SegmentationIntent</code> and <code>SegmentationPolicy</code> in the
+   namespace.</li>
+</ol>
+<p>Strictness order: <code>idle</code> &lt; <code>visibility_only</code> &lt; <code>selective</code> &lt; <code>full</code>.</p>
+<p>The winning value is applied to the namespace's Container Workload Profile (CWP). Every policy CR
+reports it:</p>
+<ul>
+<li><code>status.effectiveEnforcement</code> — the mode currently applied to the namespace's CWP.</li>
+<li><code>status.enforcementSetBy</code> — names the CR (or <code>admin</code>) that provided the winning value.</li>
+</ul>
+<h3 id="how-to-switch-a-namespace-to-full-enforcement">How to switch a namespace to full enforcement<a class="headerlink" href="#how-to-switch-a-namespace-to-full-enforcement" title="Permanent link">&para;</a></h3>
+<p>There are three levers. Use any one; the strictest-wins rule means any <code>full</code> source wins:</p>
+<p><strong>Lever (a) — namespace annotation (instant, no CR needed):</strong>
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>annotate<span class="w"> </span>ns<span class="w"> </span>&lt;namespace&gt;<span class="w"> </span>microsegment.io/enforcement<span class="o">=</span>full<span class="w"> </span>--overwrite
+</code></pre></div>
+This writes directly to the CWP. It is the fastest way to switch a single namespace.</p>
+<p><strong>Lever (b) — policy CR <code>spec.enforcement</code>:</strong>
+<div class="highlight"><pre><span></span><code><span class="c1"># Add or update any SegmentationIntent or SegmentationPolicy in the namespace:</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">enforcement</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">full</span>
+<span class="w">  </span><span class="nt">allow</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">from</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> app</span><span class="p">:</span><span class="w"> </span><span class="nv">checkout</span><span class="p p-Indicator">,</span><span class="nt"> env</span><span class="p">:</span><span class="w"> </span><span class="nv">prod</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> port</span><span class="p">:</span><span class="w"> </span><span class="nv">8443</span><span class="p p-Indicator">,</span><span class="nt"> protocol</span><span class="p">:</span><span class="w"> </span><span class="nv">TCP</span><span class="w"> </span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>payments-ingress.yaml
+kubectl<span class="w"> </span>get<span class="w"> </span>segintent<span class="w"> </span>-n<span class="w"> </span>payments
+<span class="c1"># ENFORCEMENT column (or describe) shows: effectiveEnforcement: full</span>
+</code></pre></div></p>
+<p><strong>Lever (c) — ClusterProfile admin baseline (affects all matching namespaces):</strong>
+<div class="highlight"><pre><span></span><code><span class="c1"># In ClusterProfile.spec.namespaceRules:</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">match</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> namePattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;payments&quot;</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">managed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">assignLabels</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> value</span><span class="p">:</span><span class="w"> </span><span class="nv">payments</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">    </span><span class="nt">env</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> value</span><span class="p">:</span><span class="w"> </span><span class="nv">prod</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">enforcementMode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">full</span><span class="w">       </span><span class="c1"># ← sets the baseline for this namespace</span>
+</code></pre></div></p>
+<div class="admonition danger">
+<p class="admonition-title">full enforcement = default-deny</p>
+<p>Switch to <code>full</code> only after you have confirmed your allow-rules are complete and provisioned.
+Test on an application namespace first — never on control-plane namespaces like <code>kube-system</code>
+or <code>openshift-*</code>. A missed rule under <code>full</code> enforcement will silently drop traffic.</p>
+</div>
+<hr />
+<h2 id="6-provisioning-draft-vs-active">6. Provisioning: draft vs active<a class="headerlink" href="#6-provisioning-draft-vs-active" title="Permanent link">&para;</a></h2>
+<p>The operator writes rules to the Illumio <strong>draft</strong> policy store. Draft rules are computed and
+visible in the PCE but not yet enforced. Enforcement uses the <strong>active</strong> policy store.</p>
+<p>To activate draft rules they must be <strong>provisioned</strong> (promoted from draft to active), creating a
+new policy version. The provisioning response returns the new version and how many VENs
+(<code>workloadsAffected</code>) were recomputed — visible in <code>status.workloadsAffected</code>, the <code>AFFECTED</code>
+print column, the <code>Provisioned</code> condition message, and the operator logs.</p>
+<p>Provisioning is controlled by <code>ClusterProfile.spec.provisioningMode</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>auto</code></td>
+<td>Operator provisions immediately after compilation. <code>Provisioned</code> → <code>True</code> once the PCE accepts.</td>
+</tr>
+<tr>
+<td><code>manual</code></td>
+<td>Operator writes the draft and waits. You approve with <code>kubectl annotate &lt;cr&gt; microsegment.io/provision=approved</code>. While the annotation is present the operator keeps the policy provisioned and re-provisions on every spec change.</td>
+</tr>
+<tr>
+<td><code>draft-only</code></td>
+<td>Operator writes the draft and never provisions. <code>Provisioned</code> stays <code>False</code> with reason <code>ProvisionPending</code> permanently. You provision directly in the PCE UI or API.</td>
+</tr>
+</tbody>
+</table>
+<p><code>ClusterProfile.spec.provisioningMode</code> defaults to <code>manual</code>.</p>
+<hr />
+<h2 id="7-unknown-labels">7. Unknown labels<a class="headerlink" href="#7-unknown-labels" title="Permanent link">&para;</a></h2>
+<p>Consumer labels must exist in the PCE before you can reference them. The behavior when a label is
+missing is controlled by <code>unknownLabelMode</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>strict</code> (default)</td>
+<td>Reject the entire CR (<code>Ready=False</code>, reason <code>Rejected</code>). Not retried until the spec changes.</td>
+</tr>
+<tr>
+<td><code>skip</code></td>
+<td>Compile the rules whose labels resolve; omit the unknown consumer; keep the CR <code>Ready=True</code>. The omitted label pair is listed in <code>status.deferredLabels</code> and retried every reconcile — the rule appears automatically once the label exists.</td>
+</tr>
+<tr>
+<td><code>create</code></td>
+<td>Mint the missing label in the PCE (for standard keys <code>role</code>, <code>app</code>, <code>env</code>, <code>loc</code> only — a non-standard key is still rejected). Created pairs are listed in <code>status.createdLabels</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Provider labels (<code>spec.provider</code> on Intent, top-level <code>spec.podSelector</code> on Policy) are <strong>always</strong>
+resolved strictly — <code>unknownLabelMode</code> does not apply to them.</p>
+<h3 id="setting-unknownlabelmode-most-specific-wins">Setting unknownLabelMode (most-specific wins)<a class="headerlink" href="#setting-unknownlabelmode-most-specific-wins" title="Permanent link">&para;</a></h3>
+<ol>
+<li><code>ClusterProfile.spec.unknownLabelMode</code> — fleet default (defaults to <code>strict</code>).</li>
+<li>Namespace annotation <code>microsegment.io/unknown-label-mode: &lt;mode&gt;</code> — overrides the fleet default for a namespace.</li>
+<li>CR annotation <code>microsegment.io/unknown-label-mode: &lt;mode&gt;</code> — overrides for that specific CR.</li>
+</ol>
+<p>The resolved value and its source are reported in <code>status.unknownLabelMode</code> and
+<code>status.unknownLabelModeSetBy</code> (<code>cr</code> | <code>namespace</code> | <code>clusterprofile</code> | <code>default</code>).</p>
+<hr />
+<h2 id="8-how-tos">8. How-tos<a class="headerlink" href="#8-how-tos" title="Permanent link">&para;</a></h2>
+<p>All examples work with <code>kubectl apply -f &lt;file&gt;.yaml</code>. Verify steps are shown after each.</p>
+<h3 id="a-allow-any-any-within-a-namespace">(a) Allow any-any within a namespace<a class="headerlink" href="#a-allow-any-any-within-a-namespace" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># segintent-intra.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">microsegment.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SegmentationIntent</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">myapp-internal</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">myapp</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">allowIntraNamespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># segpol-intra.yaml  (SegmentationPolicy equivalent)</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">microsegment.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SegmentationPolicy</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">myapp-internal</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">myapp</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">ingress</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">from</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">podSelector</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w">   </span><span class="c1"># all pods in this namespace</span>
+</code></pre></div>
+<p>Verify:
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>get<span class="w"> </span>segintent<span class="w"> </span>-n<span class="w"> </span>myapp
+<span class="c1"># NAME             READY   PROVISIONED   AFFECTED</span>
+<span class="c1"># myapp-internal   True    True          8</span>
+</code></pre></div></p>
+<h3 id="b-cross-app-ingress-extra-scope">(b) Cross-app ingress (extra-scope)<a class="headerlink" href="#b-cross-app-ingress-extra-scope" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># segintent-extra.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">microsegment.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SegmentationIntent</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">payments-ingress</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">payments</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">allow</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">from</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> app</span><span class="p">:</span><span class="w"> </span><span class="nv">checkout</span><span class="p p-Indicator">,</span><span class="nt"> env</span><span class="p">:</span><span class="w"> </span><span class="nv">prod</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> port</span><span class="p">:</span><span class="w"> </span><span class="nv">8443</span><span class="p p-Indicator">,</span><span class="nt"> protocol</span><span class="p">:</span><span class="w"> </span><span class="nv">TCP</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">from</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> app</span><span class="p">:</span><span class="w"> </span><span class="nv">monitoring</span><span class="p p-Indicator">,</span><span class="nt"> env</span><span class="p">:</span><span class="w"> </span><span class="nv">prod</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="c1"># no ports — allows all ports from monitoring (All Services)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># segpol-extra.yaml  (SegmentationPolicy equivalent)</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">microsegment.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SegmentationPolicy</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">payments-ingress</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">payments</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">ingress</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">from</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">namespaceSelector</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">matchLabels</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">checkout</span>
+<span class="w">              </span><span class="nt">env</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prod</span>
+<span class="w">      </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8443</span>
+<span class="w">          </span><span class="nt">protocol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TCP</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">from</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">namespaceSelector</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">matchLabels</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monitoring</span>
+<span class="w">              </span><span class="nt">env</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prod</span>
+</code></pre></div>
+<p>Verify:
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>get<span class="w"> </span>segintent<span class="w"> </span>-n<span class="w"> </span>payments
+<span class="c1"># NAME               READY   PROVISIONED   AFFECTED</span>
+<span class="c1"># payments-ingress   True    True          12</span>
+</code></pre></div></p>
+<h3 id="c-service-to-service-with-provider-narrowing-intra-scope">(c) Service-to-service with provider narrowing (intra-scope)<a class="headerlink" href="#c-service-to-service-with-provider-narrowing-intra-scope" title="Permanent link">&para;</a></h3>
+<p>Protect only <code>role=backend</code> and allow only <code>role=frontend</code> to reach it.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># segintent-svc.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">microsegment.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SegmentationIntent</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">backend-access</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">payments</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> role</span><span class="p">:</span><span class="w"> </span><span class="nv">backend</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">allow</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">fromIntraNamespace</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> role</span><span class="p">:</span><span class="w"> </span><span class="nv">frontend</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> port</span><span class="p">:</span><span class="w"> </span><span class="nv">8443</span><span class="p p-Indicator">,</span><span class="nt"> protocol</span><span class="p">:</span><span class="w"> </span><span class="nv">TCP</span><span class="w"> </span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># segpol-svc.yaml  (SegmentationPolicy equivalent)</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">microsegment.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SegmentationPolicy</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">backend-access</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">payments</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">podSelector</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">backend</span>
+<span class="w">  </span><span class="nt">ingress</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">from</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">podSelector</span><span class="p">:</span>
+<span class="w">            </span><span class="nt">matchLabels</span><span class="p">:</span>
+<span class="w">              </span><span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">frontend</span>
+<span class="w">      </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8443</span>
+<span class="w">          </span><span class="nt">protocol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TCP</span>
+</code></pre></div>
+<p>Verify (the <code>role</code> label must exist in the PCE — see <a href="../labelmap-and-the-operator/">LabelMap guide</a>):
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>get<span class="w"> </span>segintent<span class="w"> </span>backend-access<span class="w"> </span>-n<span class="w"> </span>payments
+<span class="c1"># NAME             READY   PROVISIONED   AFFECTED</span>
+<span class="c1"># backend-access   True    True          4</span>
+</code></pre></div></p>
+<h3 id="d-tolerate-not-yet-existing-consumer-labels-skip-mode">(d) Tolerate not-yet-existing consumer labels (skip mode)<a class="headerlink" href="#d-tolerate-not-yet-existing-consumer-labels-skip-mode" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># segintent-skip.yaml</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">microsegment.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SegmentationIntent</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">payments-ingress</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">payments</span>
+<span class="w">  </span><span class="nt">annotations</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">microsegment.io/unknown-label-mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">skip</span><span class="w">   </span><span class="c1"># omit unknown consumers; retry each reconcile</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">allow</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">from</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> app</span><span class="p">:</span><span class="w"> </span><span class="nv">future-service</span><span class="p p-Indicator">,</span><span class="nt"> env</span><span class="p">:</span><span class="w"> </span><span class="nv">prod</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> port</span><span class="p">:</span><span class="w"> </span><span class="nv">8443</span><span class="p p-Indicator">,</span><span class="nt"> protocol</span><span class="p">:</span><span class="w"> </span><span class="nv">TCP</span><span class="w"> </span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<p>Verify which labels are deferred:
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>get<span class="w"> </span>segintent<span class="w"> </span>payments-ingress<span class="w"> </span>-n<span class="w"> </span>payments<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.status.deferredLabels}&#39;</span>
+<span class="c1"># [&quot;app=future-service&quot;]</span>
+</code></pre></div>
+Once the label exists in the PCE the next reconcile will include the rule automatically.</p>
+<h3 id="e-switch-a-namespace-to-full-enforcement">(e) Switch a namespace to full enforcement<a class="headerlink" href="#e-switch-a-namespace-to-full-enforcement" title="Permanent link">&para;</a></h3>
+<p>The fastest single-namespace lever is the namespace annotation:
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>annotate<span class="w"> </span>ns<span class="w"> </span>payments<span class="w"> </span>microsegment.io/enforcement<span class="o">=</span>full<span class="w"> </span>--overwrite
+</code></pre></div></p>
+<p>Or via a policy CR:
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">microsegment.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SegmentationIntent</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">payments-ingress</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">payments</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">enforcement</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">full</span>
+<span class="w">  </span><span class="nt">allow</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">from</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> app</span><span class="p">:</span><span class="w"> </span><span class="nv">checkout</span><span class="p p-Indicator">,</span><span class="nt"> env</span><span class="p">:</span><span class="w"> </span><span class="nv">prod</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">      </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> port</span><span class="p">:</span><span class="w"> </span><span class="nv">8443</span><span class="p p-Indicator">,</span><span class="nt"> protocol</span><span class="p">:</span><span class="w"> </span><span class="nv">TCP</span><span class="w"> </span><span class="p p-Indicator">}</span>
+</code></pre></div></p>
+<p>Verify effective enforcement:
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>describe<span class="w"> </span>segintent<span class="w"> </span>payments-ingress<span class="w"> </span>-n<span class="w"> </span>payments<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-A2<span class="w"> </span><span class="s2">&quot;Effective Enforcement&quot;</span>
+<span class="c1"># Effective Enforcement:  full</span>
+<span class="c1"># Enforcement Set By:     payments-ingress</span>
+</code></pre></div></p>
+<h3 id="f-provision-a-draft-manual-provisioning-mode">(f) Provision a draft (manual provisioning mode)<a class="headerlink" href="#f-provision-a-draft-manual-provisioning-mode" title="Permanent link">&para;</a></h3>
+<p>When <code>ClusterProfile.spec.provisioningMode: manual</code>, apply the CR (compiles to draft) then approve:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># 1. Apply the intent (compiles to draft, Provisioned=False)</span>
+kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>payments-ingress.yaml
+
+<span class="c1"># 2. Check the draft is ready</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>segintent<span class="w"> </span>-n<span class="w"> </span>payments
+<span class="c1"># NAME               READY   PROVISIONED   AFFECTED</span>
+<span class="c1"># payments-ingress   True    False         0</span>
+
+<span class="c1"># 3. Approve provisioning</span>
+kubectl<span class="w"> </span>annotate<span class="w"> </span>segintent<span class="w"> </span>payments-ingress<span class="w"> </span>microsegment.io/provision<span class="o">=</span>approved<span class="w"> </span>-n<span class="w"> </span>payments
+
+<span class="c1"># 4. Verify provisioned</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>segintent<span class="w"> </span>-n<span class="w"> </span>payments
+<span class="c1"># NAME               READY   PROVISIONED   AFFECTED</span>
+<span class="c1"># payments-ingress   True    True          12</span>
+</code></pre></div>
+<p>For <code>SegmentationPolicy</code>:
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>annotate<span class="w"> </span>segpol<span class="w"> </span>payments-ingress<span class="w"> </span>microsegment.io/provision<span class="o">=</span>approved<span class="w"> </span>-n<span class="w"> </span>payments
+</code></pre></div></p>
+<p>For more detail on all provisioning modes, see the <a href="../segmentation-policy/#provisioning-modes">Segmentation policy guide</a>.</p>
+<hr />
+<h2 id="9-troubleshooting">9. Troubleshooting<a class="headerlink" href="#9-troubleshooting" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Ready=False</code>, reason <code>Rejected</code>, message <code>label not found in PCE: key=value</code></td>
+<td>A consumer label does not exist in the PCE (strict mode).</td>
+<td>Check spelling. Use <code>skip</code> or <code>create</code> mode if the label does not exist yet. Provider labels are always strict.</td>
+</tr>
+<tr>
+<td><code>Ready=False</code>, reason <code>Rejected</code>, message <code>allow[N]: set exactly one of from or fromIntraNamespace</code></td>
+<td>An <code>allow</code> entry has both fields set, or neither.</td>
+<td>Set exactly one of <code>from</code> (extra-scope) or <code>fromIntraNamespace</code> (intra-scope) per entry.</td>
+</tr>
+<tr>
+<td><code>Ready=False</code>, reason <code>Rejected</code>, message <code>from[N]: podSelector and namespaceSelector cannot both be set</code></td>
+<td>A <code>SegmentationPolicy</code> peer has both selectors.</td>
+<td>Use exactly one per peer: <code>podSelector</code> (intra) or <code>namespaceSelector</code> (extra).</td>
+</tr>
+<tr>
+<td><code>Ready=False</code>, reason <code>ClusterProfileNotReady</code></td>
+<td>No <code>ClusterProfile</code> namespace rule covers this namespace.</td>
+<td>Add a matching <code>namespaceRules</code> entry (or annotation) in the <code>ClusterProfile</code>. The controller retries automatically once it exists.</td>
+</tr>
+<tr>
+<td><code>Provisioned=False</code>, reason <code>ProvisionPending</code></td>
+<td><code>provisioningMode: manual</code> and the <code>microsegment.io/provision=approved</code> annotation is absent — OR <code>provisioningMode: draft-only</code>.</td>
+<td>For <code>manual</code>: add the annotation. For <code>draft-only</code>: provision directly in the PCE.</td>
+</tr>
+<tr>
+<td>Rules provisioned but traffic is NOT blocked</td>
+<td>Effective enforcement is not <code>full</code>. Rules exist but are not enforced.</td>
+<td>Check <code>status.effectiveEnforcement</code>. Set enforcement to <code>full</code> via namespace annotation, policy CR, or <code>ClusterProfile</code> (see <a href="#5-rules-vs-enforcement-the-most-important-distinction">section 5</a>).</td>
+</tr>
+<tr>
+<td>Rules provisioned, enforcement <code>full</code>, but traffic IS blocked (unintentional)</td>
+<td>A missing allow-rule for legitimate traffic.</td>
+<td>Add an allow-rule for the affected flow and re-provision. Check flow visibility in the PCE to identify what is being dropped.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="further-reading">Further reading<a class="headerlink" href="#further-reading" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../segmentation-policy/">Segmentation policy guide</a> — <code>SegmentationIntent</code> in depth: compilation steps, provisioning walkthroughs, enforcement details, deleting intents.</li>
+<li><a href="../networkpolicy-style/">NetworkPolicy-style guide</a> — <code>SegmentationPolicy</code> in depth: selector mapping, rejection rules, comparison table.</li>
+<li><a href="../labelmap-and-the-operator/">Labeling and the LabelMap</a> — how <code>app</code>/<code>env</code> labels (operator) and <code>role</code> labels (LabelMap) combine to make intra-namespace rules possible.</li>
+<li><a href="../namespace-management/">Namespace management</a> — setting the admin enforcement baseline and per-namespace annotation overrides.</li>
+<li><a href="../../reference/segmentationintent/">SegmentationIntent reference</a> — complete field and status documentation.</li>
+<li><a href="../../reference/segmentationpolicy/">SegmentationPolicy reference</a> — complete field and status documentation.</li>
+<li><a href="../../reference/clusterprofile/">ClusterProfile reference</a> — <code>provisioningMode</code>, <code>unknownLabelMode</code>, and namespace rule configuration.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.525ec568.min.js"></script>
+      
+    
+  </body>
+</html>

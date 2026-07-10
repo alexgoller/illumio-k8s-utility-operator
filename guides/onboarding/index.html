@@ -1,0 +1,1431 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A Kubernetes operator that automates Illumio PCE-side configuration (onboarding, container workload profiles, segmentation policy).">
+      
+      
+      
+      
+        <link rel="prev" href="../../concepts/">
+      
+      
+        <link rel="next" href="../namespace-management/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.39">
+    
+    
+      
+        <title>Onboarding - Illumio K8s Utility Operator</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.8c3ca2c6.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#cluster-onboarding" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Illumio K8s Utility Operator" class="md-header__button md-logo" aria-label="Illumio K8s Utility Operator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Illumio K8s Utility Operator
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Onboarding
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/alexgoller/illumio-k8s-utility-operator" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    alexgoller/illumio-k8s-utility-operator
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Illumio K8s Utility Operator" class="md-nav__button md-logo" aria-label="Illumio K8s Utility Operator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Illumio K8s Utility Operator
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/alexgoller/illumio-k8s-utility-operator" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    alexgoller/illumio-k8s-utility-operator
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Concepts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Guides
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Onboarding
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Onboarding
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#two-onboarding-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      Two onboarding paths
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Two onboarding paths">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adopting-an-already-onboarded-cluster-walkthrough" class="md-nav__link">
+    <span class="md-ellipsis">
+      Adopting an already-onboarded cluster (walkthrough)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-operator-does-create-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      What the operator does (create mode)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#applying-a-clusterprofile" class="md-nav__link">
+    <span class="md-ellipsis">
+      Applying a ClusterProfile
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Applying a ClusterProfile">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#minimal-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Minimal example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#with-node-labels-and-enforcement-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      With node labels and enforcement mode
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reusing-an-existing-pairing-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reusing an existing Pairing Profile
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checking-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checking status
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-output-secret" class="md-nav__link">
+    <span class="md-ellipsis">
+      The output Secret
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-the-credentials-with-helm" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using the credentials with Helm
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using the credentials with Helm">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gitops-flux-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      GitOps / Flux (recommended)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-helm-install" class="md-nav__link">
+    <span class="md-ellipsis">
+      Manual helm install
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pre-existing-cluster-in-create-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pre-existing cluster in create mode
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-secret-ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      Output Secret ownership
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-command-install-with-the-helm-chart" class="md-nav__link">
+    <span class="md-ellipsis">
+      One-command install with the Helm chart
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../namespace-management/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Namespace management
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../labelmap-and-the-operator/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Labeling & the LabelMap
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../policy-concepts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Policy concepts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../segmentation-policy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Segmentation policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../networkpolicy-style/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    NetworkPolicy-style
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../preflight/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Policy preflight
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ruleview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Live rule view
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Security & credentials
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    API Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/pceconnection/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PCEConnection
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/clusterprofile/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ClusterProfile
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/segmentationintent/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SegmentationIntent
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/segmentationpolicy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SegmentationPolicy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/policyinsight/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PolicyInsight
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/ruleview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    RuleView
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Generated API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#two-onboarding-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      Two onboarding paths
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Two onboarding paths">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adopting-an-already-onboarded-cluster-walkthrough" class="md-nav__link">
+    <span class="md-ellipsis">
+      Adopting an already-onboarded cluster (walkthrough)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-operator-does-create-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      What the operator does (create mode)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#applying-a-clusterprofile" class="md-nav__link">
+    <span class="md-ellipsis">
+      Applying a ClusterProfile
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Applying a ClusterProfile">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#minimal-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Minimal example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#with-node-labels-and-enforcement-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      With node labels and enforcement mode
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reusing-an-existing-pairing-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reusing an existing Pairing Profile
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checking-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checking status
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-output-secret" class="md-nav__link">
+    <span class="md-ellipsis">
+      The output Secret
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-the-credentials-with-helm" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using the credentials with Helm
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using the credentials with Helm">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gitops-flux-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      GitOps / Flux (recommended)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-helm-install" class="md-nav__link">
+    <span class="md-ellipsis">
+      Manual helm install
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pre-existing-cluster-in-create-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pre-existing cluster in create mode
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#output-secret-ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      Output Secret ownership
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-command-install-with-the-helm-chart" class="md-nav__link">
+    <span class="md-ellipsis">
+      One-command install with the Helm chart
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="cluster-onboarding">Cluster Onboarding<a class="headerlink" href="#cluster-onboarding" title="Permanent link">&para;</a></h1>
+<p>A <code>ClusterProfile</code> connects this Kubernetes cluster to the Illumio PCE as a <strong>Container Cluster</strong>. There are <strong>two paths</strong>, chosen with <code>onboarding.mode</code>:</p>
+<h2 id="two-onboarding-paths">Two onboarding paths<a class="headerlink" href="#two-onboarding-paths" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th><code>onboarding.mode</code></th>
+<th>Use when</th>
+<th>What the operator does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Create</strong> (default)</td>
+<td><code>create</code></td>
+<td>The cluster is <strong>not yet onboarded</strong>.</td>
+<td>Creates the Container Cluster, a node Pairing Profile, generates the pairing key, and writes the credentials Secret.</td>
+</tr>
+<tr>
+<td><strong>Adopt</strong></td>
+<td><code>adopt</code></td>
+<td>The cluster is <strong>already onboarded</strong> — e.g. the C-VEN was paired by the Illumio helm chart or another process.</td>
+<td>Finds the existing Container Cluster <strong>by name</strong>, records its href, and marks <code>Onboarded=True</code>. <strong>No pairing, no pairing key, no credentials Secret</strong> — the cluster is already paired.</td>
+</tr>
+</tbody>
+</table>
+<p>In <strong>both</strong> paths, once <code>Onboarded=True</code> everything downstream — namespace/CWP labeling, <code>SegmentationIntent</code>/<code>SegmentationPolicy</code>, and <code>PolicyInsight</code> preflight — works the same. Adopt simply skips the pairing steps that don't apply to an already-paired cluster.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Path 2 — adopt an already-onboarded cluster</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">microsegment.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterProfile</span>
+<span class="nt">metadata</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> name</span><span class="p">:</span><span class="w"> </span><span class="nv">this-cluster</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">pceConnectionRef</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> name</span><span class="p">:</span><span class="w"> </span><span class="nv">prod-pce</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">onboarding</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">adopt</span>
+<span class="w">    </span><span class="nt">containerClusterName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ocp-prod-01</span><span class="w">   </span><span class="c1"># the name of the EXISTING PCE Container Cluster</span>
+<span class="w">    </span><span class="c1"># credentialsOutputSecret + nodePairingProfile are not needed in adopt mode</span>
+</code></pre></div>
+<p>Via Helm: <code>--set onboarding.enabled=true --set onboarding.mode=adopt --set onboarding.containerClusterName=&lt;existing-cluster&gt;</code>.</p>
+<h3 id="adopting-an-already-onboarded-cluster-walkthrough">Adopting an already-onboarded cluster (walkthrough)<a class="headerlink" href="#adopting-an-already-onboarded-cluster-walkthrough" title="Permanent link">&para;</a></h3>
+<p>The common case: the C-VEN was installed and paired by the <strong>Illumio helm chart</strong> (or a prior manual pairing), so a Container Cluster already exists in the PCE. You want this operator to <em>manage</em> that cluster (labels, policy, preflight) without re-pairing it.</p>
+<ol>
+<li><strong>Find the existing Container Cluster's name</strong> in the PCE (Infrastructure → Container Clusters), e.g. <code>ocp-prod-01</code>.</li>
+<li><strong>Create the <code>PCEConnection</code></strong> (or install the chart with PCE creds) as usual — adoption still needs API access to the PCE.</li>
+<li><strong>Create the <code>ClusterProfile</code> in <code>adopt</code> mode</strong> with <code>containerClusterName</code> set to that exact name (above). No <code>credentialsOutputSecret</code>, no <code>nodePairingProfile</code> — those are for pairing, which already happened.</li>
+<li><strong>Verify:</strong>
+   <div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>get<span class="w"> </span>clusterprofile<span class="w"> </span>this-cluster
+<span class="c1"># NAME           CLUSTER       CLUSTERID   ONBOARDED   MANAGED-NS</span>
+<span class="c1"># this-cluster   ocp-prod-01   a1b2c3d4…   True        47</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>clusterprofile<span class="w"> </span>this-cluster<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.status.conditions[?(@.type==&quot;Onboarded&quot;)].message}{&quot;\n&quot;}&#39;</span>
+<span class="c1"># existing container cluster adopted</span>
+</code></pre></div>
+   <code>ONBOARDED=True</code> with the message <strong>"existing container cluster adopted"</strong> confirms the operator matched and recorded the existing cluster (its href/UUID appear in <code>status.containerClusterHref</code>/<code>containerClusterID</code>). From here, <code>namespaceRules</code>, <code>SegmentationIntent</code>/<code>Policy</code>, and <code>PolicyInsight</code> all work exactly as in create mode.</li>
+</ol>
+<p><strong>What adopt does <em>not</em> do:</strong> it never creates a Container Cluster or Pairing Profile, never generates a pairing key, and never writes a credentials Secret. It leaves the existing pairing untouched.</p>
+<p><strong>Managing namespaces on an adopted cluster:</strong> add <code>namespaceRules</code> / <code>systemNamespaces</code> to the same <code>ClusterProfile</code> — CWP labeling, enforcement, and automatic pickup of new namespaces work identically to create mode. See <a href="../namespace-management/#what-triggers-a-reconcile-and-new-namespace-behavior">Namespace management → what triggers a reconcile</a>.</p>
+<p><strong>Troubleshooting adopt:</strong> if <code>Onboarded=False</code> with reason <code>OnboardFailed</code> and a message like <em>"container cluster … was not found"</em>, the <code>containerClusterName</code> doesn't match an existing cluster in the PCE. Fix the name (it is case- and exact-match by name) and the operator retries. The controller re-checks on its healthy cadence, so a cluster that appears later is picked up automatically.</p>
+<h2 id="what-the-operator-does-create-mode">What the operator does (create mode)<a class="headerlink" href="#what-the-operator-does-create-mode" title="Permanent link">&para;</a></h2>
+<p>When you create a <code>ClusterProfile</code> in the default <code>create</code> mode:</p>
+<ol>
+<li>Reads the referenced <code>PCEConnection</code> and waits for it to be <code>Connected</code>.</li>
+<li>Calls the PCE API to create a <strong>Container Cluster</strong> with the specified name. If a cluster with that name already exists and the operator has not yet recorded its href, onboarding fails — use <code>adopt</code> mode instead (see <a href="#pre-existing-cluster-in-create-mode">Pre-existing cluster in create mode</a>).</li>
+<li>Ensures a <strong>node Pairing Profile</strong> exists — either creating one with the supplied labels and enforcement mode, or reusing an existing profile by name.</li>
+<li>Calls the PCE to <strong>generate a pairing key</strong> for that profile.</li>
+<li>Writes the credentials to a Kubernetes Secret in the operator's namespace (key: <code>credentialsOutputSecret</code>).</li>
+<li>Updates the <code>ClusterProfile</code> status with the cluster's UUID and sets the <code>Onboarded</code> condition to <code>True</code>.</li>
+</ol>
+<p>The operator does <strong>not</strong> deploy the Illumio C-VEN agent itself. The output Secret is meant to be consumed by a separate Helm release for the agent (see <a href="#using-the-credentials-with-helm">Using the credentials with Helm</a>).</p>
+<h2 id="applying-a-clusterprofile">Applying a ClusterProfile<a class="headerlink" href="#applying-a-clusterprofile" title="Permanent link">&para;</a></h2>
+<h3 id="minimal-example">Minimal example<a class="headerlink" href="#minimal-example" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">microsegment.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterProfile</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">this-cluster</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">pceConnectionRef</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prod-pce</span>
+<span class="w">  </span><span class="nt">onboarding</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">containerClusterName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ocp-prod-01</span>
+<span class="w">    </span><span class="nt">credentialsOutputSecret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">illumio-cluster-creds</span>
+</code></pre></div>
+<p>The operator creates a Pairing Profile with default settings (<code>enforcementMode: idle</code>) and no node labels.</p>
+<h3 id="with-node-labels-and-enforcement-mode">With node labels and enforcement mode<a class="headerlink" href="#with-node-labels-and-enforcement-mode" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">microsegment.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ClusterProfile</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">this-cluster</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">pceConnectionRef</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prod-pce</span>
+<span class="w">  </span><span class="nt">onboarding</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">containerClusterName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ocp-prod-01</span>
+<span class="w">    </span><span class="nt">credentialsOutputSecret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">illumio-cluster-creds</span>
+<span class="w">    </span><span class="nt">nodePairingProfile</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">labels</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node</span>
+<span class="w">        </span><span class="nt">env</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prod</span>
+<span class="w">      </span><span class="nt">enforcementMode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">visibility_only</span>
+</code></pre></div>
+<p>The operator resolves each label key/value to an Illumio label href (creating the label on the PCE if it does not yet exist), then creates the Pairing Profile with those labels applied.</p>
+<h3 id="reusing-an-existing-pairing-profile">Reusing an existing Pairing Profile<a class="headerlink" href="#reusing-an-existing-pairing-profile" title="Permanent link">&para;</a></h3>
+<p>If a Pairing Profile already exists in the PCE and you want the operator to use it instead of creating a new one, supply its name via <code>existingName</code>. The <code>labels</code> and <code>enforcementMode</code> fields are ignored in this case.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">onboarding</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">containerClusterName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ocp-prod-01</span>
+<span class="w">    </span><span class="nt">credentialsOutputSecret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">illumio-cluster-creds</span>
+<span class="w">    </span><span class="nt">nodePairingProfile</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">existingName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-existing-profile</span>
+</code></pre></div>
+<h2 id="checking-status">Checking status<a class="headerlink" href="#checking-status" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="c1"># Short summary (uses the cprof short name)</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>cprof
+
+<span class="c1"># Example output:</span>
+<span class="c1"># NAME           CLUSTER        CLUSTERID                              ONBOARDED</span>
+<span class="c1"># this-cluster   ocp-prod-01    a1b2c3d4-e5f6-7890-abcd-ef1234567890   True</span>
+</code></pre></div>
+<p>To inspect the full status conditions:</p>
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>get<span class="w"> </span>clusterprofile<span class="w"> </span>this-cluster<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.status.conditions}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</code></pre></div>
+<p>The <code>Onboarded</code> condition will report <code>status: "True"</code> once the cluster has been successfully registered and a pairing key issued.</p>
+<p>For the PCE Container Cluster UUID:</p>
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>get<span class="w"> </span>clusterprofile<span class="w"> </span>this-cluster<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.status.containerClusterID}&#39;</span>
+</code></pre></div>
+<h2 id="the-output-secret">The output Secret<a class="headerlink" href="#the-output-secret" title="Permanent link">&para;</a></h2>
+<p>Once onboarding succeeds, the operator writes (or overwrites) the Secret named by <code>credentialsOutputSecret</code> in the operator's namespace. It contains four keys:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pce_url</code></td>
+<td>The PCE endpoint (<code>host:port</code>).</td>
+</tr>
+<tr>
+<td><code>cluster_id</code></td>
+<td>The Container Cluster UUID.</td>
+</tr>
+<tr>
+<td><code>cluster_token</code></td>
+<td>The pairing token for the C-VEN agent.</td>
+</tr>
+<tr>
+<td><code>cluster_code</code></td>
+<td>The activation code generated by the PCE.</td>
+</tr>
+</tbody>
+</table>
+<p>Inspect the Secret:</p>
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>get<span class="w"> </span>secret<span class="w"> </span>illumio-cluster-creds<span class="w"> </span>-n<span class="w"> </span>illumio-operator<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.data}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;map_values(@base64d)&#39;</span>
+</code></pre></div>
+<h2 id="using-the-credentials-with-helm">Using the credentials with Helm<a class="headerlink" href="#using-the-credentials-with-helm" title="Permanent link">&para;</a></h2>
+<h3 id="gitops-flux-recommended">GitOps / Flux (recommended)<a class="headerlink" href="#gitops-flux-recommended" title="Permanent link">&para;</a></h3>
+<p>Reference the operator-managed Secret in a Flux <code>HelmRelease</code> <code>valuesFrom</code> block so that the C-VEN Helm chart receives the credentials automatically once the <code>ClusterProfile</code> is onboarded:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">helm.toolkit.fluxcd.io/v2</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HelmRelease</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">illumio-cven</span>
+<span class="w">  </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">illumio-operator</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">chart</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">chart</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">illumio-cven</span>
+<span class="w">      </span><span class="nt">sourceRef</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HelmRepository</span>
+<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">illumio</span>
+<span class="w">  </span><span class="nt">valuesFrom</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">illumio-cluster-creds</span>
+<span class="w">      </span><span class="nt">valuesKey</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pce_url</span>
+<span class="w">      </span><span class="nt">targetPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pce.url</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">illumio-cluster-creds</span>
+<span class="w">      </span><span class="nt">valuesKey</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cluster_id</span>
+<span class="w">      </span><span class="nt">targetPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pce.clusterID</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">illumio-cluster-creds</span>
+<span class="w">      </span><span class="nt">valuesKey</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cluster_token</span>
+<span class="w">      </span><span class="nt">targetPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pce.token</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Secret</span>
+<span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">illumio-cluster-creds</span>
+<span class="w">      </span><span class="nt">valuesKey</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cluster_code</span>
+<span class="w">      </span><span class="nt">targetPath</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pce.activationCode</span>
+</code></pre></div>
+<h3 id="manual-helm-install">Manual helm install<a class="headerlink" href="#manual-helm-install" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nv">PCE_URL</span><span class="o">=</span><span class="k">$(</span>kubectl<span class="w"> </span>get<span class="w"> </span>secret<span class="w"> </span>illumio-cluster-creds<span class="w"> </span>-n<span class="w"> </span>illumio-operator<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.data.pce_url}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>base64<span class="w"> </span>-d<span class="k">)</span>
+<span class="nv">CLUSTER_ID</span><span class="o">=</span><span class="k">$(</span>kubectl<span class="w"> </span>get<span class="w"> </span>secret<span class="w"> </span>illumio-cluster-creds<span class="w"> </span>-n<span class="w"> </span>illumio-operator<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.data.cluster_id}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>base64<span class="w"> </span>-d<span class="k">)</span>
+<span class="nv">CLUSTER_TOKEN</span><span class="o">=</span><span class="k">$(</span>kubectl<span class="w"> </span>get<span class="w"> </span>secret<span class="w"> </span>illumio-cluster-creds<span class="w"> </span>-n<span class="w"> </span>illumio-operator<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.data.cluster_token}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>base64<span class="w"> </span>-d<span class="k">)</span>
+<span class="nv">CLUSTER_CODE</span><span class="o">=</span><span class="k">$(</span>kubectl<span class="w"> </span>get<span class="w"> </span>secret<span class="w"> </span>illumio-cluster-creds<span class="w"> </span>-n<span class="w"> </span>illumio-operator<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.data.cluster_code}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>base64<span class="w"> </span>-d<span class="k">)</span>
+
+helm<span class="w"> </span>install<span class="w"> </span>illumio-cven<span class="w"> </span>&lt;cven-chart&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>pce.url<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$PCE_URL</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>pce.clusterID<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$CLUSTER_ID</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>pce.token<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$CLUSTER_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>pce.activationCode<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$CLUSTER_CODE</span><span class="s2">&quot;</span>
+</code></pre></div>
+<h2 id="pre-existing-cluster-in-create-mode">Pre-existing cluster in <code>create</code> mode<a class="headerlink" href="#pre-existing-cluster-in-create-mode" title="Permanent link">&para;</a></h2>
+<p>In <strong><code>create</code></strong> mode, if a Container Cluster with the requested name already exists on the PCE <strong>and this <code>ClusterProfile</code> has not yet recorded its href</strong>, the operator sets <code>Onboarded=False</code> with reason <code>OnboardFailed</code> and stops — it will not create a duplicate, and the original's one-time pairing token cannot be recovered.</p>
+<p>The intended fix is <strong><code>onboarding.mode: adopt</code></strong> (see <a href="#two-onboarding-paths">Two onboarding paths</a>): it manages the existing cluster in place without needing the token. Alternatively, delete the Container Cluster from the PCE and let <code>create</code> mode make a fresh one.</p>
+<h2 id="output-secret-ownership">Output Secret ownership<a class="headerlink" href="#output-secret-ownership" title="Permanent link">&para;</a></h2>
+<p>The output Secret named by <code>credentialsOutputSecret</code> is <strong>operator-managed</strong>. The operator creates or updates it on every successful reconcile: <code>pce_url</code> and <code>cluster_id</code> are always (re)written; <code>cluster_token</code> is written once when the cluster is freshly created and preserved on subsequent reconciles; <code>cluster_code</code> is (re)written on every reconcile (a new pairing key is generated each time). Do not edit this Secret manually — the operator will overwrite your changes.</p>
+<h2 id="one-command-install-with-the-helm-chart">One-command install with the Helm chart<a class="headerlink" href="#one-command-install-with-the-helm-chart" title="Permanent link">&para;</a></h2>
+<p>The operator's own Helm chart can optionally create the <code>ClusterProfile</code> as part of a single install:</p>
+<div class="highlight"><pre><span></span><code>helm<span class="w"> </span>install<span class="w"> </span>illumio-operator<span class="w"> </span>./dist/chart<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--namespace<span class="w"> </span>illumio-operator<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--create-namespace<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>pce.url<span class="o">=</span>mypce.example.com:8443<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>pce.orgId<span class="o">=</span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>pce.apiKey<span class="o">=</span>api_1234567890abcdef<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>pce.apiSecret<span class="o">=</span>your-api-secret<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>onboarding.enabled<span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>onboarding.containerClusterName<span class="o">=</span>ocp-prod-01
+</code></pre></div>
+<p>See <a href="../../installation/">Installation</a> for the full Helm install reference.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest"], "search": "../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.525ec568.min.js"></script>
+      
+    
+  </body>
+</html>
