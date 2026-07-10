@@ -61,6 +61,7 @@ spec:
                 enum:
                 - idle
                 - visibility_only
+                - selective
                 - full
                 type: string
               ingress:

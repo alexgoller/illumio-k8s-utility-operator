@@ -25,7 +25,7 @@ type NodePairingProfileSpec struct {
 	Labels map[string]string `json:"labels,omitempty"`
 	// EnforcementMode for a created pairing profile. One of idle,
 	// visibility_only, full. Defaults to idle.
-	// +kubebuilder:validation:Enum=idle;visibility_only;full
+	// +kubebuilder:validation:Enum=idle;visibility_only;selective;full
 	// +kubebuilder:default=idle
 	// +optional
 	EnforcementMode string `json:"enforcementMode,omitempty"`
@@ -59,7 +59,7 @@ type NamespaceRule struct {
 	// +optional
 	AssignLabels map[string]LabelAssignment `json:"assignLabels,omitempty"`
 	// EnforcementMode for the namespace. One of idle, visibility_only, full.
-	// +kubebuilder:validation:Enum=idle;visibility_only;full
+	// +kubebuilder:validation:Enum=idle;visibility_only;selective;full
 	// +optional
 	EnforcementMode string `json:"enforcementMode,omitempty"`
 }
@@ -79,7 +79,7 @@ type SystemNamespacesSpec struct {
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`
 	// EnforcementMode for system namespaces. Defaults to idle.
-	// +kubebuilder:validation:Enum=idle;visibility_only;full
+	// +kubebuilder:validation:Enum=idle;visibility_only;selective;full
 	// +optional
 	EnforcementMode string `json:"enforcementMode,omitempty"`
 }

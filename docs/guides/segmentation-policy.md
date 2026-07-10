@@ -65,7 +65,7 @@ See the [NetworkPolicy-style guide](networkpolicy-style.md) for a complete examp
 
 ## Enforcement field
 
-`SegmentationIntent` has an optional `spec.enforcement` field that requests a namespace enforcement mode. Accepted values are `idle`, `visibility_only`, and `full`.
+`SegmentationIntent` has an optional `spec.enforcement` field that requests a namespace enforcement mode. Accepted values are `idle`, `visibility_only`, `selective`, and `full`.
 
 ```yaml
 spec:
@@ -89,7 +89,7 @@ The namespace's **effective enforcement** is the strictest of:
 1. The admin baseline — the `enforcementMode` set by the matching `ClusterProfile` namespace rule.
 2. The `spec.enforcement` value on every `SegmentationIntent` and `SegmentationPolicy` in the namespace.
 
-Strictness order: `idle` < `visibility_only` < `full`. The winning value is applied to the namespace's Container Workload Profile (CWP) and is reported on each CR's status:
+Strictness order: `idle` < `visibility_only` < `selective` < `full`. The winning value is applied to the namespace's Container Workload Profile (CWP) and is reported on each CR's status:
 
 - `status.effectiveEnforcement` — the resolved enforcement mode currently applied to the namespace's CWP.
 - `status.enforcementSetBy` — names the CR that provided the winning value, or `admin` if the admin baseline was strictest.

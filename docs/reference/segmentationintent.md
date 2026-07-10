@@ -16,7 +16,7 @@ Short name: `segintent`. Category: `illumio`.
 | `allow[].ports[].port` | integer | yes (in port) | TCP or UDP port number. |
 | `allow[].ports[].protocol` | string | no | `TCP` or `UDP`. Defaults to `TCP`. |
 | `allowIntraNamespace` | bool | no | Shortcut: when `true`, allows all workloads in this namespace to reach each other on all ports (an intra-scope allow-all). Use alone for "any-any within the namespace", or alongside `allow` for finer cross-app rules. |
-| `enforcement` | string | no | Requests a namespace enforcement mode. One of `idle`, `visibility_only`, `full`. Participates in the strictest-wins calculation — does not unilaterally switch enforcement. See [Effective enforcement](#effective-enforcement). |
+| `enforcement` | string | no | Requests a namespace enforcement mode. One of `idle`, `visibility_only`, `selective`, `full`. Participates in the strictest-wins calculation — does not unilaterally switch enforcement. See [Effective enforcement](#effective-enforcement). |
 
 ### Validation
 
@@ -43,7 +43,7 @@ The operator rejects (sets `Ready=False`, reason `Rejected`) an intent that viol
 |-------|------|-------------|
 | `conditions` | []Condition | Standard Kubernetes conditions. See below. |
 | `workloadsAffected` | integer | Count of PCE workloads affected by the last provisioning operation. Shown as the `AFFECTED` print column. |
-| `effectiveEnforcement` | string | The namespace's resolved enforcement mode (`idle`, `visibility_only`, or `full`) after applying the strictest-wins algorithm across the admin baseline and all policy CRs in the namespace. |
+| `effectiveEnforcement` | string | The namespace's resolved enforcement mode (`idle`, `visibility_only`, `selective`, or `full`) after applying the strictest-wins algorithm across the admin baseline and all policy CRs in the namespace. |
 | `enforcementSetBy` | string | Names the CR (or `admin`) that determined the effective enforcement. `admin` means the `ClusterProfile` admin baseline was strictest. |
 | `unknownLabelMode` | string | The effective unknown-label mode used when this CR was compiled (`strict`, `skip`, or `create`). |
 | `unknownLabelModeSetBy` | string | Source of the resolved mode: `cr`, `namespace`, `clusterprofile`, or `default`. |
@@ -74,7 +74,7 @@ The `enforcement` spec field participates in a per-namespace strictest-wins reso
 1. The admin baseline — `enforcementMode` from the matching `ClusterProfile` namespace rule.
 2. `spec.enforcement` on every `SegmentationIntent` and `SegmentationPolicy` in the namespace.
 
-Strictness order: `idle` < `visibility_only` < `full`. The winning value is applied to the namespace's Container Workload Profile (CWP). `status.effectiveEnforcement` reflects the value currently applied; `status.enforcementSetBy` names the source.
+Strictness order: `idle` < `visibility_only` < `selective` < `full`. The winning value is applied to the namespace's Container Workload Profile (CWP). `status.effectiveEnforcement` reflects the value currently applied; `status.enforcementSetBy` names the source.
 
 **Rules and enforcement are independent.** Rules determine what traffic is allowed. Enforcement determines whether non-allowed traffic is blocked — only `full` enforcement blocks. `visibility_only` allows all traffic while recording flows. `idle` allows all traffic without recording.
 

@@ -10,7 +10,7 @@ When you pair a Kubernetes or OpenShift cluster to the PCE, Illumio represents i
 |---|---|
 | **Managed vs unmanaged** | Whether the PCE tracks and can enforce the workloads in the namespace at all. Unmanaged = invisible to policy. |
 | **Illumio labels** | The Role/App/Environment/Location (RAEL) labels stamped on **every** workload in the namespace. This is the workload's identity, and what policy scope is written against. |
-| **Enforcement / visibility** | `idle`, `visibility_only`, or `full` for the namespace's workloads. |
+| **Enforcement / visibility** | `idle`, `visibility_only`, `selective`, or `full` for the namespace's workloads. |
 
 Crucially, a CWP assigns labels **uniformly across the whole namespace** — every pod in `payments` gets the same CWP labels. (Per-workload differentiation is a separate mechanism; see [Scope vs role](#scope-vs-role-what-the-cwp-should-and-shouldnt-label) below.)
 
@@ -140,10 +140,15 @@ These values are written into the chart-managed `ClusterProfile` spec. If you ma
 - `assignLabels` — Illumio label key → assignment. Two assignment forms:
   - `value: "prod"` — assign a fixed value.
   - `fromNamespaceLabel: "app.kubernetes.io/part-of"` — read the value from the namespace's own k8s label. If the label is absent on the namespace, this assignment is skipped (the Illumio label is left unchanged).
-- `enforcementMode` — one of `idle`, `visibility_only`, `full`.
+- `enforcementMode` — one of `idle`, `visibility_only`, `selective`, `full`.
 
-!!! note "Only `idle`, `visibility_only`, and `full` are valid for container workload profiles."
-    The `selective` mode is not supported for CWPs.
+!!! note "Enforcement modes and strictness"
+    The four Illumio enforcement modes, least to most strict: **`idle`** (no enforcement, no
+    visibility) < **`visibility_only`** (logs traffic, blocks nothing) < **`selective`** (enforces
+    only rules within enforcement boundaries) < **`full`** (default-deny; blocks anything not
+    allowed). The operator's strictest-wins selection ranks `selective` between `visibility_only`
+    and `full`. A **managed** CWP cannot be `idle` (the PCE rejects it) — an unset/`idle` managed
+    namespace floors to `visibility_only`.
 
 > **Keep `assignLabels` to scope keys.** For application namespaces, assign the scope labels (`app`/`env`) here and do **not** assign `role` — that belongs to the C-VEN `LabelMap` so it can vary per workload. Other keys like `loc` may be assigned for visibility but stay out of the ruleset scope. See [Scope vs role](#scope-vs-role-what-the-cwp-should-and-shouldnt-label).
 
@@ -154,7 +159,7 @@ Individual namespaces can override the rule-derived configuration by adding anno
 | Annotation | Values | Effect |
 |------------|--------|--------|
 | `microsegment.io/managed` | `"true"` or `"false"` | Override the managed flag. |
-| `microsegment.io/enforcement` | `idle`, `visibility_only`, `full` | Override the enforcement mode. |
+| `microsegment.io/enforcement` | `idle`, `visibility_only`, `selective`, `full` | Override the enforcement mode. |
 | `microsegment.io/label.<key>` | any string | Override the value of Illumio label `<key>`. E.g. `microsegment.io/label.env=staging`. |
 
 Annotations are evaluated after all rule resolution, so they always win.

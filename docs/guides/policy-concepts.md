@@ -169,7 +169,7 @@ The namespace's **effective enforcement** is the strictest value across:
 2. The `spec.enforcement` field on **every** `SegmentationIntent` and `SegmentationPolicy` in the
    namespace.
 
-Strictness order: `idle` < `visibility_only` < `full`.
+Strictness order: `idle` < `visibility_only` < `selective` < `full`.
 
 The winning value is applied to the namespace's Container Workload Profile (CWP). Every policy CR
 reports it:

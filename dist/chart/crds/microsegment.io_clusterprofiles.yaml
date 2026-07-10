@@ -87,6 +87,7 @@ spec:
                       enum:
                       - idle
                       - visibility_only
+                      - selective
                       - full
                       type: string
                     managed:
@@ -152,6 +153,7 @@ spec:
                         enum:
                         - idle
                         - visibility_only
+                        - selective
                         - full
                         type: string
                       existingName:
@@ -212,6 +214,7 @@ spec:
                     enum:
                     - idle
                     - visibility_only
+                    - selective
                     - full
                     type: string
                   labels:

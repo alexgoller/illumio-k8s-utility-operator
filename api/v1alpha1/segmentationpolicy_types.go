@@ -39,7 +39,7 @@ type SegmentationPolicySpec struct {
 	// +optional
 	PolicyTypes []string `json:"policyTypes,omitempty"`
 	// Enforcement requests a namespace enforcement mode (see SegmentationIntent).
-	// +kubebuilder:validation:Enum=idle;visibility_only;full
+	// +kubebuilder:validation:Enum=idle;visibility_only;selective;full
 	// +optional
 	Enforcement string `json:"enforcement,omitempty"`
 }

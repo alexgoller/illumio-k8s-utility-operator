@@ -15,6 +15,9 @@ const (
 	defaultExternalDataSet = "illumio-operator"
 	// policyTypeIngress is the only supported policyType for SegmentationPolicy.
 	policyTypeIngress = "Ingress"
+	// enforcementSelective enforces only rules within enforcement boundaries; it is
+	// stricter than visibility_only and less strict than full.
+	enforcementSelective = "selective"
 	// enforcementFull is the strictest enforcement mode.
 	enforcementFull = "full"
 )
@@ -200,7 +203,9 @@ func CompilePolicy(spec microv1.SegmentationPolicySpec) ([]CompiledAllow, error)
 	return out, nil
 }
 
-var enforcementRank = map[string]int{"": 0, "idle": 1, "visibility_only": 2, enforcementFull: 3}
+// enforcementRank orders the Illumio enforcement modes from least to most strict
+// for the strictest-wins selection: idle < visibility_only < selective < full.
+var enforcementRank = map[string]int{"": 0, enforcementIdle: 1, enforcementVisibilityOnly: 2, enforcementSelective: 3, enforcementFull: 4}
 
 // StrictestEnforcement returns the strictest non-empty mode, or "" if none.
 func StrictestEnforcement(modes ...string) string {

@@ -103,7 +103,7 @@ Conditions:
 
 ## Enforcement
 
-`SegmentationPolicy` has an optional `spec.enforcement` field (`idle`, `visibility_only`, `full`). It works identically to the same field on `SegmentationIntent` — see [Enforcement mode and effective enforcement](#enforcement-mode-and-effective-enforcement) below.
+`SegmentationPolicy` has an optional `spec.enforcement` field (`idle`, `visibility_only`, `selective`, `full`). It works identically to the same field on `SegmentationIntent` — see [Enforcement mode and effective enforcement](#enforcement-mode-and-effective-enforcement) below.
 
 ### Enforcement mode and effective enforcement
 
@@ -114,7 +114,7 @@ The namespace's **effective enforcement** is the strictest of:
 1. The admin baseline — the `enforcementMode` set by the matching `ClusterProfile` namespace rule.
 2. Every policy CR (`SegmentationPolicy` and `SegmentationIntent`) in the namespace that has `spec.enforcement` set.
 
-The order of strictness is `idle` < `visibility_only` < `full`. The winning value is applied to the namespace's Container Workload Profile (CWP) and is reported on each CR's status:
+The order of strictness is `idle` < `visibility_only` < `selective` < `full`. The winning value is applied to the namespace's Container Workload Profile (CWP) and is reported on each CR's status:
 
 ```
 Enforcement:        full
