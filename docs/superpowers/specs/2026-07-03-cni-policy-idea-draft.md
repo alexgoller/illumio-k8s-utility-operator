@@ -24,6 +24,37 @@ So the value isn't "Illumio vs NetworkPolicy" — it's **"author + observe in Il
 your CNI."** Illumio stays the source of policy intent and the flow-visibility brain; the CNI becomes
 the dataplane.
 
+## Why CNI enforcement — it's control-plane ownership, not the dataplane
+
+Get the framing right or we'll pitch the wrong benefit. The common arguments for "CNI, not the C-VEN"
+are mostly **red herrings** for this decision:
+
+- *"iptables is slow / O(n) / churns on pod IP changes"* — true of **iptables the technology**, but a
+  CNI in iptables mode (Calico's default dataplane **is** iptables/nftables) has the same
+  characteristics. This is an **old-dataplane vs new-dataplane (eBPF)** argument, orthogonal to *who*
+  enforces.
+- *"the CNI does it natively"* — mechanically the CNI does the **same primitives** (endpoint
+  resolution, per-flow decisions); it's just the sanctioned owner of a faster substrate.
+
+The argument that actually holds is **control-plane ownership and declaration**:
+
+> The problem with the C-VEN in a cluster is **two controllers writing the same node dataplane, one
+> of which the Kubernetes control plane cannot see, own, or reconcile.** Its rules are not a
+> `kubectl get`-able, RBAC-controlled, GitOps'd, desired-state object; the CNI's policy is.
+
+The dataplane conflict (a second uncoordinated owner) is the *mechanism*; the *essence* is that the
+platform can't own, audit, or reconcile what it can't see. Everything a platform team uses to run the
+cluster — `kubectl`, RBAC, GitOps, admission, the reconcile loop — is blind to host iptables an agent
+programs out-of-band.
+
+**Implication for this design (and its pitch):** do **not** lead with "native / faster than iptables."
+Lead with **"your Illumio intent becomes a first-class, `kubectl`-native, GitOps'd
+`NetworkPolicy` / `CiliumNetworkPolicy` object that the platform owns and can see"** — while Illumio
+keeps the brain (labels, cross-domain reach, org-wide visibility). We are not selling a better
+dataplane; we are **moving the point of declaration into the control plane the platform already
+trusts.** That control-plane-ownership objection is the only one that survives scrutiny, so it's the
+one to answer.
+
 ## Enforcement posture (Q1) — essentially decided by the motivation
 
 For an **already-onboarded C-VEN cluster**:
